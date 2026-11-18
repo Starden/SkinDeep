@@ -9,6 +9,8 @@ every hit and hits the JACKPOT on crits.
 
 Type `/skindeep` to open the skin picker with a live preview.
 
+Download: [CurseForge](https://www.curseforge.com/wow/addons/skindeep) (WoW: Forever).
+
 ## Skins
 
 **Auto: my class** (the default) uses your current character's class skin, so
