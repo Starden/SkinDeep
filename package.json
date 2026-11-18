@@ -1,0 +1,17 @@
+{
+  "name": "skindeep",
+  "private": true,
+  "description": "Development tools for the SkinDeep WoW addon (asset generators and the mock-client test suite). Not part of the shipped addon.",
+  "license": "MIT",
+  "scripts": {
+    "test": "node tests/check.js && node tests/run.js",
+    "fonts": "node tools/make_fonts.js",
+    "textures": "node tools/make_textures.js",
+    "logo": "node tools/make_logo.js",
+    "assets": "npm run fonts && npm run textures && npm run logo"
+  },
+  "devDependencies": {
+    "fengari": "0.1.4",
+    "luaparse": "0.3.1"
+  }
+}

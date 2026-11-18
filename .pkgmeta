@@ -1,0 +1,19 @@
+# BigWigs packager settings: https://github.com/BigWigsMods/packager
+package-as: SkinDeep
+
+enable-nolib-creation: no
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+# Development files that are not part of the shipped addon.
+ignore:
+  - tools
+  - tests
+  - docs
+  - package.json
+  - package-lock.json
+  - node_modules
+  - README.md
+  - CHANGELOG.md

@@ -1,0 +1,17 @@
+## Interface: 16001
+## Title: |cffff8a2eSkin|r|cffffd84aDeep|r
+## Notes: Damage skins for the floating combat numbers: custom fonts, motion, colors, bursts and particles.|n|n/skindeep to pick a skin.
+## Author: Starden
+## Version: @project-version@
+## X-License: MIT
+## Category: Combat
+## IconTexture: Interface\AddOns\SkinDeep\Media\Textures\burst
+## SavedVariables: SkinDeepDB
+## AddonCompartmentFunc: SkinDeep_OnCompartmentClick
+
+Skins.lua
+ClassSkins.lua
+Core.lua
+Engine.lua
+Jackpot.lua
+Options.lua

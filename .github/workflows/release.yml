@@ -1,0 +1,39 @@
+# Pushing a version tag (v1.2.0) tests the addon, then packages it and
+# uploads the zip to CurseForge (WoW Forever, from "## Interface: 16001")
+# and to a GitHub release.
+#
+# One-time setup in the GitHub repo (Settings > Secrets and variables > Actions):
+#   CF_API_TOKEN  - a CurseForge API token: https://authors.curseforge.com/account/api-tokens
+# The CurseForge project is named by "## X-Curse-Project-ID" in SkinDeep.toc.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Test
+        run: |
+          npm install --no-audit --no-fund
+          npm test
+
+      - name: Package and upload
+        uses: BigWigsMods/packager@v2
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
