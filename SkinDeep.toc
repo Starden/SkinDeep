@@ -4,6 +4,9 @@
 ## Author: Starden
 ## Version: @project-version@
 ## X-License: MIT
+## X-Curse-Project-ID: 1815516
+## X-Website: https://www.curseforge.com/wow/addons/skindeep
+## X-Source: https://github.com/Starden/SkinDeep
 ## Category: Combat
 ## IconTexture: Interface\AddOns\SkinDeep\Media\Textures\burst
 ## SavedVariables: SkinDeepDB

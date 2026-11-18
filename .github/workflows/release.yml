@@ -3,7 +3,7 @@
 # and to a GitHub release.
 #
 # One-time setup in the GitHub repo (Settings > Secrets and variables > Actions):
-#   CF_API_TOKEN  - a CurseForge API token: https://authors.curseforge.com/account/api-tokens
+#   CF_API_TOKEN  - a CurseForge API token (authors.curseforge.com: profile menu > API Tokens)
 # The CurseForge project is named by "## X-Curse-Project-ID" in SkinDeep.toc.
 name: Release
 
@@ -18,7 +18,16 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      # Secrets can't be tested in an `if`, so expose whether it's set.
+      HAS_CF_TOKEN: ${{ secrets.CF_API_TOKEN != '' }}
     steps:
+      - name: Require the CurseForge token
+        if: ${{ env.HAS_CF_TOKEN != 'true' }}
+        run: |
+          echo "::error::The CF_API_TOKEN secret is missing. Add it under Settings > Secrets and variables > Actions, then re-run this workflow."
+          exit 1
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -34,6 +43,11 @@ jobs:
 
       - name: Package and upload
         uses: BigWigsMods/packager@v2
+        # Packager versions disagree on the variable names (current: CF_API_TOKEN /
+        # GH_API_TOKEN; older: CF_API_KEY / GITHUB_OAUTH), and a name it doesn't
+        # read makes the upload silently skip. Pass each token under both names.
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_API_KEY: ${{ secrets.CF_API_TOKEN }}
+          GH_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
