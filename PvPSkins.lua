@@ -3,7 +3,7 @@ local _, ns = ...
 -- PvP skins. Same data format as Skins.lua (see its header); group = "pvp".
 -- Each id matches its feat in Feats.lua.
 --
--- Two rank ladders follow Forever's honor level: each rank keeps its
+-- Two rank ladders follow Forever's PvP rank (Rank 6, 10, 14): each keeps its
 -- faction's look and adds more, up to the Rank 14 showpieces, which bring
 -- everything the engine has: an aura on every hit, and on crits a title
 -- banner, two particle systems, layered bursts and (Horde) a war-drum pulse.

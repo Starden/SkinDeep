@@ -20,7 +20,7 @@ local _, ns = ...
 local Feats = {}
 ns.Feats = Feats
 
-local min, floor, tinsert = math.min, math.floor, table.insert
+local min, max, floor, tinsert = math.min, math.max, math.floor, table.insert
 local GOLD = 10000 -- copper
 local STARTER = { classic = true, [ns.AUTO or "auto"] = true }
 
@@ -84,16 +84,17 @@ for _, f in ipairs(FLAVOR) do
     LIST[#LIST + 1] = f
 end
 
--- PvP. Ranks follow Forever's honor level (UnitHonorLevel): the highest any
--- character of that faction has reached. Battleground wins come from
--- PVP_MATCH_COMPLETE, duels from the game's "has defeated ... in a duel" line.
+-- PvP. Ranks follow Forever's own PvP rank (the Player vs. Player window's
+-- Civilian, Rank 1 ... Rank 14): the highest any character of that faction
+-- has reached. Battleground wins come from PVP_MATCH_COMPLETE, duels from the
+-- game's "has defeated ... in a duel" line.
 local PVP = {
-    { id = "knight",       counter = "honorAlliance", goal = 6,  text = "Reach honor level 6 on an Alliance character" },
-    { id = "ltcommander",  counter = "honorAlliance", goal = 10, text = "Reach honor level 10 on an Alliance character" },
-    { id = "grandmarshal", counter = "honorAlliance", goal = 14, text = "Reach honor level 14 on an Alliance character" },
-    { id = "stoneguard",   counter = "honorHorde",    goal = 6,  text = "Reach honor level 6 on a Horde character" },
-    { id = "champion",     counter = "honorHorde",    goal = 10, text = "Reach honor level 10 on a Horde character" },
-    { id = "highwarlord",  counter = "honorHorde",    goal = 14, text = "Reach honor level 14 on a Horde character" },
+    { id = "knight",       counter = "rankAlliance", goal = 6,  text = "Reach PvP Rank 6 (Knight) on an Alliance character" },
+    { id = "ltcommander",  counter = "rankAlliance", goal = 10, text = "Reach PvP Rank 10 on an Alliance character" },
+    { id = "grandmarshal", counter = "rankAlliance", goal = 14, text = "Reach PvP Rank 14 on an Alliance character" },
+    { id = "stoneguard",   counter = "rankHorde",    goal = 6,  text = "Reach PvP Rank 6 (Stone Guard) on a Horde character" },
+    { id = "champion",     counter = "rankHorde",    goal = 10, text = "Reach PvP Rank 10 on a Horde character" },
+    { id = "highwarlord",  counter = "rankHorde",    goal = 14, text = "Reach PvP Rank 14 on a Horde character" },
     { id = "flagrunner",   counter = "winWSG",        goal = 5,  text = "Win 5 Warsong Gulch battles" },
     { id = "fivebanners",  counter = "winAB",         goal = 5,  text = "Win 5 Arathi Basin battles" },
     { id = "wintersiege",  counter = "winAV",         goal = 3,  text = "Win 3 Alterac Valley battles" },
@@ -391,14 +392,35 @@ local function playerFaction()
     return (f == "Alliance" or f == "Horde") and f or nil
 end
 
--- This character's honor level, or nil when the client doesn't say.
-function Feats.HonorLevel()
-    return ns.Plain(call(UnitHonorLevel, "player"), "number")
+Feats.PlayerFaction = playerFaction
+
+-- Classic rank titles, for display (index = rank; 0 is Civilian).
+Feats.RANK_NAMES = {
+    Alliance = { "Private", "Corporal", "Sergeant", "Master Sergeant", "Sergeant Major", "Knight", "Knight-Lieutenant",
+                 "Knight-Captain", "Knight-Champion", "Lieutenant Commander", "Commander", "Marshal", "Field Marshal",
+                 "Grand Marshal" },
+    Horde = { "Scout", "Grunt", "Sergeant", "Senior Sergeant", "First Sergeant", "Stone Guard", "Blood Guard",
+              "Legionnaire", "Centurion", "Champion", "Lieutenant General", "General", "Warlord", "High Warlord" },
+}
+
+-- This character's PvP rank: Forever keeps it as a Renown-style currency
+-- (Constants.CurrencyConsts.CURRENCY_ID_RENOWN_PVP_RANK) whose amount is the
+-- rank. Returns rank (0-14) and the raw currency info, or nil.
+function Feats.PvPRank()
+    local consts = Constants and Constants.CurrencyConsts
+    local id = consts and ns.Plain(consts.CURRENCY_ID_RENOWN_PVP_RANK, "number")
+    local get = C_CurrencyInfo and C_CurrencyInfo.GetCurrencyInfo
+    if not (id and get) then return nil end
+    local ok, info = pcall(get, id)
+    if not ok or type(info) ~= "table" then return nil end
+    local q = ns.Plain(info.quantity, "number")
+    if not q then return nil, info end
+    return max(0, min(14, q)), info
 end
 
-local function honor()
-    local lvl, faction = Feats.HonorLevel(), playerFaction()
-    if lvl and faction then raise("honor" .. faction, lvl) end
+local function pvpRank()
+    local rank, faction = Feats.PvPRank(), playerFaction()
+    if rank and faction then raise("rank" .. faction, rank) end
 end
 
 local BG = { { "Warsong", "winWSG" }, { "Arathi", "winAB" }, { "Alterac", "winAV" } }
@@ -450,7 +472,7 @@ end
 local events = CreateFrame("Frame")
 for _, e in ipairs({ "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "UNIT_COMBAT", "UNIT_HEALTH", "PLAYER_TARGET_CHANGED",
                      "NAME_PLATE_UNIT_REMOVED", "ENCOUNTER_END", "BOSS_KILL", "PLAYER_MONEY", "PLAYER_LEVEL_UP",
-                     "HONOR_LEVEL_UPDATE", "PVP_MATCH_COMPLETE", "CHAT_MSG_SYSTEM" }) do
+                     "PLAYER_PVP_RANK_CHANGED", "CURRENCY_DISPLAY_UPDATE", "PVP_MATCH_COMPLETE", "CHAT_MSG_SYSTEM" }) do
     pcall(events.RegisterEvent, events, e)
 end
 events:SetScript("OnEvent", function(_, event, a, b, c, d, e)
@@ -476,8 +498,8 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d, e)
         money()
     elseif event == "PLAYER_LEVEL_UP" then
         level(a)
-    elseif event == "HONOR_LEVEL_UPDATE" then
-        honor()
+    elseif event == "PLAYER_PVP_RANK_CHANGED" or event == "CURRENCY_DISPLAY_UPDATE" then
+        pvpRank()
     elseif event == "PVP_MATCH_COMPLETE" then
         matchComplete(a)
     elseif event == "CHAT_MSG_SYSTEM" then
@@ -485,11 +507,11 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d, e)
     elseif event == "PLAYER_LOGIN" then
         -- Records this character's level and honor (and checks every feat:
         -- anything already reached, like a level 60's class feat, pops now).
-        honor()
+        pvpRank()
         level()
     elseif event == "PLAYER_ENTERING_WORLD" then
         lastMoney = nil
         money()
-        honor()
+        pvpRank()
     end
 end)

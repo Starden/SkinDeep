@@ -127,7 +127,10 @@ function UnitCreatureType(u) return units[u] and units[u].ctype end
 function UnitIsDead(u) return units[u] ~= nil and units[u].dead == true end
 function UnitIsPlayer(u) return u == "player" or (units[u] ~= nil and units[u].player == true) end
 honorLevel, playerFactionName, inInstanceKind, instanceName, arenaFaction = 1, "Alliance", "none", "", 0
-function UnitHonorLevel(u) return honorLevel end
+function UnitHonorLevel(u) return 1 end
+pvpRank = 0
+Constants = { CurrencyConsts = { CURRENCY_ID_RENOWN_PVP_RANK = 3001 } }
+C_CurrencyInfo = { GetCurrencyInfo = function(id) if id == 3001 then return { name = "PvP Rank", quantity = pvpRank, maxQuantity = 14, totalEarned = pvpRank } end end }
 function UnitFactionGroup(u) return playerFactionName end
 function IsInInstance() return inInstanceKind ~= "none", inInstanceKind end
 function GetInstanceInfo() return instanceName end
@@ -564,18 +567,21 @@ do
   local F = ns.Feats
   local function texts() local t = {}; for _, w in ipairs(frames) do if w.kind == "FontString" and w.text then t[w.text] = true end end; return t end
   -- Rank ladders follow the honor level, per faction.
-  honorLevel, playerFactionName = 7, "Alliance"
-  fire("HONOR_LEVEL_UPDATE")
-  check(SkinDeepDB.counters.honorAlliance == 7 and F.IsDone(F.ByID.knight) and not F.IsDone(F.ByID.ltcommander),
-    "honor level 7 on an Alliance character unlocks Knight, not yet Lieutenant Commander")
-  honorLevel, playerFactionName = 14, "Horde"
-  fire("HONOR_LEVEL_UPDATE")
+  pvpRank, playerFactionName = 7, "Alliance"
+  fire("PLAYER_PVP_RANK_CHANGED")
+  check(SkinDeepDB.counters.rankAlliance == 7 and F.IsDone(F.ByID.knight) and not F.IsDone(F.ByID.ltcommander),
+    "PvP Rank 7 on an Alliance character unlocks Knight, not yet Lieutenant Commander")
+  pvpRank, playerFactionName = 14, "Horde"
+  fire("CURRENCY_DISPLAY_UPDATE")
   check(F.IsDone(F.ByID.stoneguard) and F.IsDone(F.ByID.champion) and F.IsDone(F.ByID.highwarlord),
-    "honor level 14 on a Horde character unlocks the whole Horde ladder up to High Warlord")
-  check(not F.IsDone(F.ByID.grandmarshal), "Horde honor does not unlock Grand Marshal")
-  honorLevel, playerFactionName = 3, "Horde"
-  fire("HONOR_LEVEL_UPDATE")
-  check(SkinDeepDB.counters.honorHorde == 14, "a lower honor level later does not lower the best")
+    "Rank 14 on a Horde character unlocks the whole Horde ladder up to High Warlord")
+  check(not F.IsDone(F.ByID.grandmarshal), "Horde rank does not unlock Grand Marshal")
+  pvpRank, playerFactionName = 3, "Horde"
+  fire("PLAYER_PVP_RANK_CHANGED")
+  check(SkinDeepDB.counters.rankHorde == 14, "a lower rank later (a new season) does not lower the best")
+  pvpRank = 99
+  fire("PLAYER_PVP_RANK_CHANGED")
+  check(SkinDeepDB.counters.rankHorde == 14, "a rank read above 14 is capped at 14")
   -- Battleground wins: only wins, one per battle, by map.
   inInstanceKind, instanceName, arenaFaction = "pvp", "Warsong Gulch", 1
   fire("PLAYER_ENTERING_WORLD")
@@ -616,6 +622,7 @@ do
   run(0.3)
   check(texts()["HIGH WARLORD"], "High Warlord crits roar their title")
   run(3)
+  SlashCmdList.SKINDEEP("rank")
   SlashCmdList.SKINDEEP("honor")
   SlashCmdList.SKINDEEP("pvp duelist")
   check(SkinDeepDB.pvpSkin == "duelist", "/skindeep pvp sets the PvP skin")

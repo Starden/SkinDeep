@@ -24,7 +24,7 @@ Collect your skins.
   - **Silver Dawn** (Argent Dawn): silver numbers rise over the dawn light;
     crits break into rays.
 - **Ten PvP skins**:
-  - **Rank ladders** that follow your honor level, for each faction: Knight,
+  - **Rank ladders** that follow your PvP rank (Rank 6, 10 and 14), for each faction: Knight,
     Lieutenant Commander and **Grand Marshal** (Alliance); Stone Guard,
     Champion and **High Warlord** (Horde). The Rank 14 skins are the most
     extravagant in SkinDeep: an aura on every hit, and crits with a title
@@ -40,7 +40,7 @@ Collect your skins.
   progress, and can still be previewed.
 - Progress and unlocks are shared by all your characters.
 - New commands: `/skindeep feats`, `/skindeep welcome`, `/skindeep pvp`,
-  `/skindeep honor`.
+  `/skindeep rank`.
 
 ## 1.1.0
 

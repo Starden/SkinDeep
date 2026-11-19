@@ -777,14 +777,23 @@ SlashCmdList.SKINDEEP = function(msg)
         ns.OpenWindow("feats")
     elseif cmd == "welcome" then
         ns.ShowWelcome()
-    elseif cmd == "honor" then
-        -- What SkinDeep reads for the PvP rank skins.
-        local lvl = Feats.HonorLevel()
-        local ok, faction = pcall(UnitFactionGroup, "player")
-        faction = ok and ns.Plain(faction, "string") or "?"
+    elseif cmd == "rank" or cmd == "honor" then
+        -- What SkinDeep reads for the PvP rank skins, raw values included.
+        local rank, info = Feats.PvPRank()
+        local faction = Feats.PlayerFaction() or "?"
+        local names = Feats.RANK_NAMES[faction]
+        local title = rank and (rank == 0 and "Civilian" or (names and names[rank])) or nil
         local c = ns.db.counters
-        ns.Print(("honor level %s (%s). Best so far: Alliance %d, Horde %d. Ranks unlock at 6, 10 and 14.")
-            :format(lvl and tostring(lvl) or "not available", faction, c.honorAlliance or 0, c.honorHorde or 0))
+        if rank then
+            ns.Print(("PvP rank %d (%s, %s). Best so far: Alliance %d, Horde %d. Rank skins unlock at 6, 10 and 14.")
+                :format(rank, title or "?", faction, c.rankAlliance or 0, c.rankHorde or 0))
+        else
+            ns.Print("couldn't read a PvP rank from the game on this client.")
+        end
+        if type(info) == "table" then
+            ns.Print(("rank currency: %s, quantity %s, max %s, earned %s.")
+                :format(tostring(info.name), tostring(info.quantity), tostring(info.maxQuantity), tostring(info.totalEarned)))
+        end
         ns.Print(("battlegrounds won: Warsong %d, Arathi %d, Alterac %d. Duels won: %d.")
             :format(c.winWSG or 0, c.winAB or 0, c.winAV or 0, c.duels or 0))
     elseif cmd == "pvp" then
@@ -835,6 +844,6 @@ SlashCmdList.SKINDEEP = function(msg)
         ns.Engine.SetUnlocked(cmd == "unlock")
         refresh()
     else
-        ns.Print("/skindeep [test | feats | list | skin <name> | pvp <name|off> | honor | welcome | on | off | restore | unlock | lock]")
+        ns.Print("/skindeep [test | feats | list | skin <name> | pvp <name|off> | rank | welcome | on | off | restore | unlock | lock]")
     end
 end

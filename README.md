@@ -52,8 +52,8 @@ every character gets its own look.
 
 | PvP skins | |
 |---|---|
-| **Knight · Lieutenant Commander · Grand Marshal** (Alliance) | Blue-and-gold ranks; reach honor level 6, 10 and 14 on an Alliance character. Grand Marshal crowns every crit with a crest, a sunburst, its title and a shower of gold. |
-| **Stone Guard · Champion · High Warlord** (Horde) | Iron-and-blood ranks; reach honor level 6, 10 and 14 on a Horde character. High Warlord crits beat the war drum, split the ground and erupt in fire and skulls. |
+| **Knight · Lieutenant Commander · Grand Marshal** (Alliance) | Blue-and-gold ranks; reach PvP Rank 6, 10 and 14 on an Alliance character. Grand Marshal crowns every crit with a crest, a sunburst, its title and a shower of gold. |
+| **Stone Guard · Champion · High Warlord** (Horde) | Iron-and-blood ranks; reach PvP Rank 6, 10 and 14 on a Horde character. High Warlord crits beat the war drum, split the ground and erupt in fire and skulls. |
 | **Flag Runner** (Warsong Gulch) | Numbers sprint in; crits plant the flag. Win 5 Warsong Gulch battles. |
 | **Five Banners** (Arathi Basin) | Numbers climb around the five nodes. Win 5 Arathi Basin battles. |
 | **Winter Siege** (Alterac Valley) | Frosty numbers slam in with snow. Win 3 Alterac Valley battles. |
