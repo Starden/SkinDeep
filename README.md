@@ -73,7 +73,7 @@ points SkinDeep reads.
 | **Winter Siege** (Alterac Valley) | Frosty numbers slam in with snow. Win 3 Alterac Valley battles. |
 | **Duelist** (Duels) | Numbers feint and strike; crits flash crossed blades. Win 25 duels. |
 | **Tally Marks · Headhunter · Warmonger** | Honorable-kill trophies: 100, 1,000 and 5,000 honorable kills (lifetime kills count). |
-| **Lion's Pride · Blood & Thunder** | 250 honorable kills on Alliance / Horde characters. |
+| **Lion's Pride · Blood & Thunder** | 250 honorable kills on Alliance / Horde characters. Numbers rise over the game's own Alliance or Horde crest, and crits raise it full size. |
 
 Shift-click any skin to make it your **PvP skin**, used automatically in
 battlegrounds and against players.

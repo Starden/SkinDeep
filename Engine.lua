@@ -321,8 +321,11 @@ end
 
 -- dir: the pop's motion direction (-1/1); d.trail puts the texture's x
 -- offset behind the motion (an arrow streak).
+-- d.file is one of the game's own textures (the faction crests); if the
+-- client can't load it, d.tex (SkinDeep's own) stands in.
 local function setupTexture(tex, d, rotation, dir)
-    tex:SetTexture(TEX .. d.tex .. ".tga")
+    local ok = d.file and tex:SetTexture(d.file)
+    if not ok then tex:SetTexture(TEX .. d.tex .. ".tga") end
     tex:SetBlendMode(d.blend or "ADD")
     local c = d.color or WHITE
     tex:SetVertexColor(c[1], c[2], c[3])

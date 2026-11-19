@@ -73,7 +73,8 @@ function Widget:SetTextColor(r, g, b, a) num(r, "r"); num(g, "g"); num(b, "b"); 
 function Widget:SetVertexColor(r, g, b, a) num(r, "r"); num(g, "g"); num(b, "b") end
 function Widget:SetColorTexture(r, g, b, a) num(r, "r"); num(g, "g"); num(b, "b") end
 function Widget:SetRotation(r) num(r, "SetRotation") end
-function Widget:SetTexture(p) if type(p) ~= "string" then error("SetTexture", 2) end; self.tex = p end
+missingTextures = {}
+function Widget:SetTexture(p) if type(p) ~= "string" then error("SetTexture", 2) end; if missingTextures[p] then return false end; self.tex = p; return true end
 local BLENDS = { ADD = true, BLEND = true, MOD = true, ALPHAKEY = true, DISABLE = true }
 function Widget:SetBlendMode(m) if not BLENDS[m] then error("bad blend " .. tostring(m), 2) end end
 function Widget:SetDrawLayer(l, s) if s and (s < -8 or s > 7) then error("sublevel " .. s, 2) end end
@@ -732,6 +733,30 @@ do
   check(C("hk") == 1300 and F.IsDone(F.ByID.headhunter) and F.IsDone(F.ByID.lionspride), "the game's newer lifetime total raises the count (Headhunter, Lion's Pride)")
   units.target = dummy
   gameHour, monthNow = 12, 6
+end
+
+print("== faction crests")
+do
+  local function critTextures(id)
+    local seen = {}
+    run(3)
+    ns.SetSkin(id)
+    fire("UNIT_COMBAT", "target", "WOUND", "CRITICAL", 1234, 1)
+    run(0.05)
+    for _, w in ipairs(frames) do
+      if w.kind == "Texture" and w.tex and w.shown then seen[w.tex] = true end
+    end
+    return seen
+  end
+  local A, H = "Interface\\Timer\\Alliance-Logo", "Interface\\Timer\\Horde-Logo"
+  check(critTextures("lionspride")[A], "Lion's Pride crits show the game's Alliance crest")
+  check(critTextures("bloodthunder")[H], "Blood & Thunder crits show the game's Horde crest")
+  missingTextures[A] = true
+  local seen = critTextures("lionspride")
+  check(seen["Interface\\AddOns\\SkinDeep\\Media\\Textures\\shield.tga"], "if the client lacks the crest, SkinDeep's shield stands in")
+  missingTextures[A] = nil
+  run(3)
+  ns.SetSkin("auto")
 end
 
 print("== spec variants")

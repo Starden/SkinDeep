@@ -13,6 +13,9 @@ local F = ns.Fonts
 local add = ns.AddSkin
 
 local GOLD = { 1, 0.84, 0.32 }
+local WHITE = { 1, 1, 1 }
+-- The game's own faction crests (the battleground countdown emblems).
+local ALLIANCE_CREST, HORDE_CREST = "Interface\\Timer\\Alliance-Logo", "Interface\\Timer\\Horde-Logo"
 local A_PHYS, A_SPELL = { 0.95, 0.93, 0.85 }, { 0.35, 0.6, 1 }   -- Alliance: ivory / royal blue
 local H_PHYS, H_SPELL = { 0.9, 0.85, 0.78 }, { 0.92, 0.15, 0.12 } -- Horde: bone / blood red
 
@@ -225,14 +228,16 @@ add("tally", {
 
 add("lionspride", {
     group = "pvp", faction = "Alliance",
-    name = "Lion's Pride", tagline = "250 Alliance honorable kills: proud blue-and-gold numbers; crits roar out a golden shockwave behind the crest.",
+    name = "Lion's Pride", tagline = "250 Alliance honorable kills: proud blue-and-gold numbers over the Alliance crest; crits raise it high in a golden shockwave.",
     font = F.morpheus, size = 25, outline = "OUTLINE",
     color = { 0.3, 0.55, 1 }, physColor = A_PHYS, spellColor = A_SPELL,
     layers = { { x = 2, y = -2, color = { 0.05, 0.12, 0.35, 1 } }, { x = -1, y = 1, color = { 1, 0.85, 0.35, 0.45 } } },
     motion = "rise", motionArgs = { speed = 34 },
     dur = 1.3, critDur = 1.6, critScale = 1.55, pop = 0.3,
+    decor = { file = ALLIANCE_CREST, tex = "shield", size = 30, y = 26, color = WHITE, alpha = 0.5, blend = "BLEND" },
+    critReplacesDecor = true,
     critDecor = { tex = "burst", size = 120, color = GOLD, alpha = 0.55, spin = 0.5 },
-    critDecor2 = { tex = "shield", size = 60, color = { 0.12, 0.25, 0.65 }, alpha = 0.95, blend = "BLEND", snap = 1.6, snapTime = 0.12 },
+    critDecor2 = { file = ALLIANCE_CREST, tex = "shield", size = 76, color = WHITE, alpha = 1, blend = "BLEND", snap = 1.6, snapTime = 0.12 },
     ring = { size = 70, color = GOLD, grow = 2.0, alpha = 0.9 },
     particles = { tex = "spark", count = 0, critCount = 6, size = { 3, 6 }, speed = { 20, 60 }, dir = { 60, 120 },
                   gravity = 20, life = { 0.5, 1.0 }, color = GOLD },
@@ -240,13 +245,15 @@ add("lionspride", {
 
 add("bloodthunder", {
     group = "pvp", faction = "Horde",
-    name = "Blood & Thunder", tagline = "250 Horde honorable kills: numbers slam down like thunder; crits crack lightning through the iron ring.",
+    name = "Blood & Thunder", tagline = "250 Horde honorable kills: numbers slam down like thunder over the Horde crest; crits stamp it down with a crack of lightning.",
     font = F.skurri, size = 30, outline = "THICKOUTLINE",
     color = { 0.9, 0.15, 0.12 }, physColor = H_PHYS, spellColor = H_SPELL,
     layers = { { x = 2, y = -2, color = { 0.2, 0.02, 0.02, 1 } }, { x = 4, y = -4, color = { 0.05, 0, 0, 1 } } },
     motion = "drop", motionArgs = { height = 40, fall = 0.12, squash = 0.3, sinkAt = 0.35, sink = 12 },
     dur = 1.15, critDur = 1.45, critScale = 1.55, pop = 0, shake = 6,
-    critDecor = { tex = "spikes", size = 90, color = { 0.75, 0.08, 0.06 }, alpha = 0.85, blend = "BLEND", spin = 0.6, snap = 0.3, snapTime = 0.08 },
+    decor = { file = HORDE_CREST, tex = "spikes", size = 30, y = 26, color = WHITE, alpha = 0.5, blend = "BLEND" },
+    critReplacesDecor = true,
+    critDecor = { file = HORDE_CREST, tex = "spikes", size = 80, color = WHITE, alpha = 1, blend = "BLEND", snap = 0.3, snapTime = 0.08 },
     critDecor2 = { tex = "bolt", size = { 26, 100 }, color = { 1, 0.85, 0.5 }, alpha = 1, flicker = true, randomRot = true },
     particles = { tex = "pixel", count = 0, critCount = 8, size = { 3, 6 }, speed = { 60, 150 }, dir = { 20, 160 },
                   gravity = -400, life = { 0.4, 0.8 }, color = { 0.6, 0.1, 0.05 }, blend = "BLEND" },
