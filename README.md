@@ -11,6 +11,18 @@ Type `/skindeep` to open the skin picker with a live preview.
 
 Download: [CurseForge](https://www.curseforge.com/wow/addons/skindeep) (WoW: Forever).
 
+## Collect them, or have them all
+
+The first time you log in, SkinDeep asks how you want your skins:
+
+- **Collector**: start with Classic+, Auto and your class's skin, and earn the
+  rest through SkinDeep's own feats (777 crits for Jackpot, Fire damage for
+  Ember Tide, a level 10 character of a class for its skin...).
+- **Everything unlocked**: every skin right away; feats still pop up for fun.
+
+Switch any time on the **Feats** tab (`/skindeep feats`), which also shows your
+progress. Unlocks are shared by all your characters.
+
 ## Skins
 
 **Auto: my class** (the default) uses your current character's class skin, so
@@ -59,8 +71,9 @@ Physical and spell damage always read apart, like Blizzard's white and yellow:
 - Bursts and particles, skin sounds, abbreviated big numbers, size and speed.
 - **Blizzard's numbers in groups**: off by default. See *Groups* below.
 
-Slash commands: `/skindeep test`, `/skindeep list`, `/skindeep skin <name>`,
-`/skindeep on`, `/skindeep off`, `/skindeep restore`, `/skindeep unlock`.
+Slash commands: `/skindeep test`, `/skindeep feats`, `/skindeep list`,
+`/skindeep skin <name>`, `/skindeep welcome`, `/skindeep on`, `/skindeep off`,
+`/skindeep restore`, `/skindeep unlock`.
 
 ## Good to know
 

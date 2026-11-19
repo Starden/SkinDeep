@@ -119,7 +119,20 @@ local inGroup, inCombat = false, false
 function IsInGroup() return inGroup end
 function InCombatLockdown() return inCombat end
 function UnitCanAttack(a, b) return true end
-function UnitIsUnit(a, b) return a == "nameplate1" and b == "target" end
+local dummy = { name = "Training Dummy", ctype = "Mechanical" }
+units = { target = dummy, nameplate1 = dummy, nameplate2 = { name = "Gnoll Brute", ctype = "Humanoid" } }
+function UnitIsUnit(a, b) return units[a] ~= nil and units[a] == units[b] end
+function UnitName(u) return units[u] and units[u].name end
+function UnitCreatureType(u) return units[u] and units[u].ctype end
+function UnitIsDead(u) return units[u] ~= nil and units[u].dead == true end
+function UnitIsPlayer(u) return u == "player" end
+playerLevel, money = 12, 5000
+function UnitLevel(u) return playerLevel end
+function GetMoney() return money end
+function time() return 1700000000 end
+local soundFiles = {}
+function PlaySoundFile(path, channel) soundFiles[#soundFiles + 1] = path; return true end
+C_SpecializationInfo = { GetSpecialization = function() return 2 end }
 function AbbreviateLargeNumbers(v) if issecretvalue(v) then return v end return tostring(v) end
 function HideUIPanel() end
 function UnitClass(u) return "Mage", "MAGE", 8 end
@@ -178,7 +191,7 @@ end
 
 -- Load the addon like the client: each file gets (addonName, ns).
 local ns = {}
-for _, file in ipairs({ "Skins.lua", "ClassSkins.lua", "Core.lua", "Engine.lua", "Jackpot.lua", "Options.lua" }) do
+for _, file in ipairs({ "Skins.lua", "ClassSkins.lua", "Core.lua", "Feats.lua", "Engine.lua", "Jackpot.lua", "Options.lua", "Welcome.lua" }) do
   local chunk, err = loadfile(ADDON_DIR .. "/" .. file)
   if not chunk then error(err) end
   chunk("SkinDeep", ns)
@@ -340,11 +353,13 @@ local win = _G.SkinDeepConfig
 check(win and win.shown, "window opens")
 run(3)
 for _, f in ipairs(frames) do
-  if f.parent == win and f.kind == "Button" and f.scripts.OnClick then f.scripts.OnClick(f, "LeftButton") end
+  local p = f.parent; while p and p ~= win do p = p.parent end
+  if p == win and f.kind == "Button" and f.scripts.OnClick then f.scripts.OnClick(f, "LeftButton") end
 end
 run(3)
 for _, f in ipairs(frames) do
-  if f.parent == win and f.kind == "Button" and f.scripts.OnClick then f.scripts.OnClick(f, "LeftButton") end
+  local p = f.parent; while p and p ~= win do p = p.parent end
+  if p == win and f.kind == "Button" and f.scripts.OnClick then f.scripts.OnClick(f, "LeftButton") end
 end
 ns.ToggleWindow()
 check(not win.shown, "window closes")
@@ -410,6 +425,112 @@ SkinDeepDB.mode = "skin"; ns.ApplyCVars()
 fire("PLAYER_LOGOUT")
 check(cvars.floatingCombatTextCombatDamage_v2 == "1" and cvars.WorldTextRampDuration_v2 == "1", "all CVars restored at logout")
 check(next(SkinDeepDB.borrowed) == nil, "nothing left borrowed")
+
+print("== feats and unlocks")
+local F = ns.Feats
+local function texts() local t = {}; for _, w in ipairs(frames) do if w.kind == "FontString" and w.text then t[w.text] = true end end; return t end
+local function hitTarget(n, flag, school) for _ = 1, n do fire("UNIT_COMBAT", "target", "WOUND", flag or "", 50, school or 1) end end
+-- Fresh feat state for this section.
+SkinDeepDB.unlockMode = nil
+SkinDeepDB.counters, SkinDeepDB.feats, SkinDeepDB.bosses, SkinDeepDB.classLevels, SkinDeepDB.specCrits = nil, nil, nil, nil, nil
+F.InitDB(SkinDeepDB)
+SkinDeepDB.enabled = true
+check(F.IsUnlocked("jackpot") and ns.SetSkin("jackpot"), "before choosing a mode every skin is open")
+F.SetMode("collector")
+check(SkinDeepDB.skin == "auto", "switching to Collector moves a locked skin back to Auto")
+check(F.IsUnlocked("classic") and F.IsUnlocked("mage") and F.IsUnlocked("auto"), "Collector starts with Classic+, Auto and your class skin")
+check(not F.IsUnlocked("warrior") and not F.IsUnlocked("jackpot"), "other class skins and Jackpot start locked")
+local ok, why = ns.SetSkin("jackpot")
+check(ok == false and why == "locked" and SkinDeepDB.skin == "auto", "equipping a locked skin is refused")
+SlashCmdList.SKINDEEP("skin jackpot")
+check(SkinDeepDB.skin == "auto", "slash command refuses a locked skin too")
+SkinDeepDB.skin = "warrior"
+check(ns.ResolvedSkinID() == "mage", "a saved skin that is locked for this character resolves to the class skin")
+SkinDeepDB.skin = "auto"
+
+local soundsBefore = #soundFiles
+hitTarget(777, "CRITICAL")
+check(F.IsDone(F.ByID.comic) and F.IsDone(F.ByID.jackpot), "777 crits complete Kaboom! (250) and Jackpot (777)")
+check(F.IsUnlocked("jackpot") and ns.SetSkin("jackpot"), "Jackpot is now equippable")
+run(0.1)
+check(texts()["Skin unlocked"] and #soundFiles > soundsBefore, "unlock toast shows with its fanfare")
+check(SkinDeepDB.specCrits["MAGE:2"] == 777, "crits are counted per spec for the coming spec skins")
+check(not F.IsDone(F.ByID.arcade), "hits are not done yet (777 / 1000)")
+hitTarget(500, "", 4)
+check(F.IsDone(F.ByID.ember) and F.IsDone(F.ByID.arcade), "500 Fire hits complete Ember Tide, and the hit total passes 1,000")
+fire("UNIT_COMBAT", "nameplate1", "WOUND", "", 50, 1)   -- the target's own plate
+check(SkinDeepDB.counters.hits == 1277, "a hit on the target plate is not double counted (" .. tostring(SkinDeepDB.counters.hits) .. ")")
+fire("UNIT_COMBAT", "target", "WOUND", "", 0, 1)
+check(SkinDeepDB.counters.hits == 1277, "zero-damage results do not count as hits")
+
+print("== kills and bosses")
+local monk = { name = "Scarlet Monk", ctype = "Humanoid" }
+fire("NAME_PLATE_UNIT_REMOVED", "nameplate1")   -- the dummy plate goes away
+units.target, units.nameplate1 = monk, monk
+fire("PLAYER_TARGET_CHANGED")
+fire("UNIT_COMBAT", "target", "WOUND", "", 50, 1)
+fire("UNIT_COMBAT", "nameplate1", "WOUND", "", 50, 1)
+monk.dead = true
+fire("UNIT_HEALTH", "target")
+fire("NAME_PLATE_UNIT_REMOVED", "nameplate1")
+check(SkinDeepDB.counters.scarlet == 1, "a Scarlet kill counts once even when seen as target and plate")
+for i = 1, 250 do
+  local token = "nameplate" .. (i % 5 + 3)
+  local z = { name = "Risen Ghoul", ctype = "Undead" }
+  units[token] = z
+  fire("UNIT_COMBAT", token, "WOUND", "", 30, 32)
+  z.dead = true
+  fire("UNIT_HEALTH", token)
+end
+check(SkinDeepDB.counters.undead == 250 and F.IsDone(F.ByID.scourge), "250 Undead complete the Scourge feat")
+local sawFeatToast = false
+for _ = 1, 40 do run(1); if texts()["Feat complete"] then sawFeatToast = true; break end end  -- toasts queue, ~5s each
+check(sawFeatToast, "a flavor feat without its skin yet shows a Feat complete toast")
+local alive = { name = "Defias Pillager", ctype = "Humanoid" }
+units.nameplate2 = alive
+fire("UNIT_COMBAT", "nameplate2", "WOUND", "", 30, 1)
+fire("PLAYER_TARGET_CHANGED")
+fire("NAME_PLATE_UNIT_REMOVED", "nameplate2")
+check((SkinDeepDB.counters.defias or 0) == 0, "a mob that left view alive is not counted")
+fire("ENCOUNTER_END", 1234, "Edwin VanCleef", 1, 5, 1)
+check(F.IsDone(F.ByID.defias), "defeating Edwin VanCleef completes the Defias feat")
+fire("ENCOUNTER_END", 1235, "Emperor Dagran Thaurissan", 1, 5, 0)
+check(not F.IsDone(F.ByID.darkiron), "a failed encounter does not count")
+
+print("== levels and gold")
+fire("PLAYER_LEVEL_UP", 12)
+check(SkinDeepDB.classLevels.MAGE == 12 and F.IsDone(F.ByID.class_mage), "reaching 12 on a Mage records the Mage level feat")
+fire("PLAYER_LEVEL_UP", 20)
+check(F.IsDone(F.ByID.blood), "reaching level 20 unlocks Bloodmoon Ink")
+fire("PLAYER_ENTERING_WORLD")
+money = money + 100 * 10000
+fire("PLAYER_MONEY")
+check(F.IsDone(F.ByID.gilded), "earning 100 gold unlocks Gilded Hoard")
+money = money - 5000
+fire("PLAYER_MONEY")
+check(SkinDeepDB.counters.gold == 100 * 10000, "spending gold does not count against it")
+
+print("== feats window")
+ns.OpenWindow("feats")
+run(0.5)
+check(texts()["|cff7fe07fComplete|r"], "the Feats tab lists completed feats")
+ns.OpenWindow("skins")
+run(3)
+_G.SkinDeepConfig:Hide()
+local have, total = F.UnlockedCount()
+check(have < total, "Collector still has locked skins (" .. have .. "/" .. total .. ")")
+F.SetMode("all")
+have, total = F.UnlockedCount()
+check(have == total, "Everything unlocked opens every skin")
+SlashCmdList.SKINDEEP("welcome")
+run(0.2)
+check(_G.SkinDeepWelcome and _G.SkinDeepWelcome.shown, "/skindeep welcome reopens the first-run window")
+for _, w in ipairs(frames) do
+  local p = w.parent; while p and p ~= _G.SkinDeepWelcome do p = p.parent end
+  if p == _G.SkinDeepWelcome and w.kind == "Button" and w.scripts.OnClick then w.scripts.OnClick(w) end
+end
+check(SkinDeepDB.unlockMode ~= nil, "the welcome window choices work")
+run(1)
 
 print("== version")
 check(ns.VERSION == "dev", "unpackaged copy reports version dev")

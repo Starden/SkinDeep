@@ -1,5 +1,24 @@
 # SkinDeep
 
+## 1.2.0
+
+Collect your skins.
+
+- **First-run choice**, like Forever Dungeon Journal: play as a **Collector**
+  (start with Classic+, Auto and your class's skin, earn the rest) or have
+  **Everything unlocked**. Change it any time on the new Feats tab.
+- **Feats**: SkinDeep's own achievements unlock skins. Land 777 crits for
+  Jackpot, deal Fire damage for Ember Tide, earn gold for Gilded Hoard, reach
+  level 10 on a class for its skin, and more.
+- **Faction feats** are already counting for the flavor skins coming next:
+  Scarlet Crusade, Scourge, Defias Brotherhood, Dark Iron, Black Dragonflight
+  and Argent Dawn.
+- **Unlock popups** with the achievement fanfare (both can be turned off).
+- The window has **Skins** and **Feats** tabs. Locked skins show what earns
+  them with your progress, and can still be previewed.
+- Progress and unlocks are shared by all your characters.
+- New commands: `/skindeep feats`, `/skindeep welcome`.
+
 ## 1.1.0
 
 First public release.

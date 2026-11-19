@@ -42,6 +42,10 @@ local DEFAULTS = {
     abbreviate = true,
     effects = true,         -- bursts, rings, decor and particles
     sounds = true,          -- skin sound effects (Jackpot's reels and payout)
+    toasts = true,          -- popup when a feat completes / a skin unlocks
+    toastSound = true,      -- its fanfare
+    -- unlockMode: nil until the first-run window is answered, then
+    -- "collector" (earn skins through feats) or "all"
     worldFont = true,       -- give Blizzard's numbers the skin's font (next login)
     worldMotion = true,     -- give Blizzard's numbers the skin's motion preset
     scale = 1.0,
@@ -136,6 +140,8 @@ end
 -- The skin id that's really in use ("auto" resolved).
 function ns.ResolvedSkinID()
     local id = ns.db and ns.db.skin
+    -- Locked for this character (Collector mode): use the class skin instead.
+    if id ~= ns.AUTO and ns.Feats and ns.db and not ns.Feats.IsUnlocked(id) then id = ns.AUTO end
     if id == ns.AUTO then return ns.ClassSkinID() or AUTO_FALLBACK end
     return id
 end
@@ -152,8 +158,10 @@ function ns.WorldFontFor(skin)
     return skin.worldFont or skin.font
 end
 
+-- false, "locked" for a skin Collector mode hasn't unlocked yet.
 function ns.SetSkin(id)
     if not ns.IsValidSkin(id) then return false end
+    if ns.Feats and not ns.Feats.IsUnlocked(id) then return false, "locked" end
     ns.db.skin = id
     ns.ApplyCVars()
     if ns.OnSettingsChanged then ns.OnSettingsChanged() end
@@ -427,6 +435,7 @@ events:SetScript("OnEvent", function(_, event, ...)
         fill(ns.db, DEFAULTS)
         ns.db.borrowed = ns.db.borrowed or {}
         ns.db.wrote = ns.db.wrote or {}
+        if ns.Feats then ns.Feats.InitDB(ns.db) end
         if not ns.IsValidSkin(ns.db.skin) then ns.db.skin = DEFAULTS.skin end
         -- Blizzard's world numbers read this once, as the world loads.
         ns.loginDefaultFont = DAMAGE_TEXT_FONT
