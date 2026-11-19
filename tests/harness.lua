@@ -482,10 +482,11 @@ for i = 1, 250 do
   z.dead = true
   fire("UNIT_HEALTH", token)
 end
-check(SkinDeepDB.counters.undead == 250 and F.IsDone(F.ByID.scourge), "250 Undead complete the Scourge feat")
-local sawFeatToast = false
-for _ = 1, 40 do run(1); if texts()["Feat complete"] then sawFeatToast = true; break end end  -- toasts queue, ~5s each
-check(sawFeatToast, "a flavor feat without its skin yet shows a Feat complete toast")
+check(SkinDeepDB.counters.undead == 250, "Undead kills are counted (250)")
+check(not F.IsDone(F.ByID.scourge), "a feat whose skin is not released does not complete")
+local listed = false
+for _, v in ipairs(F.Visible()) do if v.flavor then listed = true end end
+check(not listed and #F.Visible() == 18, "unreleased faction feats are not listed (18 feats shown)")
 local alive = { name = "Defias Pillager", ctype = "Humanoid" }
 units.nameplate2 = alive
 fire("UNIT_COMBAT", "nameplate2", "WOUND", "", 30, 1)
@@ -493,9 +494,18 @@ fire("PLAYER_TARGET_CHANGED")
 fire("NAME_PLATE_UNIT_REMOVED", "nameplate2")
 check((SkinDeepDB.counters.defias or 0) == 0, "a mob that left view alive is not counted")
 fire("ENCOUNTER_END", 1234, "Edwin VanCleef", 1, 5, 1)
-check(F.IsDone(F.ByID.defias), "defeating Edwin VanCleef completes the Defias feat")
+check(SkinDeepDB.bosses["Edwin VanCleef"] and not F.IsDone(F.ByID.defias), "the VanCleef kill is recorded, but its feat waits for its skin")
+-- The skin ships: the feats already met complete right away.
+ns.Skins.defias = setmetatable({ id = "defias", name = "Red Kerchief" }, { __index = ns.Skins.classic })
+ns.Skins.scourge = setmetatable({ id = "scourge", name = "Plague Tide" }, { __index = ns.Skins.classic })
+F.Check()
+check(F.IsDone(F.ByID.defias) and F.IsDone(F.ByID.scourge), "once their skins exist, earlier progress completes the faction feats")
+local sawPlague = false
+for _ = 1, 60 do run(1); if texts()["Plague Tide"] then sawPlague = true; break end end  -- toasts queue, ~5s each
+check(sawPlague, "the faction skin unlock pops its toast")
+ns.Skins.defias, ns.Skins.scourge = nil, nil
 fire("ENCOUNTER_END", 1235, "Emperor Dagran Thaurissan", 1, 5, 0)
-check(not F.IsDone(F.ByID.darkiron), "a failed encounter does not count")
+check(not SkinDeepDB.bosses["Emperor Dagran Thaurissan"], "a failed encounter does not count")
 
 print("== levels and gold")
 fire("PLAYER_LEVEL_UP", 12)

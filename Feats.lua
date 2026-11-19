@@ -58,7 +58,9 @@ for _, token in ipairs({ "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHA
                         text = "Reach level 10 on a " .. className(token) }
 end
 
--- Faction flavor skins (coming in the next update; counted from now on).
+-- Faction feats. A feat only shows, completes and pops once its skin
+-- exists (see Feats.Available); until then its counters still run, so
+-- progress made beforehand counts when the skin is added.
 local FLAVOR = {
     { id = "scarlet",  title = "Crimson Oath", faction = "Scarlet Crusade", color = { 0.92, 0.14, 0.14 },
       text = "Slay 100 Scarlet Crusade or defeat Whitemane",
@@ -78,11 +80,25 @@ local FLAVOR = {
 }
 for _, f in ipairs(FLAVOR) do
     f.flavor = true
-    f.skin = f.skin or f.id   -- unlocks once the skin with this id exists
+    f.skin = f.skin or f.id   -- the skin with this id
     LIST[#LIST + 1] = f
 end
 
-Feats.LIST = LIST
+Feats.ALL = LIST
+
+-- A feat is part of the game once the skin it unlocks is.
+function Feats.Available(f)
+    return ns.Skins[f.skin] ~= nil
+end
+
+-- The feats players see: those with a released skin.
+function Feats.Visible()
+    local out = {}
+    for _, f in ipairs(LIST) do
+        if Feats.Available(f) then out[#out + 1] = f end
+    end
+    return out
+end
 local BY_ID, BY_SKIN, BY_COUNTER, BY_BOSS = {}, {}, {}, {}
 for _, f in ipairs(LIST) do
     BY_ID[f.id] = f
@@ -190,12 +206,10 @@ local function complete(f, quiet)
     if quiet then return end
     local skin = ns.Skins[f.skin]
     local collector = db().unlockMode == "collector"
-    local title = (skin and collector) and "Skin unlocked" or "Feat complete"
-    local name = skin and skin.name or f.title or f.id
-    local note = f.text
-    if f.flavor and not skin then note = f.text .. ". Its skin arrives in the next update." end
-    if Feats.OnComplete then Feats.OnComplete(f, title, name, note, skin) end
-    if skin and collector then
+    local title = collector and "Skin unlocked" or "Feat complete"
+    local name = skin.name
+    if Feats.OnComplete then Feats.OnComplete(f, title, name, f.text, skin) end
+    if collector then
         ns.Print(("|cffffd84aSkin unlocked:|r %s (%s). /skindeep to equip it."):format(name, f.text))
     else
         ns.Print(("|cffffd84aFeat complete:|r %s (%s)."):format(name, f.text))
@@ -203,9 +217,10 @@ local function complete(f, quiet)
 end
 
 -- Checks a set of feats (default: all) and completes any that are done.
+-- Feats whose skin isn't in the game yet wait (their counters still run).
 function Feats.Check(list, quiet)
     for _, f in ipairs(list or LIST) do
-        if not Feats.IsDone(f) and liveDone(f) then complete(f, quiet) end
+        if Feats.Available(f) and not Feats.IsDone(f) and liveDone(f) then complete(f, quiet) end
     end
 end
 

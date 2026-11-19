@@ -17,7 +17,6 @@ local skinButtons, checks, modeButtons, colorButtons, unlockButtons, featRows, t
 local sizeLabel, speedLabel, nameText, tagText, noteText, unlockButton, countText
 
 local Feats = ns.Feats
-local GREY = { 0.5, 0.48, 0.45 }
 
 local function isLocked(id)
     return id ~= ns.AUTO and not Feats.IsUnlocked(id)
@@ -101,14 +100,15 @@ local function refreshFeats()
         if b.mode == db.unlockMode then b:LockHighlight() else b:UnlockHighlight() end
     end
     local have, total = Feats.UnlockedCount()
+    local visible = Feats.Visible()
     local done = 0
-    for _, f in ipairs(Feats.LIST) do if Feats.IsDone(f) then done = done + 1 end end
+    for _, f in ipairs(visible) do if Feats.IsDone(f) then done = done + 1 end end
     if db.unlockMode == "collector" then
-        countText:SetFormattedText("%d / %d feats complete  ·  %d / %d skins unlocked", done, #Feats.LIST, have, total)
+        countText:SetFormattedText("%d / %d feats complete  ·  %d / %d skins unlocked", done, #visible, have, total)
     elseif db.unlockMode == "all" then
-        countText:SetFormattedText("%d / %d feats complete  ·  every skin unlocked", done, #Feats.LIST)
+        countText:SetFormattedText("%d / %d feats complete  ·  every skin unlocked", done, #visible)
     else
-        countText:SetFormattedText("%d / %d feats complete  ·  choose how skins unlock below", done, #Feats.LIST)
+        countText:SetFormattedText("%d / %d feats complete  ·  choose how skins unlock below", done, #visible)
     end
     for _, row in ipairs(featRows) do
         local f = row.feat
@@ -489,20 +489,21 @@ local function buildFeats(page)
     local fan = checkbox(page, "Popup fanfare", "toastSound", "The popup plays the achievement fanfare.")
     fan:SetPoint("TOPLEFT", 510, -79)
 
-    -- The feats, two columns: styles and classes, then faction flavors.
+    -- The feats, two columns: styles, then classes (and any faction skins).
     local COLS, ROWH, TOP = 2, 34, -112
     local colW = (W - 32 - 16) / COLS
-    local perCol = math.ceil(#Feats.LIST / COLS)
-    for i, f in ipairs(Feats.LIST) do
+    local list = Feats.Visible()
+    local perCol = math.ceil(#list / COLS)
+    for i, f in ipairs(list) do
         local col, row = floor((i - 1) / perCol), (i - 1) % perCol
         local r = CreateFrame("Frame", nil, page)
         r:SetSize(colW, ROWH - 4)
         r:SetPoint("TOPLEFT", 16 + col * (colW + 16), TOP - row * ROWH)
         r.feat = f
         local skin = ns.Skins[f.skin]
-        local color = (skin and skin.color) or f.color or GREY
+        local color = skin.color
         r.name = r:CreateFontString(nil, "OVERLAY")
-        r.name:SetFont((skin and skin.font) or ns.Fonts.friz, 13, (skin and skin.outline) or "OUTLINE")
+        r.name:SetFont(skin.font, 13, skin.outline or "OUTLINE")
         if not r.name:GetFont() then r.name:SetFont(ns.Fonts.friz, 13, "OUTLINE") end
         -- One line each, in fixed lanes: name on the left, progress on the
         -- right, requirement below. Nothing wraps or runs into its neighbor.
@@ -512,9 +513,7 @@ local function buildFeats(page)
         r.name:SetJustifyH("LEFT")
         if r.name.SetWordWrap then r.name:SetWordWrap(false) end
         r.name:SetTextColor(color[1], color[2], color[3])
-        local label = skin and skin.name or f.title
-        if f.flavor and not skin then label = label .. "  |cff8c8577soon|r" end
-        r.name:SetText(label)
+        r.name:SetText(skin.name)
         r.status = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         r.status:SetPoint("TOPRIGHT", 0, -1)
         r.status:SetWidth(STATUS_W)
