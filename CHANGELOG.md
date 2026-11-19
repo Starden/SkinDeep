@@ -44,11 +44,14 @@ Collect your skins.
     Blood & Thunder (250 as Horde), Headhunter (1,000) and Warmonger (5,000).
     Kills made before installing SkinDeep count, from each character's
     lifetime total.
-- **28 spec skins**, three for every class (four for Druid, with Guardian):
-  each is a twist on its class skin. Earn one by spending **20 talent points**
-  in that tree on a character of the class; a respec never takes it back.
-  **Auto: my class** uses your active spec's skin once you have earned it.
-  On the Skins tab, click a class to fold out its specs.
+- **28 spec skins**, one for each talent tree of every class (plus Guardian
+  for Druids): each is a twist on its class skin. Earn one by spending
+  **20 talent points** in that tree on a character of the class; a respec
+  never takes it back. **Auto: my class** uses the skin of the tree you have
+  the most points in, once you have earned it. Feral Combat earns both Shred
+  and Ironbark, and Auto uses Ironbark in Bear Form. On the Skins tab, click a
+  class to fold out its specs. `/skindeep talents` shows the points SkinDeep
+  reads.
 - **PvP skin**: Shift-click a skin to use it automatically in battlegrounds and
   against players (`/skindeep pvp <name|off>`).
 - **Unlock popups** with the achievement fanfare (both can be turned off).
@@ -57,7 +60,7 @@ Collect your skins.
   progress, and can still be previewed.
 - Progress and unlocks are shared by all your characters.
 - New commands: `/skindeep feats`, `/skindeep welcome`, `/skindeep pvp`,
-  `/skindeep rank`.
+  `/skindeep rank`, `/skindeep talents`.
 
 ## 1.1.0
 

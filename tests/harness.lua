@@ -149,19 +149,38 @@ function GetMoney() return money end
 function time() return 1700000000 end
 local soundFiles = {}
 function PlaySoundFile(path, channel) soundFiles[#soundFiles + 1] = path; return true end
-specSlot, specPoints = 2, { 0, 0, 0 }
-local MAGE_SPECS = { { 62, "Arcane" }, { 63, "Fire" }, { 64, "Frost" } }
+specPoints, shapeForm, playerClassFile = { 0, 0, 0 }, nil, "MAGE"
+-- Forever: one spec per class that reports no points.
 C_SpecializationInfo = {
-  GetSpecialization = function() return specSlot end,
+  GetSpecialization = function() return 1 end,
   GetSpecializationInfo = function(i)
-    local s = MAGE_SPECS[i]
-    if not s then return nil end
-    return s[1], s[2], "", 0, "DAMAGER", 1, specPoints[i] or 0
+    if i ~= 1 then return nil end
+    return 1001, "Mage", "", 0, "DAMAGER", 1, 0
   end,
 }
+-- The talent frame: one trait tree; each classic tree is 4 columns 300 apart,
+-- the trees 600 apart. A tree's points sit on its first two columns.
+C_ClassTalents = { GetActiveConfigID = function() return 77 end }
+C_Traits = {
+  GetConfigInfo = function(id) if id == 77 then return { treeIDs = { 500 } } end end,
+  GetTreeNodes = function(treeID)
+    local t = {}
+    for i = 1, 12 do t[i] = i end
+    return t
+  end,
+  GetNodeInfo = function(configID, nodeID)
+    local tree = math.floor((nodeID - 1) / 4) + 1
+    local col = (nodeID - 1) % 4
+    local x = (tree - 1) * 1500 + col * 300
+    local p = specPoints[tree] or 0
+    local purchased = col == 0 and math.ceil(p / 2) or (col == 1 and math.floor(p / 2) or 0)
+    return { ID = nodeID, posX = x, posY = 0, ranksPurchased = purchased, activeRank = purchased }
+  end,
+}
+function GetShapeshiftFormID() return shapeForm end
 function AbbreviateLargeNumbers(v) if issecretvalue(v) then return v end return tostring(v) end
 function HideUIPanel() end
-function UnitClass(u) return "Mage", "MAGE", 8 end
+function UnitClass(u) return playerClassFile:sub(1, 1) .. playerClassFile:sub(2):lower(), playerClassFile, 8 end
 C_AddOns = { GetAddOnMetadata = function(name, key) if key == "Version" then return "@project-version@" end end }
 C_StringUtil = { TruncateWhenZero = function(v) return v end }
 local plates = { target = new("Frame"), nameplate1 = new("Frame"), nameplate2 = new("Frame") }
@@ -731,7 +750,7 @@ do
   -- Unlocking: 20 talent points in that tree.
   SkinDeepDB.unlockMode = "collector"
   SkinDeepDB.skin = "auto"
-  specSlot, specPoints = 2, { 5, 12, 0 }
+  specPoints = { 5, 12, 0 }
   fire("PLAYER_TALENT_UPDATE")
   check(not F.IsDone(F.ByID.mage_fire) and F.ProgressText(F.ByID.mage_fire, true) == "12 / 20 points",
     "12 points in Fire is not enough (12 / 20 points)")
@@ -740,12 +759,31 @@ do
   fire("PLAYER_TALENT_UPDATE")
   check(F.IsDone(F.ByID.mage_fire) and not F.IsDone(F.ByID.mage_frost), "21 points in Fire unlock Pyroclasm, not Glacial Spike")
   check(ns.ResolvedSkinID() == "mage_fire", "Auto switches to the active spec's variant once earned")
-  specSlot, specPoints = 3, { 5, 0, 31 }
-  fire("PLAYER_SPECIALIZATION_CHANGED")
+  specPoints = { 5, 0, 31 }
+  fire("TRAIT_CONFIG_UPDATED")
   check(F.IsDone(F.ByID.mage_frost) and ns.ResolvedSkinID() == "mage_frost", "respeccing to Frost with 31 points unlocks and switches to Glacial Spike")
-  check(SkinDeepDB.specPoints["id:63"] == 21, "a respec never lowers the best points seen (Fire stays at 21)")
+  check(SkinDeepDB.specPoints["MAGE:2"] == 21, "a respec never lowers the best points seen (Fire stays at 21)")
   check(F.IsUnlocked("mage_fire"), "and Pyroclasm stays unlocked")
-  specSlot, specPoints = 2, { 5, 21, 0 }
+  specPoints = { 5, 21, 0 }
+  fire("PLAYER_TALENT_UPDATE")
+  check(ns.ResolvedSkinID() == "mage_fire", "the tree with the most points picks the variant (back to Fire)")
+  check(pcall(SlashCmdList.SKINDEEP, "talents"), "/skindeep talents reports without errors")
+  -- Uneven trees (no clear gaps) still split into thirds.
+  local saved = C_Traits.GetNodeInfo
+  C_Traits.GetNodeInfo = function(c, n) local t = saved(c, n); t.posX = (n - 1) * 100; return t end
+  local tr = ns.Feats.TalentTrees()
+  check(tr and tr[1] == 5 and tr[2] == 21 and tr[3] == 0, "evenly spaced columns fall back to thirds of the tree")
+  C_Traits.GetNodeInfo = saved
+  -- Druid: Feral Combat gives Shred, or Ironbark in Bear Form.
+  playerClassFile, specPoints = "DRUID", { 0, 22, 0 }
+  fire("PLAYER_TALENT_UPDATE")
+  check(F.IsDone(F.ByID.druid_feral) and F.IsDone(F.ByID.druid_guardian), "20 in Feral Combat earns both Shred and Ironbark")
+  check(ns.ResolvedSkinID() == "druid_feral", "a Druid out of Bear Form gets Shred")
+  shapeForm = 5
+  fire("UPDATE_SHAPESHIFT_FORM")
+  check(ns.ResolvedSkinID() == "druid_guardian", "in Bear Form, Ironbark")
+  shapeForm, playerClassFile, specPoints = nil, "MAGE", { 5, 21, 0 }
+  fire("PLAYER_TALENT_UPDATE")
   SkinDeepDB.skin = "mage"
   check(ns.ResolvedSkinID() == "mage", "choosing the class skin itself does not follow the spec")
   SkinDeepDB.skin = "auto"
@@ -764,9 +802,9 @@ check(ns.VERSION == "dev", "unpackaged copy reports version dev")
 print("== auto: my class")
 ns.SetSkin("auto")
 check(ns.CurrentSkin().id == "mage_fire", "auto follows the active spec (Fire Mage gets Pyroclasm)")
-local savedSlot = specSlot; specSlot = nil
-check(ns.CurrentSkin().id == "mage", "with no spec chosen, auto resolves to the Mage skin (Spellweave)")
-specSlot = savedSlot
+local savedPoints = specPoints; specPoints = { 0, 0, 0 }; fire("PLAYER_TALENT_UPDATE")
+check(ns.CurrentSkin().id == "mage", "with no talents spent, auto resolves to the Mage skin (Spellweave)")
+specPoints = savedPoints; fire("PLAYER_TALENT_UPDATE")
 SlashCmdList.SKINDEEP("skin warrior")
 check(SkinDeepDB.skin == "warrior", "slash picks a class skin directly")
 SlashCmdList.SKINDEEP("skin auto")

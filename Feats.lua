@@ -140,8 +140,8 @@ local SPEC_FEATS = {}
 for _, id in ipairs(ns.SkinOrder) do
     local s = ns.Skins[id]
     if s.spec then
-        local f = { id = id, skin = id, spec = s.spec, specID = s.specID, class = s.class, goal = SPEC_POINTS,
-                    text = ("Spend %d talent points in %s on a %s"):format(SPEC_POINTS, s.spec, className(s.class)) }
+        local f = { id = id, skin = id, spec = s.spec, tree = s.tree, class = s.class, goal = SPEC_POINTS,
+                    text = ("Spend %d talent points in %s on a %s"):format(SPEC_POINTS, s.treeName or s.spec, className(s.class)) }
         LIST[#LIST + 1] = f
         SPEC_FEATS[#SPEC_FEATS + 1] = f
     end
@@ -193,7 +193,7 @@ function Feats.InitDB(d)
     d.counters = d.counters or {}
     d.classLevels = d.classLevels or {}
     d.bosses = d.bosses or {}
-    d.specPoints = d.specPoints or {}   -- best talent points seen per spec ("id:71", "WARRIOR:Arms")
+    d.specPoints = d.specPoints or {}   -- best talent points seen per class and tree ("WARRIOR:1")
     d.feats = d.feats or {}
     d.hkChars = d.hkChars or {}
 end
@@ -212,9 +212,7 @@ function Feats.Progress(f)
         return min(f.goal, d.counters[f.counter] or 0), f.goal
     end
     if f.spec then
-        local sp = d.specPoints
-        local best = max(f.specID and sp["id:" .. f.specID] or 0, sp[f.class .. ":" .. f.spec] or 0)
-        return min(f.goal, best), f.goal
+        return min(f.goal, d.specPoints[f.class .. ":" .. f.tree] or 0), f.goal
     end
     return 0, 1
 end
@@ -412,54 +410,155 @@ end
 Feats.CheckDead = checkDead
 
 ---------------------------------------------------------------------------
--- Specs and talents
+-- Talents
 ---------------------------------------------------------------------------
+-- Forever has one spec per class: its talent frame is a single modern
+-- talent tree (C_Traits) with the three classic trees side by side. The
+-- points in each tree are summed by node position: a new tree starts where
+-- the gap between node columns is much wider than usual. Classic-style
+-- clients report points per tree through GetSpecializationInfo instead.
 local function playerClass()
     local ok, _, cls = pcall(UnitClass, "player")
     return ok and ns.Plain(cls, "string") or nil
 end
 
--- id, name and points spent for spec slot i of this character's class.
-local function specInfo(i)
+local function readable(t)
+    if type(t) ~= "table" then return nil end
+    if issecretvalue and issecretvalue(t) then return nil end
+    local canAccess = rawget(_G, "canaccesstable")
+    if canAccess and not canAccess(t) then return nil end
+    return t
+end
+
+-- Points per tree from the trait tree, left to right; nil if unreadable.
+local function traitTrees()
+    local CT, T = C_ClassTalents, C_Traits
+    if not (CT and T and CT.GetActiveConfigID and T.GetConfigInfo and T.GetTreeNodes and T.GetNodeInfo) then return nil end
+    local configID = ns.Plain(call(CT.GetActiveConfigID), "number")
+    if not configID then return nil end
+    local config = readable(call(T.GetConfigInfo, configID))
+    local treeIDs = config and readable(config.treeIDs)
+    if not treeIDs then return nil end
+    local nodes = {}
+    for _, treeID in ipairs(treeIDs) do
+        treeID = ns.Plain(treeID, "number")
+        local list = treeID and readable(call(T.GetTreeNodes, treeID))
+        for _, nodeID in ipairs(list or {}) do
+            nodeID = ns.Plain(nodeID, "number")
+            local node = nodeID and readable(call(T.GetNodeInfo, configID, nodeID))
+            local x = node and ns.Plain(node.posX, "number")
+            if x then nodes[#nodes + 1] = node end
+        end
+    end
+    if #nodes == 0 then return nil end
+    local function columns(field)
+        local cols, total = {}, 0
+        for _, node in ipairs(nodes) do
+            local p = ns.Plain(node[field], "number") or 0
+            cols[node.posX] = (cols[node.posX] or 0) + p
+            total = total + p
+        end
+        return cols, total
+    end
+    local cols, total = columns("ranksPurchased")
+    if total == 0 then cols, total = columns("activeRank") end
+    local xs = {}
+    for x in pairs(cols) do xs[#xs + 1] = x end
+    table.sort(xs)
+    -- Split where the gap is much wider than the usual one between columns.
+    local gaps = {}
+    for i = 2, #xs do gaps[#gaps + 1] = xs[i] - xs[i - 1] end
+    table.sort(gaps)
+    local usual = gaps[math.ceil(#gaps / 2)] or 0
+    local trees = { 0 }
+    for i, x in ipairs(xs) do
+        if i > 1 and xs[i] - xs[i - 1] > usual * 1.5 then trees[#trees + 1] = 0 end
+        trees[#trees] = trees[#trees] + cols[x]
+    end
+    if #trees ~= 3 then
+        -- Not three clear trees: fall back to thirds of the tree's width.
+        trees = { 0, 0, 0 }
+        local lo, hi = xs[1], xs[#xs]
+        local w = hi - lo
+        for _, x in ipairs(xs) do
+            local i = w > 0 and min(3, floor((x - lo) / w * 3) + 1) or 1
+            trees[i] = trees[i] + cols[x]
+        end
+    end
+    return trees, "traits"
+end
+
+-- Points per tree from GetSpecializationInfo (classic-style clients).
+local function specTrees()
     local s = C_SpecializationInfo
     local get = s and s.GetSpecializationInfo
     if type(get) ~= "function" then return nil end
-    local ok, id, name, _, _, _, _, points = pcall(get, i)
-    if not ok then return nil end
-    return ns.Plain(id, "number"), ns.Plain(name, "string"), ns.Plain(points, "number")
+    local trees, any = {}, false
+    for i = 1, 3 do
+        local ok, _, _, _, _, _, _, points = pcall(get, i)
+        points = ok and ns.Plain(points, "number") or nil
+        trees[i] = points or 0
+        if points and points > 0 then any = true end
+    end
+    if any then return trees, "spec" end
 end
 
--- The active spec: id, name (English on English clients), slot; nil if none.
-function Feats.CurrentSpec()
-    local s = C_SpecializationInfo
-    local idx = s and ns.Plain(call(s.GetSpecialization), "number")
-    if not idx or idx < 1 then return nil end
-    local id, name = specInfo(idx)
-    return id, name, idx
+local livePoints, liveSource = nil, nil
+
+-- This character's points per tree, read fresh: table, source; or nil.
+function Feats.TalentTrees()
+    local trees, source = traitTrees()
+    if not trees or (trees[1] + trees[2] + trees[3]) == 0 then
+        local t2, s2 = specTrees()
+        if t2 then trees, source = t2, s2 end
+    end
+    return trees, source
 end
 
--- Records the points spent in each of this class's trees (the best ever
--- seen per spec, so respeccing never takes an unlock back).
+-- The tree holding the most points (ties go to the earlier one), as of the
+-- last scan: index, points; nil with no points spent.
+function Feats.ActiveTree()
+    if not livePoints then return nil end
+    local best, bestPoints = nil, 0
+    for i = 1, 3 do
+        if (livePoints[i] or 0) > bestPoints then best, bestPoints = i, livePoints[i] end
+    end
+    return best, bestPoints
+end
+
+-- "bear" in Bear Form or Dire Bear Form, else nil.
+function Feats.PlayerForm()
+    if type(GetShapeshiftFormID) ~= "function" then return nil end
+    local ok, form = pcall(GetShapeshiftFormID)
+    form = ok and ns.Plain(form, "number") or nil
+    if form == 5 or form == 8 then return "bear" end
+end
+
+-- Records the points spent in each tree (the best ever seen per class and
+-- tree, so respeccing never takes an unlock back).
 local function scanTalents()
     local cls = playerClass()
     if not cls then return end
+    local trees, source = Feats.TalentTrees()
+    livePoints, liveSource = trees, source
+    if not trees then return end
     local sp = db().specPoints
     local changed = false
-    for i = 1, 5 do
-        local id, name, points = specInfo(i)
-        if not id and not name then break end
-        if points then
-            local keys = {}
-            if id then keys[#keys + 1] = "id:" .. id end
-            if name then keys[#keys + 1] = cls .. ":" .. name end
-            for _, key in ipairs(keys) do
-                if (sp[key] or 0) < points then sp[key], changed = points, true end
-            end
-        end
+    for i = 1, 3 do
+        local key = cls .. ":" .. i
+        if (sp[key] or 0) < (trees[i] or 0) then sp[key], changed = trees[i], true end
     end
     if changed then Feats.Check(SPEC_FEATS) end
 end
 Feats.ScanTalents = scanTalents
+
+-- For /skindeep talents.
+function Feats.TalentReport()
+    scanTalents()
+    local cls = playerClass()
+    if not livePoints then return nil, cls end
+    return livePoints, cls, liveSource
+end
 
 function Feats.OnCombat(unit, action, flags, amount, school)
     if not db() then return end
@@ -638,8 +737,9 @@ function Feats.OnHonorMessage(msg)
     hkSync(1)
 end
 
+local lastForm
 local events = CreateFrame("Frame")
-for _, e in ipairs({ "CHAT_MSG_COMBAT_HONOR_GAIN", "PLAYER_PVP_KILLS_CHANGED", "PLAYER_TALENT_UPDATE",
+for _, e in ipairs({ "UPDATE_SHAPESHIFT_FORM", "CHAT_MSG_COMBAT_HONOR_GAIN", "PLAYER_PVP_KILLS_CHANGED", "PLAYER_TALENT_UPDATE",
                      "CHARACTER_POINTS_CHANGED", "PLAYER_SPECIALIZATION_CHANGED", "ACTIVE_TALENT_GROUP_CHANGED",
                      "TRAIT_CONFIG_UPDATED",
                      "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "UNIT_COMBAT", "UNIT_HEALTH", "PLAYER_TARGET_CHANGED",
@@ -684,6 +784,12 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d, e)
         or event == "PLAYER_SPECIALIZATION_CHANGED" or event == "ACTIVE_TALENT_GROUP_CHANGED" then
         scanTalents()
         if ns.OnSettingsChanged then ns.OnSettingsChanged() end  -- Auto may now pick another variant
+    elseif event == "UPDATE_SHAPESHIFT_FORM" then
+        local form = Feats.PlayerForm()
+        if form ~= lastForm then
+            lastForm = form
+            if ns.OnSettingsChanged then ns.OnSettingsChanged() end  -- Guardian in Bear Form
+        end
     elseif event == "PLAYER_LOGIN" then
         -- Records this character's level, rank and honorable kills (and
         -- checks every feat: anything already reached pops now).
@@ -697,5 +803,7 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d, e)
         pvpRank()
         hkSync(0)
         scanTalents()
+        -- Talent data can arrive a moment after loading in.
+        if C_Timer then C_Timer.After(3, function() scanTalents(); if ns.OnSettingsChanged then ns.OnSettingsChanged() end end) end
     end
 end)

@@ -153,17 +153,21 @@ end
 
 -- The spec variant skin for this character's active spec, or nil.
 function ns.SpecVariantID()
-    if not (ns.Feats and ns.Feats.CurrentSpec) then return nil end
-    local specID, specName = ns.Feats.CurrentSpec()
-    if not specID and not specName then return nil end
-    local ok, _, cls = pcall(UnitClass, "player")
-    cls = ok and ns.Plain(cls, "string")
+    local F = ns.Feats
+    if not (F and F.ActiveTree) then return nil end
+    local tree = F.ActiveTree()
+    if not tree then return nil end
+    local ok, _, cls = pcall(UnitClass, "player"); cls = ok and ns.Plain(cls, "string")
+    local form = F.PlayerForm and F.PlayerForm()
+    local plain
     for _, id in ipairs(ns.SkinOrder) do
         local s = ns.Skins[id]
-        if s.spec and s.class == cls and ((specID and s.specID == specID) or (specName and s.spec == specName)) then
-            return id
+        if s.spec and s.class == cls and s.tree == tree then
+            if s.form and s.form == form then return id end
+            if not s.form and not plain then plain = id end
         end
     end
+    return plain
 end
 
 function ns.CurrentSkin()

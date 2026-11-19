@@ -27,8 +27,8 @@ progress. Unlocks are shared by all your characters.
 ## Skins
 
 **Auto: my class** (the default) uses your current character's class skin, so
-every character gets its own look. Once you have earned your active spec's skin, Auto uses that
-instead.
+every character gets its own look. Once you have earned the spec skin for the talent tree you
+have the most points in, Auto uses that instead.
 
 | Class skins | |
 |---|---|
@@ -45,8 +45,10 @@ instead.
 **Spec skins**: every class skin has a variant for each talent tree (28 in
 all, with Druid Guardian), such as Mortal Strike, Rampage and Shield Wall for
 Warriors or Arcane Surge, Pyroclasm and Glacial Spike for Mages. Earn one by
-spending 20 talent points in that tree on a character of the class. On the
-Skins tab, click a class to fold out its specs.
+spending 20 talent points in that tree on a character of the class (Feral
+Combat earns both Shred and Ironbark; Auto uses Ironbark in Bear Form). On the
+Skins tab, click a class to fold out its specs. `/skindeep talents` shows the
+points SkinDeep reads.
 
 | Faction skins | |
 |---|---|

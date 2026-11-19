@@ -839,6 +839,29 @@ SlashCmdList.SKINDEEP = function(msg)
         ns.OpenWindow("feats")
     elseif cmd == "welcome" then
         ns.ShowWelcome()
+    elseif cmd == "talents" or cmd == "spec" then
+        -- What SkinDeep reads for the spec skins.
+        local trees, cls, source = Feats.TalentReport()
+        local names = {}
+        for _, id in ipairs(ns.SkinOrder) do
+            local sk = ns.Skins[id]
+            if sk.spec and sk.class == cls and not sk.form then names[sk.tree] = sk.treeName or sk.spec end
+        end
+        if not trees then
+            ns.Print("couldn't read your talents from the game yet. Open your talent frame once and try again.")
+        else
+            local parts = {}
+            for i = 1, 3 do parts[i] = ("%s %d"):format(names[i] or ("Tree " .. i), trees[i] or 0) end
+            ns.Print(("talent points: %s (read from %s). Spec skins unlock at 20 in a tree.")
+                :format(table.concat(parts, ", "), source == "traits" and "the talent tree" or "your specs"))
+            local sp = ns.db.specPoints
+            local best = {}
+            for i = 1, 3 do best[i] = ("%d"):format(sp[cls .. ":" .. i] or 0) end
+            ns.Print(("best ever on a %s: %s."):format(Feats.ClassName(cls) or cls, table.concat(best, " / ")))
+        end
+        local variant = ns.SpecVariantID()
+        ns.Print(("skin in use: %s."):format(ns.Skins[ns.ResolvedSkinID()].name)
+            .. (variant and not Feats.IsUnlocked(variant) and (" (" .. ns.Skins[variant].name .. " once you earn it)") or ""))
     elseif cmd == "rank" or cmd == "honor" then
         -- What SkinDeep reads for the PvP rank skins, raw values included.
         local rank, info = Feats.PvPRank()
