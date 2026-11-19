@@ -15,6 +15,7 @@
 Skins.lua
 StyleSkins.lua
 ClassSkins.lua
+SpecSkins.lua
 FactionSkins.lua
 PvPSkins.lua
 Core.lua

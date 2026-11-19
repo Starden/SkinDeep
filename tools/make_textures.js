@@ -447,6 +447,31 @@ const TEXTURES = {
     al = Math.max(al, 1 - smooth(0.05, 0.08, segDist(u, v, -0.85, -0.5, 0.7, 0.45)));
     return al;
   }],
+  // --- Spec variants (original designs) -----------------------------------
+  // Three parallel claw rakes, tapered at both ends.
+  claws: [128, 128, (u, v) => {
+    let al = 0;
+    for (const off of [-0.32, 0, 0.32]) {
+      const x = (u - off) * Math.cos(0.6) - v * Math.sin(0.6), y = (u - off) * Math.sin(0.6) + v * Math.cos(0.6);
+      const len = 0.85, t = clamp(1 - Math.abs(y) / len);
+      if (Math.abs(y) < len) al = Math.max(al, 1 - smooth(0.05 * t, 0.075 * t + 0.005, Math.abs(x)));
+    }
+    return al;
+  }],
+  // Crescent moon.
+  moon: [64, 64, (u, v) => {
+    const outer = 1 - smooth(0.82, 0.88, Math.hypot(u, v));
+    const bite = 1 - smooth(0.66, 0.72, Math.hypot(u - 0.36, v - 0.2));
+    return [clamp(outer - bite), 0.85 + 0.15 * (u < 0 ? 1 : 0)];
+  }],
+  // Round bark shield: wood grain lines on a disc.
+  bark: [64, 64, (u, v) => {
+    const r = Math.hypot(u, v);
+    const disc = 1 - smooth(0.86, 0.92, r);
+    const grain = 0.5 + 0.5 * Math.sin((u + 0.08 * Math.sin(v * 5)) * 22);
+    const rim = r > 0.74 ? 1 : 0;
+    return [disc, rim ? 0.55 : 0.6 + 0.3 * grain];
+  }],
   // Four-point twinkle.
   twinkle: [64, 64, (u, v) => {
     const r = Math.hypot(u, v);

@@ -149,7 +149,16 @@ function GetMoney() return money end
 function time() return 1700000000 end
 local soundFiles = {}
 function PlaySoundFile(path, channel) soundFiles[#soundFiles + 1] = path; return true end
-C_SpecializationInfo = { GetSpecialization = function() return 2 end }
+specSlot, specPoints = 2, { 0, 0, 0 }
+local MAGE_SPECS = { { 62, "Arcane" }, { 63, "Fire" }, { 64, "Frost" } }
+C_SpecializationInfo = {
+  GetSpecialization = function() return specSlot end,
+  GetSpecializationInfo = function(i)
+    local s = MAGE_SPECS[i]
+    if not s then return nil end
+    return s[1], s[2], "", 0, "DAMAGER", 1, specPoints[i] or 0
+  end,
+}
 function AbbreviateLargeNumbers(v) if issecretvalue(v) then return v end return tostring(v) end
 function HideUIPanel() end
 function UnitClass(u) return "Mage", "MAGE", 8 end
@@ -208,7 +217,7 @@ end
 
 -- Load the addon like the client: each file gets (addonName, ns).
 local ns = {}
-for _, file in ipairs({ "Skins.lua", "StyleSkins.lua", "ClassSkins.lua", "FactionSkins.lua", "PvPSkins.lua", "Core.lua", "Feats.lua", "Engine.lua", "Jackpot.lua", "Options.lua", "Welcome.lua" }) do
+for _, file in ipairs({ "Skins.lua", "StyleSkins.lua", "ClassSkins.lua", "SpecSkins.lua", "FactionSkins.lua", "PvPSkins.lua", "Core.lua", "Feats.lua", "Engine.lua", "Jackpot.lua", "Options.lua", "Welcome.lua" }) do
   local chunk, err = loadfile(ADDON_DIR .. "/" .. file)
   if not chunk then error(err) end
   chunk("SkinDeep", ns)
@@ -235,7 +244,7 @@ for _, id in ipairs(ns.SkinOrder) do
 end
 local nPvP = 0
 for _, id in ipairs(ns.SkinOrder) do if ns.Skins[id].group == "pvp" then nPvP = nPvP + 1; if not ns.Feats.FeatForSkin(id) then unpaired[#unpaired + 1] = id end end end
-check(#ns.SkinOrder == 51 and nClass == 9 and nFaction == 11 and nPvP == 15, "51 skins: 9 class, 11 faction, 15 PvP (" .. #ns.SkinOrder .. ", " .. nClass .. ", " .. nFaction .. ", " .. nPvP .. ")")
+check(#ns.SkinOrder == 79 and nClass == 37 and nFaction == 11 and nPvP == 15, "79 skins: 37 class (9 + 28 spec), 11 faction, 15 PvP (" .. #ns.SkinOrder .. ", " .. nClass .. ", " .. nFaction .. ", " .. nPvP .. ")")
 local styleUnpaired = {}
 for _, id in ipairs(ns.SkinOrder) do local sk = ns.Skins[id]; if not sk.group and id ~= "classic" and not ns.Feats.FeatForSkin(id) then styleUnpaired[#styleUnpaired + 1] = id end end
 check(#styleUnpaired == 0, "every style skin but Classic+ has a feat" .. (#styleUnpaired > 0 and (": missing " .. table.concat(styleUnpaired, ", ")) or ""))
@@ -462,7 +471,7 @@ local function texts() local t = {}; for _, w in ipairs(frames) do if w.kind == 
 local function hitTarget(n, flag, school) for _ = 1, n do fire("UNIT_COMBAT", "target", "WOUND", flag or "", 50, school or 1) end end
 -- Fresh feat state for this section.
 SkinDeepDB.unlockMode = nil
-SkinDeepDB.counters, SkinDeepDB.feats, SkinDeepDB.bosses, SkinDeepDB.classLevels, SkinDeepDB.specCrits = nil, nil, nil, nil, nil
+SkinDeepDB.counters, SkinDeepDB.feats, SkinDeepDB.bosses, SkinDeepDB.classLevels, SkinDeepDB.specPoints = nil, nil, nil, nil, nil
 F.InitDB(SkinDeepDB)
 SkinDeepDB.enabled = true
 check(F.IsUnlocked("jackpot") and ns.SetSkin("jackpot"), "before choosing a mode every skin is open")
@@ -484,7 +493,7 @@ check(F.IsDone(F.ByID.comic) and F.IsDone(F.ByID.jackpot), "777 crits complete K
 check(F.IsUnlocked("jackpot") and ns.SetSkin("jackpot"), "Jackpot is now equippable")
 run(0.1)
 check(texts()["Skin unlocked"] and #soundFiles > soundsBefore, "unlock toast shows with its fanfare")
-check(SkinDeepDB.specCrits["MAGE:2"] == 777, "crits are counted per spec for the coming spec skins")
+check(not F.IsDone(F.ByID.mage_fire), "crits alone never unlock a spec variant")
 check(not F.IsDone(F.ByID.arcade), "hits are not done yet (777 / 1000)")
 hitTarget(500, "", 4)
 check(F.IsDone(F.ByID.ember) and F.IsDone(F.ByID.arcade), "500 Fire hits complete Ember Tide, and the hit total passes 1,000")
@@ -517,7 +526,7 @@ for i = 1, 250 do
 end
 check(SkinDeepDB.counters.undead == 250, "Undead kills are counted (250)")
 check(not F.IsDone(F.ByID.scourge), "a feat whose skin is not released does not complete")
-check(#F.Visible() == 48, "unreleased feats are not listed (48 of 50 shown while two skins are held back)")
+check(#F.Visible() == 76, "unreleased feats are not listed (76 of 78 shown while two skins are held back)")
 local alive = { name = "Defias Pillager", ctype = "Humanoid" }
 units.nameplate2 = alive
 fire("UNIT_COMBAT", "nameplate2", "WOUND", "", 30, 1)
@@ -706,12 +715,58 @@ do
   gameHour, monthNow = 12, 6
 end
 
+print("== spec variants")
+do
+  local F = ns.Feats
+  -- Every class has its variants; each variant inherits its class skin.
+  local per = {}
+  for _, id in ipairs(ns.SkinOrder) do
+    local s = ns.Skins[id]
+    if s.spec then per[s.class] = (per[s.class] or 0) + 1 end
+  end
+  check(per.WARRIOR == 3 and per.MAGE == 3 and per.DRUID == 4, "3 variants per class (Druid 4)")
+  check(ns.Skins.mage_fire.font == ns.Skins.mage.font and ns.Skins.mage_fire.motion == "implode",
+    "a variant inherits its class skin's font and motion")
+  check(ns.Skins.mage_frost.motion == "slam" and ns.Skins.mage_frost.critDecor == nil, "overrides apply, and false clears an inherited field")
+  -- Unlocking: 20 talent points in that tree.
+  SkinDeepDB.unlockMode = "collector"
+  SkinDeepDB.skin = "auto"
+  specSlot, specPoints = 2, { 5, 12, 0 }
+  fire("PLAYER_TALENT_UPDATE")
+  check(not F.IsDone(F.ByID.mage_fire) and F.ProgressText(F.ByID.mage_fire, true) == "12 / 20 points",
+    "12 points in Fire is not enough (12 / 20 points)")
+  check(ns.ResolvedSkinID() == "mage", "Auto stays on the class skin while the spec variant is locked")
+  specPoints = { 5, 21, 0 }
+  fire("PLAYER_TALENT_UPDATE")
+  check(F.IsDone(F.ByID.mage_fire) and not F.IsDone(F.ByID.mage_frost), "21 points in Fire unlock Pyroclasm, not Glacial Spike")
+  check(ns.ResolvedSkinID() == "mage_fire", "Auto switches to the active spec's variant once earned")
+  specSlot, specPoints = 3, { 5, 0, 31 }
+  fire("PLAYER_SPECIALIZATION_CHANGED")
+  check(F.IsDone(F.ByID.mage_frost) and ns.ResolvedSkinID() == "mage_frost", "respeccing to Frost with 31 points unlocks and switches to Glacial Spike")
+  check(SkinDeepDB.specPoints["id:63"] == 21, "a respec never lowers the best points seen (Fire stays at 21)")
+  check(F.IsUnlocked("mage_fire"), "and Pyroclasm stays unlocked")
+  specSlot, specPoints = 2, { 5, 21, 0 }
+  SkinDeepDB.skin = "mage"
+  check(ns.ResolvedSkinID() == "mage", "choosing the class skin itself does not follow the spec")
+  SkinDeepDB.skin = "auto"
+  -- The Feats tab's Specs group and the folded class list build and lay out.
+  ns.OpenWindow("feats")
+  run(0.3)
+  ns.OpenWindow("skins")
+  run(2)
+  _G.SkinDeepConfig:Hide()
+  SkinDeepDB.unlockMode = "all"
+end
+
 print("== version")
 check(ns.VERSION == "dev", "unpackaged copy reports version dev")
 
 print("== auto: my class")
 ns.SetSkin("auto")
-check(ns.CurrentSkin().id == "mage", "auto resolves to the Mage skin (Spellweave)")
+check(ns.CurrentSkin().id == "mage_fire", "auto follows the active spec (Fire Mage gets Pyroclasm)")
+local savedSlot = specSlot; specSlot = nil
+check(ns.CurrentSkin().id == "mage", "with no spec chosen, auto resolves to the Mage skin (Spellweave)")
+specSlot = savedSlot
 SlashCmdList.SKINDEEP("skin warrior")
 check(SkinDeepDB.skin == "warrior", "slash picks a class skin directly")
 SlashCmdList.SKINDEEP("skin auto")

@@ -435,6 +435,8 @@ function Engine.Spawn(e)
     p.motion = MOTIONS[skin.motion] or MOTIONS.rise
     p.dur = (crit and skin.critDur or skin.dur) or 1.1
     p.fade = skin.fade or 0.35
+    p.fadeIn = skin.fadeIn or FADE_IN          -- a slow fade-in (numbers out of shadow)
+    p.alphaMul = e.echo and 0.75 or 1
     p.pop = skin.pop or 0.3
     p.base = (db.scale or 1) * (inc and 0.8 or 1) * (crit and (skin.critScale or 1.5) or 1)
     p.shake = crit and skin.shake or nil
@@ -454,6 +456,10 @@ function Engine.Spawn(e)
     p.ax, p.ay = e.ax or 0, e.ay or 0
     p.ox = (random() - 0.5) * 30
     p.oy = laneOffset(p.anchor, skin.laneStep)
+    if e.echo then
+        -- An echo sits just beside the hit it repeats.
+        p.ox, p.oy = (e.echoX or 0) + 14, (e.echoY or 0) - 10
+    end
     p:SetFrameStrata(e.strata or "LOW")
 
     -- Text and its layers (skins with ownText draw their own).
@@ -497,7 +503,7 @@ function Engine.Spawn(e)
     -- Decor, bursts, rings, particles.
     hideTextures(p)
     p.decorDef, p.burstDef, p.burst2Def, p.ringDef = nil, nil, nil, nil
-    if db.effects and e.kind ~= "word" then
+    if db.effects and e.kind ~= "word" and not e.echo then
         -- critReplacesDecor: a crit swaps the everyday decor for its own.
         if skin.decor and not (crit and skin.critReplacesDecor) then
             p.decorDef = skin.decor
@@ -546,6 +552,17 @@ function Engine.Spawn(e)
     -- Skins with their own machinery (Jackpot.lua) build it here; they may
     -- also adjust p.dur, p.base, p.landAt and friends.
     if skin.onSpawn then skin.onSpawn(p, e, crit) end
+
+    -- Echo: the same hit lands again a moment later, beside the first
+    -- (Rampage, Stormstrike). The echo is a plain number, no effects.
+    if skin.echo and not e.echo and e.kind == "dmg" and C_Timer then
+        local again = {}
+        for k, v in pairs(e) do again[k] = v end
+        again.echo, again.crit = true, false
+        again.skin = skin.id
+        again.echoX, again.echoY = p.ox, p.oy
+        C_Timer.After(skin.echo.delay or 0.07, function() Engine.Spawn(again) end)
+    end
 
     if p.motion.init then p.motion.init(p, p.args) end
     tinsert(active, p)
@@ -634,7 +651,7 @@ function Engine.Step(p, dt)
 
     -- Alpha: quick fade in, fade out over the last part.
     local fadeStart = p.dur * (1 - p.fade)
-    local alpha = min(1, t / FADE_IN)
+    local alpha = min(1, t / p.fadeIn) * p.alphaMul
     if t > fadeStart then alpha = alpha * (1 - (t - fadeStart) / (p.dur - fadeStart)) end
     if p.flicker then alpha = alpha * (0.78 + 0.22 * sin(t * 37 + p.phase) * sin(t * 13)) end
     if p.blink and t > p.dur * 0.65 and floor(t * 18) % 2 == 0 then alpha = alpha * 0.25 end

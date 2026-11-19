@@ -133,6 +133,20 @@ for _, f in ipairs(MORE) do
     LIST[#LIST + 1] = f
 end
 
+-- Spec variants (SpecSkins.lua): spend 20 talent points in that spec's tree
+-- on any character of the class. Built from the skins themselves.
+local SPEC_POINTS = 20
+local SPEC_FEATS = {}
+for _, id in ipairs(ns.SkinOrder) do
+    local s = ns.Skins[id]
+    if s.spec then
+        local f = { id = id, skin = id, spec = s.spec, specID = s.specID, class = s.class, goal = SPEC_POINTS,
+                    text = ("Spend %d talent points in %s on a %s"):format(SPEC_POINTS, s.spec, className(s.class)) }
+        LIST[#LIST + 1] = f
+        SPEC_FEATS[#SPEC_FEATS + 1] = f
+    end
+end
+
 Feats.ALL = LIST
 
 -- A feat is part of the game once the skin it unlocks is.
@@ -179,7 +193,7 @@ function Feats.InitDB(d)
     d.counters = d.counters or {}
     d.classLevels = d.classLevels or {}
     d.bosses = d.bosses or {}
-    d.specCrits = d.specCrits or {}
+    d.specPoints = d.specPoints or {}   -- best talent points seen per spec ("id:71", "WARRIOR:Arms")
     d.feats = d.feats or {}
     d.hkChars = d.hkChars or {}
 end
@@ -197,15 +211,21 @@ function Feats.Progress(f)
     if f.counter then
         return min(f.goal, d.counters[f.counter] or 0), f.goal
     end
+    if f.spec then
+        local sp = d.specPoints
+        local best = max(f.specID and sp["id:" .. f.specID] or 0, sp[f.class .. ":" .. f.spec] or 0)
+        return min(f.goal, best), f.goal
+    end
     return 0, 1
 end
 
 -- short: the compact form for the Feats tab's right-hand column.
 function Feats.ProgressText(f, short)
     if Feats.IsDone(f) then return "Complete" end
-    if not f.counter and not f.classLevel then return "Not yet" end
+    if not f.counter and not f.classLevel and not f.spec then return "Not yet" end
     local cur, goal = Feats.Progress(f)
     if f.money then return ("%d / %d gold"):format(floor(cur / GOLD), floor(goal / GOLD)) end
+    if f.spec then return ("%d / %d points"):format(cur, goal) end
     if f.classLevel then
         if short then return ("Level %d / %d"):format(cur, goal) end
         return ("Best %s: level %d / %d"):format(className(f.classLevel), cur, goal)
@@ -222,7 +242,7 @@ end
 
 local function liveDone(f)
     if bossDone(f) then return true end
-    if not f.counter and not f.classLevel then return false end
+    if not f.counter and not f.classLevel and not f.spec then return false end
     local cur, goal = Feats.Progress(f)
     return cur >= goal
 end
@@ -391,14 +411,55 @@ local function checkDead(u)
 end
 Feats.CheckDead = checkDead
 
-local function specKey()
-    local spec = C_SpecializationInfo
-    local idx = spec and ns.Plain(call(spec.GetSpecialization), "number")
+---------------------------------------------------------------------------
+-- Specs and talents
+---------------------------------------------------------------------------
+local function playerClass()
     local ok, _, cls = pcall(UnitClass, "player")
-    cls = ok and ns.Plain(cls, "string")
-    if not (idx and cls) then return nil end
-    return cls .. ":" .. idx
+    return ok and ns.Plain(cls, "string") or nil
 end
+
+-- id, name and points spent for spec slot i of this character's class.
+local function specInfo(i)
+    local s = C_SpecializationInfo
+    local get = s and s.GetSpecializationInfo
+    if type(get) ~= "function" then return nil end
+    local ok, id, name, _, _, _, _, points = pcall(get, i)
+    if not ok then return nil end
+    return ns.Plain(id, "number"), ns.Plain(name, "string"), ns.Plain(points, "number")
+end
+
+-- The active spec: id, name (English on English clients), slot; nil if none.
+function Feats.CurrentSpec()
+    local s = C_SpecializationInfo
+    local idx = s and ns.Plain(call(s.GetSpecialization), "number")
+    if not idx or idx < 1 then return nil end
+    local id, name = specInfo(idx)
+    return id, name, idx
+end
+
+-- Records the points spent in each of this class's trees (the best ever
+-- seen per spec, so respeccing never takes an unlock back).
+local function scanTalents()
+    local cls = playerClass()
+    if not cls then return end
+    local sp = db().specPoints
+    local changed = false
+    for i = 1, 5 do
+        local id, name, points = specInfo(i)
+        if not id and not name then break end
+        if points then
+            local keys = {}
+            if id then keys[#keys + 1] = "id:" .. id end
+            if name then keys[#keys + 1] = cls .. ":" .. name end
+            for _, key in ipairs(keys) do
+                if (sp[key] or 0) < points then sp[key], changed = points, true end
+            end
+        end
+    end
+    if changed then Feats.Check(SPEC_FEATS) end
+end
+Feats.ScanTalents = scanTalents
 
 function Feats.OnCombat(unit, action, flags, amount, school)
     if not db() then return end
@@ -416,8 +477,6 @@ function Feats.OnCombat(unit, action, flags, amount, school)
     if CRIT[ns.Plain(flags, "string") or ""] then
         bump("crits")
         if Feats.IsNight() then bump("nightCrits") end
-        local key = specKey()
-        if key then db().specCrits[key] = (db().specCrits[key] or 0) + 1 end
     end
     local sc = SCHOOL_COUNTER[ns.Plain(school, "number") or 1]
     if sc then bump(sc) end
@@ -580,7 +639,9 @@ function Feats.OnHonorMessage(msg)
 end
 
 local events = CreateFrame("Frame")
-for _, e in ipairs({ "CHAT_MSG_COMBAT_HONOR_GAIN", "PLAYER_PVP_KILLS_CHANGED",
+for _, e in ipairs({ "CHAT_MSG_COMBAT_HONOR_GAIN", "PLAYER_PVP_KILLS_CHANGED", "PLAYER_TALENT_UPDATE",
+                     "CHARACTER_POINTS_CHANGED", "PLAYER_SPECIALIZATION_CHANGED", "ACTIVE_TALENT_GROUP_CHANGED",
+                     "TRAIT_CONFIG_UPDATED",
                      "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "UNIT_COMBAT", "UNIT_HEALTH", "PLAYER_TARGET_CHANGED",
                      "NAME_PLATE_UNIT_REMOVED", "ENCOUNTER_END", "BOSS_KILL", "PLAYER_MONEY", "PLAYER_LEVEL_UP",
                      "PLAYER_PVP_RANK_CHANGED", "CURRENCY_DISPLAY_UPDATE", "PVP_MATCH_COMPLETE", "CHAT_MSG_SYSTEM" }) do
@@ -619,16 +680,22 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d, e)
         Feats.OnHonorMessage(a)
     elseif event == "PLAYER_PVP_KILLS_CHANGED" then
         hkSync(0)
+    elseif event == "PLAYER_TALENT_UPDATE" or event == "CHARACTER_POINTS_CHANGED" or event == "TRAIT_CONFIG_UPDATED"
+        or event == "PLAYER_SPECIALIZATION_CHANGED" or event == "ACTIVE_TALENT_GROUP_CHANGED" then
+        scanTalents()
+        if ns.OnSettingsChanged then ns.OnSettingsChanged() end  -- Auto may now pick another variant
     elseif event == "PLAYER_LOGIN" then
         -- Records this character's level, rank and honorable kills (and
         -- checks every feat: anything already reached pops now).
         pvpRank()
         hkSync(0)
+        scanTalents()
         level()
     elseif event == "PLAYER_ENTERING_WORLD" then
         lastMoney = nil
         money()
         pvpRank()
         hkSync(0)
+        scanTalents()
     end
 end)

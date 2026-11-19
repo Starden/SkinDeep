@@ -27,7 +27,8 @@ progress. Unlocks are shared by all your characters.
 ## Skins
 
 **Auto: my class** (the default) uses your current character's class skin, so
-every character gets its own look.
+every character gets its own look. Once you have earned your active spec's skin, Auto uses that
+instead.
 
 | Class skins | |
 |---|---|
@@ -40,6 +41,12 @@ every character gets its own look.
 | **Spellweave** (Mage) | Sparks converge and the number bursts out; crits ripple fire, frost and arcane. |
 | **Fel Pact** (Warlock) | Flickering numbers over a fel sigil; crits flare fel fire and a void ring. |
 | **Wild Bloom** (Druid) | Numbers sway up like falling leaves; crits bloom a flower. |
+
+**Spec skins**: every class skin has a variant for each talent tree (28 in
+all, with Druid Guardian), such as Mortal Strike, Rampage and Shield Wall for
+Warriors or Arcane Surge, Pyroclasm and Glacial Spike for Mages. Earn one by
+spending 20 talent points in that tree on a character of the class. On the
+Skins tab, click a class to fold out its specs.
 
 | Faction skins | |
 |---|---|

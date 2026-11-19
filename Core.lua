@@ -142,8 +142,28 @@ function ns.ResolvedSkinID()
     local id = ns.db and ns.db.skin
     -- Locked for this character (Collector mode): use the class skin instead.
     if id ~= ns.AUTO and ns.Feats and ns.db and not ns.Feats.IsUnlocked(id) then id = ns.AUTO end
-    if id == ns.AUTO then return ns.ClassSkinID() or AUTO_FALLBACK end
+    if id == ns.AUTO then
+        -- Auto: the active spec's variant once it's earned, else the class skin.
+        local variant = ns.SpecVariantID()
+        if variant and (not ns.Feats or ns.Feats.IsUnlocked(variant)) then return variant end
+        return ns.ClassSkinID() or AUTO_FALLBACK
+    end
     return id
+end
+
+-- The spec variant skin for this character's active spec, or nil.
+function ns.SpecVariantID()
+    if not (ns.Feats and ns.Feats.CurrentSpec) then return nil end
+    local specID, specName = ns.Feats.CurrentSpec()
+    if not specID and not specName then return nil end
+    local ok, _, cls = pcall(UnitClass, "player")
+    cls = ok and ns.Plain(cls, "string")
+    for _, id in ipairs(ns.SkinOrder) do
+        local s = ns.Skins[id]
+        if s.spec and s.class == cls and ((specID and s.specID == specID) or (specName and s.spec == specName)) then
+            return id
+        end
+    end
 end
 
 function ns.CurrentSkin()

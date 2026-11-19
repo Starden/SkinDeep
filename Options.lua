@@ -18,15 +18,26 @@ local sizeLabel, speedLabel, nameText, tagText, noteText, unlockButton, countTex
 
 local Feats = ns.Feats
 
--- Skins and feats are shown one group at a time.
+-- Skins and feats are shown one group at a time. The Feats tab adds a Specs
+-- group (spec variants live inside Classes on the Skins tab).
 local GROUPS = { { "style", "Styles" }, { "class", "Classes" }, { "faction", "Factions" }, { "pvp", "PvP" } }
+local FEAT_GROUPS = { { "style", "Styles" }, { "class", "Classes" }, { "spec", "Specs" }, { "faction", "Factions" }, { "pvp", "PvP" } }
+local CLASS_ORDER = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
 local LIST_ROW, LIST_TOP = 24, -70
 local listGroup, featGroup = "style", "style"
+local expandedClass        -- the class whose spec variants are folded open
+local featSpecClass        -- the class shown in the Feats tab's Specs group
 local skinGroupTabs, featGroupTabs = {}, {}
+local specCycler
 
 local function groupOf(id)
     local skin = ns.Skins[id]
     return (skin and skin.group) or "style"
+end
+
+local function myClass()
+    local mine = ns.Skins[ns.ClassSkinID() or ""]
+    return mine and mine.class or "WARRIOR"
 end
 
 -- A small flat tab button.
@@ -52,14 +63,29 @@ end
 
 local function layoutSkins()
     local y = LIST_TOP
-    for _, b in ipairs(skinButtons) do
-        if b.group == listGroup then
-            b:ClearAllPoints()
-            b:SetPoint("TOPLEFT", 14, y)
-            b:Show()
-            y = y - LIST_ROW
-        else
-            b:Hide()
+    local function place(b, indent, row)
+        b:ClearAllPoints()
+        b:SetPoint("TOPLEFT", 14 + indent, y)
+        b:Show()
+        y = y - row
+    end
+    for _, b in ipairs(skinButtons) do b:Hide() end
+    if listGroup == "class" then
+        -- Each class skin, with its spec variants folded open beneath the
+        -- expanded class.
+        for _, b in ipairs(skinButtons) do
+            if b.group == "class" and not b.isVariant then
+                place(b, 0, LIST_ROW)
+                if b.class == expandedClass then
+                    for _, v in ipairs(skinButtons) do
+                        if v.isVariant and v.class == b.class then place(v, 14, LIST_ROW - 2) end
+                    end
+                end
+            end
+        end
+    else
+        for _, b in ipairs(skinButtons) do
+            if b.group == listGroup then place(b, 0, LIST_ROW) end
         end
     end
     for _, t in ipairs(skinGroupTabs) do t.SetOn(t.group == listGroup) end
@@ -69,8 +95,13 @@ local function layoutFeats()
     local shown = {}
     for _, r in ipairs(featRows) do
         local on = r.group == featGroup and Feats.Available(r.feat)
+            and (featGroup ~= "spec" or r.feat.class == featSpecClass)
         r:SetShown(on)
         if on then shown[#shown + 1] = r end
+    end
+    if specCycler then
+        specCycler:SetShown(featGroup == "spec")
+        specCycler.label:SetText(Feats.ClassName(featSpecClass or "WARRIOR"))
     end
     local perCol = math.ceil(#shown / 2)
     for i, r in ipairs(shown) do
@@ -328,7 +359,10 @@ local function buildSkins(page)
         local b = CreateFrame("Button", nil, page)
         b.id = id
         b.group = groupOf(id)
-        b:SetSize(200, LIST_ROW - 2)
+        b.class = id ~= ns.AUTO and skin.class or nil
+        b.isVariant = skin.spec ~= nil
+        -- Spec variants sit indented under their class, a touch smaller.
+        b:SetSize(b.isVariant and 186 or 200, LIST_ROW - (b.isVariant and 4 or 2))
         b.bg = b:CreateTexture(nil, "BACKGROUND")
         b.bg:SetAllPoints()
         b.sel = b:CreateTexture(nil, "BORDER")
@@ -339,8 +373,9 @@ local function buildSkins(page)
         hl:SetAllPoints()
         hl:SetColorTexture(1, 1, 1, 0.06)
         local label = b:CreateFontString(nil, "OVERLAY")
-        label:SetFont(skin.font, 14, skin.outline or "OUTLINE")
-        if not label:GetFont() then label:SetFont(ns.Fonts.friz, 14, "OUTLINE") end
+        local fontSize = b.isVariant and 13 or 14
+        label:SetFont(skin.font, fontSize, skin.outline or "OUTLINE")
+        if not label:GetFont() then label:SetFont(ns.Fonts.friz, fontSize, "OUTLINE") end
         label:SetPoint("LEFT", 12, 0)
         label:SetTextColor(skin.color[1], skin.color[2], skin.color[3])
         label:SetText(skin.name)
@@ -348,9 +383,14 @@ local function buildSkins(page)
         -- Right side: the class it belongs to, or "Locked".
         b.right = b:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
         b.right:SetPoint("RIGHT", -8, 0)
-        b.rightText = (skin.class and Feats.ClassName(skin.class))
+        b.rightText = skin.spec or (skin.class and Feats.ClassName(skin.class))
             or (skin.rank and ("%s · R%d"):format(skin.faction, skin.rank)) or skin.faction
         b:SetScript("OnClick", function()
+            -- A class skin folds open its spec variants.
+            if b.class and not b.isVariant and b.group == "class" and expandedClass ~= b.class then
+                expandedClass = b.class
+                layoutSkins()
+            end
             if IsShiftKeyDown and IsShiftKeyDown() and id ~= ns.AUTO then
                 -- Shift-click: the skin used in battlegrounds and against players.
                 if isLocked(id) then
@@ -569,9 +609,9 @@ local function buildFeats(page)
     local fan = checkbox(page, "Popup fanfare", "toastSound", "The popup plays the achievement fanfare.")
     fan:SetPoint("TOPLEFT", 510, -79)
 
-    -- Feat groups, like the skin list.
+    -- Feat groups, like the skin list, plus Specs.
     local x = 16
-    for _, g in ipairs(GROUPS) do
+    for _, g in ipairs(FEAT_GROUPS) do
         local t = groupTab(page, g[2], function()
             featGroup = g[1]
             layoutFeats()
@@ -582,6 +622,26 @@ local function buildFeats(page)
         featGroupTabs[#featGroupTabs + 1] = t
     end
 
+    -- Specs: ‹ Class › steps through the classes.
+    specCycler = CreateFrame("Frame", nil, page)
+    specCycler:SetSize(170, 20)
+    specCycler:SetPoint("TOPLEFT", x + 12, -106)
+    local function step(dir)
+        local i = 1
+        for k, c in ipairs(CLASS_ORDER) do if c == featSpecClass then i = k end end
+        featSpecClass = CLASS_ORDER[(i - 1 + dir) % #CLASS_ORDER + 1]
+        layoutFeats()
+    end
+    local prevBtn = groupTab(specCycler, "<", function() step(-1) end)
+    prevBtn:SetSize(22, 20)
+    prevBtn:SetPoint("LEFT")
+    local nextBtn = groupTab(specCycler, ">", function() step(1) end)
+    nextBtn:SetSize(22, 20)
+    nextBtn:SetPoint("RIGHT")
+    specCycler.label = specCycler:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    specCycler.label:SetPoint("CENTER")
+    specCycler:Hide()
+
     -- The feats of the chosen group, two columns (laid out by layoutFeats).
     local COLS, ROWH = 2, 34
     local colW = (W - 32 - 16) / COLS
@@ -590,7 +650,7 @@ local function buildFeats(page)
         r:SetSize(colW, ROWH - 4)
         r.colW = colW
         r.feat = f
-        r.group = groupOf(f.skin)
+        r.group = f.spec and "spec" or groupOf(f.skin)
         local skin = ns.Skins[f.skin]
         local color = skin.color
         r.name = r:CreateFontString(nil, "OVERLAY")
@@ -685,8 +745,10 @@ local function build()
     buildSkins(skinsPage)
     buildFeats(featsPage)
     featsPage:Hide()
-    -- Open on the group of the skin in use.
+    -- Open on the group of the skin in use, with your class folded open.
     listGroup = groupOf(ns.db.skin)
+    expandedClass = (ns.Skins[ns.db.skin] and ns.Skins[ns.db.skin].class) or myClass()
+    featSpecClass = myClass()
     layoutSkins()
     layoutFeats()
 
