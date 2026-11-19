@@ -206,3 +206,79 @@ add("duelist", {
     particles = { tex = "puff", count = 0, critCount = 6, size = { 14, 24 }, speed = { 30, 70 }, dir = { 200, 340 },
                   gravity = 20, life = { 0.5, 0.9 }, color = { 0.75, 0.65, 0.45 }, blend = "BLEND" },
 })
+
+---------------------------------------------------------------------------
+-- Honorable kills
+---------------------------------------------------------------------------
+add("tally", {
+    group = "pvp", faction = "Honorable kills",
+    name = "Tally Marks", tagline = "100 honorable kills: every hit scratches a tally above the number.",
+    font = F.friz, size = 24, outline = "OUTLINE",
+    color = { 0.85, 0.85, 0.75 }, physColor = { 0.95, 0.92, 0.85 }, spellColor = { 0.85, 0.3, 0.25 },
+    layers = { { x = 2, y = -2, color = { 0.2, 0.15, 0.1, 1 } } },
+    motion = "rise", motionArgs = { speed = 30 },
+    dur = 1.15, critDur = 1.45, critScale = 1.5, pop = 0.2,
+    decor = { tex = "tally", size = 26, y = 30, color = { 0.9, 0.88, 0.8 }, alpha = 0.55, blend = "BLEND" },
+    critReplacesDecor = true,
+    critDecor = { tex = "tally", size = 44, y = 34, color = { 1, 0.95, 0.85 }, alpha = 0.95, blend = "BLEND", snap = 1.6, snapTime = 0.1 },
+})
+
+add("lionspride", {
+    group = "pvp", faction = "Alliance",
+    name = "Lion's Pride", tagline = "250 Alliance honorable kills: proud blue-and-gold numbers; crits roar out a golden shockwave behind the crest.",
+    font = F.morpheus, size = 25, outline = "OUTLINE",
+    color = { 0.3, 0.55, 1 }, physColor = A_PHYS, spellColor = A_SPELL,
+    layers = { { x = 2, y = -2, color = { 0.05, 0.12, 0.35, 1 } }, { x = -1, y = 1, color = { 1, 0.85, 0.35, 0.45 } } },
+    motion = "rise", motionArgs = { speed = 34 },
+    dur = 1.3, critDur = 1.6, critScale = 1.55, pop = 0.3,
+    critDecor = { tex = "burst", size = 120, color = GOLD, alpha = 0.55, spin = 0.5 },
+    critDecor2 = { tex = "shield", size = 60, color = { 0.12, 0.25, 0.65 }, alpha = 0.95, blend = "BLEND", snap = 1.6, snapTime = 0.12 },
+    ring = { size = 70, color = GOLD, grow = 2.0, alpha = 0.9 },
+    particles = { tex = "spark", count = 0, critCount = 6, size = { 3, 6 }, speed = { 20, 60 }, dir = { 60, 120 },
+                  gravity = 20, life = { 0.5, 1.0 }, color = GOLD },
+})
+
+add("bloodthunder", {
+    group = "pvp", faction = "Horde",
+    name = "Blood & Thunder", tagline = "250 Horde honorable kills: numbers slam down like thunder; crits crack lightning through the iron ring.",
+    font = F.skurri, size = 30, outline = "THICKOUTLINE",
+    color = { 0.9, 0.15, 0.12 }, physColor = H_PHYS, spellColor = H_SPELL,
+    layers = { { x = 2, y = -2, color = { 0.2, 0.02, 0.02, 1 } }, { x = 4, y = -4, color = { 0.05, 0, 0, 1 } } },
+    motion = "drop", motionArgs = { height = 40, fall = 0.12, squash = 0.3, sinkAt = 0.35, sink = 12 },
+    dur = 1.15, critDur = 1.45, critScale = 1.55, pop = 0, shake = 6,
+    critDecor = { tex = "spikes", size = 90, color = { 0.75, 0.08, 0.06 }, alpha = 0.85, blend = "BLEND", spin = 0.6, snap = 0.3, snapTime = 0.08 },
+    critDecor2 = { tex = "bolt", size = { 26, 100 }, color = { 1, 0.85, 0.5 }, alpha = 1, flicker = true, randomRot = true },
+    particles = { tex = "pixel", count = 0, critCount = 8, size = { 3, 6 }, speed = { 60, 150 }, dir = { 20, 160 },
+                  gravity = -400, life = { 0.4, 0.8 }, color = { 0.6, 0.1, 0.05 }, blend = "BLEND" },
+})
+
+add("headhunter", {
+    group = "pvp", faction = "Honorable kills",
+    name = "Headhunter", tagline = "1,000 honorable kills: crits stamp a skull over a red ring and spill blood.",
+    font = F.skurri, size = 28, outline = "THICKOUTLINE",
+    color = { 0.85, 0.25, 0.2 }, physColor = { 0.95, 0.88, 0.8 }, spellColor = { 0.9, 0.25, 0.2 },
+    layers = { { x = 2, y = -2, color = { 0.25, 0.03, 0.02, 1 } } },
+    motion = "rise", motionArgs = { speed = 32 },
+    dur = 1.2, critDur = 1.5, critScale = 1.55, pop = 0.2, shake = 4,
+    critDecor = { tex = "skull", size = 44, y = 30, color = { 0.95, 0.9, 0.8 }, alpha = 0.95, blend = "BLEND", snap = 1.4, snapTime = 0.1 },
+    ring = { size = 60, color = { 0.9, 0.2, 0.15 }, grow = 1.6, alpha = 0.9 },
+    particles = { tex = "glow", count = 0, critCount = 7, size = { 4, 7 }, speed = { 40, 110 }, dir = { 200, 340 },
+                  gravity = -400, life = { 0.4, 0.8 }, color = { 0.7, 0.05, 0.05 }, blend = "BLEND" },
+})
+
+add("warmonger", {
+    group = "pvp", faction = "Honorable kills",
+    name = "Warmonger", tagline = "5,000 honorable kills: every hit smolders; crits blaze in a sunburst of war with skulls rising from the embers.",
+    font = F.skurri, size = 30, outline = "THICKOUTLINE",
+    color = { 1, 0.55, 0.15 }, physColor = { 1, 0.85, 0.6 }, spellColor = { 1, 0.4, 0.1 },
+    layers = { { x = 2, y = -2, color = { 0.4, 0.08, 0, 1 } }, { x = 4, y = -4, color = { 0.1, 0, 0, 1 } } },
+    motion = "rise", motionArgs = { speed = 30, sway = 3, freq = 10 },
+    dur = 1.3, critDur = 1.7, critScale = 1.6, pop = 0.2, shake = 7,
+    decor = { tex = "burst", size = 60, color = { 1, 0.45, 0.1 }, alpha = 0.25, spin = 1 },
+    critReplacesDecor = true,
+    critDecor = { tex = "burst", size = 170, color = { 1, 0.45, 0.1 }, alpha = 0.7, spin = 0.7 },
+    particles = { tex = "spark", count = 2, critCount = 16, size = { 3, 7 }, speed = { 40, 140 }, dir = { 50, 130 },
+                  gravity = 60, life = { 0.5, 1.0 }, color = { 1, 0.5, 0.1 }, altColor = { 1, 0.85, 0.3 } },
+    particles2 = { tex = "skull", count = 0, critCount = 3, size = { 18, 24 }, speed = { 30, 60 }, dir = { 70, 110 },
+                   gravity = 0, life = { 0.8, 1.2 }, color = { 0.95, 0.9, 0.8 }, blend = "BLEND" },
+})

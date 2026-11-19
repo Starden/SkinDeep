@@ -4,9 +4,9 @@
 
 SkinDeep replaces the numbers that pop over your enemies with animated, themed
 "damage skins": custom fonts, motion, colors, crit bursts and particles. It ships
-with 35 skins, including one for every class, six faction skins, ten PvP skins
-(up to Grand Marshal and High Warlord) and a slot-machine skin that rolls every
-hit and hits the JACKPOT on crits.
+with 51 skins, including one for every class, eleven faction skins, fifteen PvP
+skins (up to Grand Marshal and High Warlord), seasonal skins, and a slot-machine
+skin that rolls every hit and hits the JACKPOT on crits.
 
 Type `/skindeep` to open the skin picker with a live preview.
 
@@ -48,6 +48,11 @@ every character gets its own look.
 | **Red Kerchief** (Defias Brotherhood) | Numbers pop up from below; crits go off in a gunpowder flash. Earn it: defeat Edwin VanCleef. |
 | **Molten Anvil** (Dark Iron) | Molten numbers slam down and throw forge sparks. Earn it: slay 100 Dark Iron or defeat Emperor Thaurissan. |
 | **Broodmother** (Black Dragonflight) | Violet numbers rise; crits breathe a cone of dragonfire. Earn it: defeat Onyxia. |
+| **Broadside** (Bloodsail Buccaneers) | Cannonball numbers; crits burst in smoke and spill gold. Earn it: slay 100 Bloodsail Buccaneers. |
+| **Hexbound** (Gurubashi) | Voodoo numbers with a hex mask. Earn it: slay 100 Gurubashi or Hakkari, or defeat Hakkar. |
+| **Old God Whispers** (Twilight's Hammer) | Numbers under a watching eye. Earn it: slay 100 Twilight's Hammer or defeat C'Thun. |
+| **Silithid Swarm** (Qiraji) | Numbers in a cloud of beetles. Earn it: slay 250 Silithid or Qiraji, or defeat Ossirian. |
+| **Tidecaller** (Hydraxian Waterlords) | Tidal numbers that splash. Earn it: slay 100 Elementals or defeat Ragnaros. |
 | **Silver Dawn** (Argent Dawn) | Silver numbers rise over the dawn light; crits break into rays. Earn it: defeat Darkmaster Gandling. |
 
 | PvP skins | |
@@ -58,6 +63,8 @@ every character gets its own look.
 | **Five Banners** (Arathi Basin) | Numbers climb around the five nodes. Win 5 Arathi Basin battles. |
 | **Winter Siege** (Alterac Valley) | Frosty numbers slam in with snow. Win 3 Alterac Valley battles. |
 | **Duelist** (Duels) | Numbers feint and strike; crits flash crossed blades. Win 25 duels. |
+| **Tally Marks · Headhunter · Warmonger** | Honorable-kill trophies: 100, 1,000 and 5,000 honorable kills (lifetime kills count). |
+| **Lion's Pride · Blood & Thunder** | 250 honorable kills on Alliance / Horde characters. |
 
 Shift-click any skin to make it your **PvP skin**, used automatically in
 battlegrounds and against players.
@@ -74,6 +81,10 @@ battlegrounds and against players.
 | **Retro Arcade** | Pixel numbers hop up in steps; crits flash every color. |
 | **Gilded Hoard** | Beveled gold numbers tossed like coins. |
 | **Swiftblade** | Slanted steel numbers dash sideways with a motion trail. |
+| **Starfall** | Starlit numbers and shooting stars. |
+| **Gearworks** | Numbers tick up over turning gears. |
+| **Murloc Mayhem** | Bubbling numbers; crits shout MRGLGL! |
+| **Hallow's End · Winter Veil · Heartthrob** | Seasonal: bats and a jack-o'-lantern, snow and a gift, hearts. Earned by playing in October, December and February. |
 
 ## Colors
 

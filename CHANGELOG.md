@@ -32,6 +32,18 @@ Collect your skins.
     a triple war-drum pulse.
   - **Flag Runner** (win 5 Warsong Gulch), **Five Banners** (win 5 Arathi
     Basin), **Winter Siege** (win 3 Alterac Valley), **Duelist** (win 25 duels).
+- **Sixteen more skins**:
+  - **Styles**: Starfall (100 crits at night), Gearworks (100 Mechanical
+    foes), Murloc Mayhem (100 Murlocs), and three seasonal skins earned by
+    playing in their month: Hallow's End (October), Winter Veil (December)
+    and Heartthrob (February).
+  - **Factions**: Broadside (Bloodsail Buccaneers), Hexbound (Gurubashi),
+    Old God Whispers (Twilight's Hammer), Silithid Swarm (Qiraji) and
+    Tidecaller (Hydraxian Waterlords).
+  - **Honorable kills**: Tally Marks (100), Lion's Pride (250 as Alliance),
+    Blood & Thunder (250 as Horde), Headhunter (1,000) and Warmonger (5,000).
+    Kills made before installing SkinDeep count, from each character's
+    lifetime total.
 - **PvP skin**: Shift-click a skin to use it automatically in battlegrounds and
   against players (`/skindeep pvp <name|off>`).
 - **Unlock popups** with the achievement fanfare (both can be turned off).

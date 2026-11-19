@@ -122,3 +122,80 @@ add("argent", {
                   gravity = 10, life = { 0.6, 1.1 }, color = { 0.85, 0.97, 1 } },
     world = { WorldTextRampDuration = 1.3 },
 })
+
+add("broadside", {
+    group = "faction", faction = "Bloodsail Buccaneers",
+    name = "Broadside", tagline = "Bloodsail Buccaneers: numbers fire in like cannonballs; crits burst in smoke and spill gold.",
+    font = F.skurri, size = 28, outline = "THICKOUTLINE",
+    color = { 0.85, 0.2, 0.2 },
+    physColor = { 0.95, 0.9, 0.78 }, spellColor = { 0.85, 0.2, 0.18 },     -- sailcloth / bloodsail red
+    layers = { { x = 2, y = -2, color = { 0.2, 0.05, 0.02, 1 } } },
+    motion = "dash", motionArgs = { arrive = true, dist = 30, time = 0.1, rise = 26 },
+    dur = 1.15, critDur = 1.45, critScale = 1.55, pop = 0, shake = 5,
+    critDecor = { tex = "burst", size = 90, color = { 1, 0.6, 0.15 }, alpha = 0.85 },
+    particles = { tex = "puff", count = 0, critCount = 5, size = { 24, 40 }, speed = { 30, 70 }, dir = { 0, 360 },
+                  gravity = 10, life = { 0.6, 1.0 }, color = { 0.6, 0.58, 0.55 }, blend = "BLEND" },
+    particles2 = { tex = "coin", count = 0, critCount = 7, size = { 8, 11 }, speed = { 80, 160 }, dir = { 40, 140 },
+                   gravity = -380, life = { 0.6, 1.0 }, color = { 1, 0.82, 0.25 }, blend = "BLEND" },
+})
+
+add("hexbound", {
+    group = "faction", faction = "Gurubashi",
+    name = "Hexbound", tagline = "Gurubashi: swaying voodoo numbers; crits flash a hex mask and a ring of mojo.",
+    font = F.skurri, size = 28, outline = "THICKOUTLINE",
+    color = { 0.55, 0.9, 0.4 },
+    physColor = { 0.9, 0.95, 0.8 }, spellColor = { 0.75, 0.35, 1 },        -- bone / hex purple
+    layers = { { x = 2, y = -2, color = { 0.1, 0.25, 0.08, 1 } } },
+    motion = "rise", motionArgs = { speed = 30, sway = 8, freq = 6 },
+    dur = 1.3, critDur = 1.6, critScale = 1.5, pop = 0.25,
+    critDecor = { tex = "mask", size = 64, color = { 0.35, 0.6, 0.25 }, alpha = 0.9, blend = "BLEND", snap = 0.2, snapTime = 0.12 },
+    ring = { size = 50, color = { 0.75, 0.35, 1 }, grow = 1.8, alpha = 0.9 },
+    particles = { tex = "glow", count = 2, critCount = 8, size = { 3, 6 }, speed = { 15, 45 }, dir = { 60, 120 },
+                  gravity = 40, life = { 0.6, 1.1 }, color = { 0.6, 1, 0.4 }, altColor = { 0.8, 0.45, 1 } },
+})
+
+add("oldgod", {
+    group = "faction", faction = "Twilight's Hammer",
+    name = "Old God Whispers", tagline = "Twilight's Hammer: numbers drift under a watching eye; crits ripple out in void rings.",
+    font = F.morpheus, size = 25, outline = "OUTLINE",
+    color = { 0.6, 0.4, 0.95 },
+    physColor = { 0.85, 0.8, 0.95 }, spellColor = { 0.6, 0.35, 0.95 },     -- pale violet / void
+    layers = glow({ 0.5, 0.2, 0.8 }, 0.35),
+    motion = "rise", motionArgs = { speed = 22, sway = 10, freq = 3 },
+    dur = 1.35, critDur = 1.7, critScale = 1.5, pop = 0.2,
+    decor = { tex = "eye", size = { 40, 20 }, color = { 0.55, 0.25, 0.85 }, alpha = 0.25, blend = "BLEND" },
+    critReplacesDecor = true,
+    critDecor = { tex = "eye", size = { 90, 45 }, color = { 0.55, 0.25, 0.85 }, alpha = 0.65, blend = "BLEND", snap = 0.2, snapTime = 0.15 },
+    ring = { size = 60, color = { 0.45, 0.2, 0.75 }, grow = 2, alpha = 0.8 },
+    critDecor2 = { tex = "ring", size = 40, color = { 0.7, 0.45, 1 }, alpha = 0.7, grow = 1.8, delay = 0.1 },
+    particles = { tex = "eye", count = 0, critCount = 5, size = { 6, 9 }, aspect = 2, speed = { 20, 60 }, dir = { 0, 360 },
+                  gravity = 0, life = { 0.6, 1.1 }, color = { 0.7, 0.45, 1 }, blend = "BLEND" },
+})
+
+add("swarm", {
+    group = "faction", faction = "Qiraji",
+    name = "Silithid Swarm", tagline = "Qiraji: twitching numbers crawl upward in a cloud of beetles.",
+    font = F.friz, size = 24, outline = "OUTLINE",
+    color = { 0.9, 0.75, 0.35 },
+    physColor = { 0.95, 0.9, 0.75 }, spellColor = { 0.9, 0.7, 0.25 },      -- sand / amber
+    layers = { { x = 2, y = -2, color = { 0.3, 0.2, 0.05, 1 } } },
+    motion = "zap", motionArgs = { speed = 34, step = 0.05, jolt = 3 },
+    dur = 1.2, critDur = 1.5, critScale = 1.5, pop = 0.2,
+    particles = { tex = "bug", count = 3, critCount = 14, size = { 7, 12 }, speed = { 40, 120 }, dir = { 0, 360 },
+                  gravity = 0, life = { 0.5, 1.1 }, color = { 0.75, 0.6, 0.25 }, blend = "BLEND", orient = true },
+})
+
+add("tidecaller", {
+    group = "faction", faction = "Hydraxian Waterlords",
+    name = "Tidecaller", tagline = "Hydraxian Waterlords: numbers sway like the tide; crits splash out in rings and droplets.",
+    font = F.morpheus, size = 25, outline = "OUTLINE",
+    color = { 0.35, 0.7, 1 },
+    physColor = { 0.88, 0.95, 1 }, spellColor = { 0.3, 0.65, 1 },          -- spray / deep water
+    layers = { { x = 1.5, y = -1.5, color = { 0.05, 0.2, 0.4, 1 } } },
+    motion = "rise", motionArgs = { speed = 30, sway = 8, freq = 5 },
+    dur = 1.25, critDur = 1.55, critScale = 1.5, pop = 0.25,
+    ring = { size = 60, color = { 0.5, 0.8, 1 }, grow = 2, alpha = 0.9 },
+    critDecor = { tex = "ring", size = 40, color = { 0.7, 0.9, 1 }, alpha = 0.8, grow = 2, delay = 0.1 },
+    particles = { tex = "drop", count = 1, critCount = 10, size = { 8, 12 }, aspect = 0.5, speed = { 70, 150 }, dir = { 50, 130 },
+                  gravity = -380, life = { 0.5, 0.9 }, color = { 0.55, 0.82, 1 } },
+})

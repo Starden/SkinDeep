@@ -106,6 +106,33 @@ for _, f in ipairs(PVP) do
     LIST[#LIST + 1] = f
 end
 
+-- Round 3: more styles (three of them seasonal: hits landed during that
+-- month), more factions, and PvP skins earned by honorable kills (each
+-- character's lifetime count from the game, kept per character and summed
+-- for the account).
+local MORE = {
+    { id = "starfall",   counter = "nightCrits", goal = 100,  text = "Land 100 critical hits at night (9 PM to 5 AM server time)" },
+    { id = "gearworks",  counter = "mechanical", goal = 100,  text = "Slay 100 Mechanical foes" },
+    { id = "murloc",     counter = "murloc",     goal = 100,  text = "Slay 100 Murlocs" },
+    { id = "hallows",    counter = "hitsOct",    goal = 500,  text = "Land 500 hits during October" },
+    { id = "winterveil", counter = "hitsDec",    goal = 500,  text = "Land 500 hits during December" },
+    { id = "heartthrob", counter = "hitsFeb",    goal = 500,  text = "Land 500 hits during February" },
+    { id = "broadside",  counter = "bloodsail",  goal = 100,  text = "Slay 100 Bloodsail Buccaneers" },
+    { id = "hexbound",   counter = "gurubashi",  goal = 100,  text = "Slay 100 Gurubashi or Hakkari, or defeat Hakkar", boss = { "Hakkar" } },
+    { id = "oldgod",     counter = "twilight",   goal = 100,  text = "Slay 100 Twilight's Hammer or defeat C'Thun", boss = { "C'Thun" } },
+    { id = "swarm",      counter = "silithid",   goal = 250,  text = "Slay 250 Silithid or Qiraji, or defeat Ossirian", boss = { "Ossirian the Unscarred" } },
+    { id = "tidecaller", counter = "elemental",  goal = 100,  text = "Slay 100 Elementals or defeat Ragnaros", boss = { "Ragnaros" } },
+    { id = "tally",        counter = "hk",         goal = 100,  text = "Earn 100 honorable kills" },
+    { id = "lionspride",   counter = "hkAlliance", goal = 250,  text = "Earn 250 honorable kills on Alliance characters" },
+    { id = "bloodthunder", counter = "hkHorde",    goal = 250,  text = "Earn 250 honorable kills on Horde characters" },
+    { id = "headhunter",   counter = "hk",         goal = 1000, text = "Earn 1,000 honorable kills" },
+    { id = "warmonger",    counter = "hk",         goal = 5000, text = "Earn 5,000 honorable kills" },
+}
+for _, f in ipairs(MORE) do
+    f.skin = f.id
+    LIST[#LIST + 1] = f
+end
+
 Feats.ALL = LIST
 
 -- A feat is part of the game once the skin it unlocks is.
@@ -134,8 +161,14 @@ end
 Feats.ByID, Feats.BySkin = BY_ID, BY_SKIN
 
 -- Kills counted toward counters, matched on the mob's English name/type.
-local NAME_PREFIX = { ["Scarlet "] = "scarlet", ["Dark Iron "] = "darkiron", ["Defias "] = "defias" }
-local CREATURE_TYPE = { Undead = "undead", Dragonkin = "dragonkin" }
+local NAME_PREFIX = {
+    ["Scarlet "] = "scarlet", ["Dark Iron "] = "darkiron", ["Defias "] = "defias",
+    ["Bloodsail "] = "bloodsail", ["Twilight "] = "twilight",
+}
+local NAME_CONTAINS = {
+    Murloc = "murloc", Gurubashi = "gurubashi", Hakkari = "gurubashi", Silithid = "silithid", Qiraji = "silithid",
+}
+local CREATURE_TYPE = { Undead = "undead", Dragonkin = "dragonkin", Mechanical = "mechanical", Elemental = "elemental" }
 
 ---------------------------------------------------------------------------
 -- State
@@ -148,6 +181,7 @@ function Feats.InitDB(d)
     d.bosses = d.bosses or {}
     d.specCrits = d.specCrits or {}
     d.feats = d.feats or {}
+    d.hkChars = d.hkChars or {}
 end
 
 function Feats.Mode()
@@ -272,14 +306,20 @@ end
 
 -- A mob you fought died.
 function Feats.Killed(name, creatureType)
+    -- Each counter at most once per kill ("Gurubashi Hakkari" is one troll).
+    local hit = {}
     if name then
         for prefix, counter in pairs(NAME_PREFIX) do
-            if name:sub(1, #prefix) == prefix then bump(counter) end
+            if name:sub(1, #prefix) == prefix then hit[counter] = true end
+        end
+        for word, counter in pairs(NAME_CONTAINS) do
+            if name:find(word, 1, true) then hit[counter] = true end
         end
         if BY_BOSS[name] then Feats.BossKilled(name) end
     end
     local counter = creatureType and CREATURE_TYPE[creatureType]
-    if counter then bump(counter) end
+    if counter then hit[counter] = true end
+    for c in pairs(hit) do bump(c) end
 end
 
 ---------------------------------------------------------------------------
@@ -303,6 +343,22 @@ end
 ---------------------------------------------------------------------------
 local CRIT = { CRITICAL = true, CRUSHING = true }
 local SCHOOL_COUNTER = { [4] = "fire", [16] = "frost", [64] = "arcane" }
+local MONTH_COUNTER = { [10] = "hitsOct", [12] = "hitsDec", [2] = "hitsFeb" }
+
+-- The real-world month (local clock), for the seasonal skins.
+function Feats.Month()
+    if type(date) ~= "function" then return nil end
+    local ok, t = pcall(date, "*t")
+    return ok and type(t) == "table" and t.month or nil
+end
+
+-- 9 PM to 5 AM on the server's clock.
+function Feats.IsNight()
+    if type(GetGameTime) ~= "function" then return false end
+    local ok, hour = pcall(GetGameTime)
+    hour = ok and ns.Plain(hour, "number")
+    return hour ~= nil and (hour >= 21 or hour < 5)
+end
 
 -- Enemy units we hit, by unit token, until they die or the token moves on.
 local engaged = {}
@@ -355,8 +411,11 @@ function Feats.OnCombat(unit, action, flags, amount, school)
     -- The target's own plate fires too: count each hit once.
     if u ~= "target" and ns.SafeBool(UnitIsUnit, u, "target") then return end
     bump("hits")
+    local mc = MONTH_COUNTER[Feats.Month() or 0]
+    if mc then bump(mc) end
     if CRIT[ns.Plain(flags, "string") or ""] then
         bump("crits")
+        if Feats.IsNight() then bump("nightCrits") end
         local key = specKey()
         if key then db().specCrits[key] = (db().specCrits[key] or 0) + 1 end
     end
@@ -469,8 +528,60 @@ function Feats.OnSystemMessage(msg)
     end
 end
 
+-- Honorable kills. Each character's count is the higher of what SkinDeep has
+-- seen (one per honor-kill line) and the game's lifetime total for it, so
+-- kills from before SkinDeep count too; the account totals add them up.
+local function charKey()
+    local name = ns.Plain(call(UnitName, "player"), "string")
+    if not name then return nil end
+    return name .. "-" .. (ns.Plain(call(GetRealmName), "string") or "")
+end
+
+local function hkTotals()
+    local total, ally, horde = 0, 0, 0
+    for _, rec in pairs(db().hkChars) do
+        total = total + rec.n
+        if rec.faction == "Alliance" then ally = ally + rec.n elseif rec.faction == "Horde" then horde = horde + rec.n end
+    end
+    raise("hk", total)
+    raise("hkAlliance", ally)
+    raise("hkHorde", horde)
+end
+
+local function hkSync(gained)
+    local key = charKey()
+    if not key then return end
+    local chars = db().hkChars
+    local rec = chars[key] or { n = 0 }
+    chars[key] = rec
+    rec.faction = playerFaction() or rec.faction
+    rec.n = rec.n + (gained or 0)
+    local lifetime = ns.Plain(call(GetPVPLifetimeStats), "number")
+    if lifetime and lifetime > rec.n then rec.n = lifetime end
+    hkTotals()
+end
+Feats.SyncHonorableKills = hkSync
+
+-- The honor-kill line counts; the "You have been awarded N honor points"
+-- line (bonus honor, no kill) doesn't.
+local awardPattern
+function Feats.OnHonorMessage(msg)
+    msg = ns.Plain(msg, "string")
+    if not msg then return end
+    if not awardPattern then
+        local f = type(COMBATLOG_HONORAWARD) == "string" and COMBATLOG_HONORAWARD or "You have been awarded %d honor points."
+        f = f:gsub("[%(%)%.%+%-%*%?%[%]%^%$]", "%%%0")
+        f = f:gsub("%%d", "%%d+")
+        f = f:gsub("%%s", ".+")
+        awardPattern = "^" .. f .. "$"
+    end
+    if msg:find(awardPattern) then return end
+    hkSync(1)
+end
+
 local events = CreateFrame("Frame")
-for _, e in ipairs({ "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "UNIT_COMBAT", "UNIT_HEALTH", "PLAYER_TARGET_CHANGED",
+for _, e in ipairs({ "CHAT_MSG_COMBAT_HONOR_GAIN", "PLAYER_PVP_KILLS_CHANGED",
+                     "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "UNIT_COMBAT", "UNIT_HEALTH", "PLAYER_TARGET_CHANGED",
                      "NAME_PLATE_UNIT_REMOVED", "ENCOUNTER_END", "BOSS_KILL", "PLAYER_MONEY", "PLAYER_LEVEL_UP",
                      "PLAYER_PVP_RANK_CHANGED", "CURRENCY_DISPLAY_UPDATE", "PVP_MATCH_COMPLETE", "CHAT_MSG_SYSTEM" }) do
     pcall(events.RegisterEvent, events, e)
@@ -504,14 +615,20 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d, e)
         matchComplete(a)
     elseif event == "CHAT_MSG_SYSTEM" then
         Feats.OnSystemMessage(a)
+    elseif event == "CHAT_MSG_COMBAT_HONOR_GAIN" then
+        Feats.OnHonorMessage(a)
+    elseif event == "PLAYER_PVP_KILLS_CHANGED" then
+        hkSync(0)
     elseif event == "PLAYER_LOGIN" then
-        -- Records this character's level and honor (and checks every feat:
-        -- anything already reached, like a level 60's class feat, pops now).
+        -- Records this character's level, rank and honorable kills (and
+        -- checks every feat: anything already reached pops now).
         pvpRank()
+        hkSync(0)
         level()
     elseif event == "PLAYER_ENTERING_WORLD" then
         lastMoney = nil
         money()
         pvpRank()
+        hkSync(0)
     end
 end)

@@ -137,6 +137,12 @@ function GetInstanceInfo() return instanceName end
 function GetBattlefieldArenaFaction() return arenaFaction end
 function IsShiftKeyDown() return false end
 DUEL_WINNER_KNOCKOUT = "%1$s has defeated %2$s in a duel"
+COMBATLOG_HONORAWARD = "You have been awarded %d honor points."
+gameHour, monthNow, lifetimeHK = 12, 6, 0
+function GetGameTime() return gameHour, 0 end
+function date(fmt) return { month = monthNow, day = 1, year = 2026 } end
+function GetRealmName() return "Forever" end
+function GetPVPLifetimeStats() return lifetimeHK, 0, 0 end
 playerLevel, money = 12, 5000
 function UnitLevel(u) return playerLevel end
 function GetMoney() return money end
@@ -202,7 +208,7 @@ end
 
 -- Load the addon like the client: each file gets (addonName, ns).
 local ns = {}
-for _, file in ipairs({ "Skins.lua", "ClassSkins.lua", "FactionSkins.lua", "PvPSkins.lua", "Core.lua", "Feats.lua", "Engine.lua", "Jackpot.lua", "Options.lua", "Welcome.lua" }) do
+for _, file in ipairs({ "Skins.lua", "StyleSkins.lua", "ClassSkins.lua", "FactionSkins.lua", "PvPSkins.lua", "Core.lua", "Feats.lua", "Engine.lua", "Jackpot.lua", "Options.lua", "Welcome.lua" }) do
   local chunk, err = loadfile(ADDON_DIR .. "/" .. file)
   if not chunk then error(err) end
   chunk("SkinDeep", ns)
@@ -229,7 +235,10 @@ for _, id in ipairs(ns.SkinOrder) do
 end
 local nPvP = 0
 for _, id in ipairs(ns.SkinOrder) do if ns.Skins[id].group == "pvp" then nPvP = nPvP + 1; if not ns.Feats.FeatForSkin(id) then unpaired[#unpaired + 1] = id end end end
-check(#ns.SkinOrder == 35 and nClass == 9 and nFaction == 6 and nPvP == 10, "35 skins: 9 class, 6 faction, 10 PvP (" .. #ns.SkinOrder .. ", " .. nClass .. ", " .. nFaction .. ", " .. nPvP .. ")")
+check(#ns.SkinOrder == 51 and nClass == 9 and nFaction == 11 and nPvP == 15, "51 skins: 9 class, 11 faction, 15 PvP (" .. #ns.SkinOrder .. ", " .. nClass .. ", " .. nFaction .. ", " .. nPvP .. ")")
+local styleUnpaired = {}
+for _, id in ipairs(ns.SkinOrder) do local sk = ns.Skins[id]; if not sk.group and id ~= "classic" and not ns.Feats.FeatForSkin(id) then styleUnpaired[#styleUnpaired + 1] = id end end
+check(#styleUnpaired == 0, "every style skin but Classic+ has a feat" .. (#styleUnpaired > 0 and (": missing " .. table.concat(styleUnpaired, ", ")) or ""))
 check(#unpaired == 0, "every faction and PvP skin has the feat that unlocks it" .. (#unpaired > 0 and (": missing " .. table.concat(unpaired, ", ")) or ""))
 print("== every skin, plain and secret hits")
 SkinDeepDB.incoming = true
@@ -508,7 +517,7 @@ for i = 1, 250 do
 end
 check(SkinDeepDB.counters.undead == 250, "Undead kills are counted (250)")
 check(not F.IsDone(F.ByID.scourge), "a feat whose skin is not released does not complete")
-check(#F.Visible() == 32, "unreleased feats are not listed (32 of 34 shown while two skins are held back)")
+check(#F.Visible() == 48, "unreleased feats are not listed (48 of 50 shown while two skins are held back)")
 local alive = { name = "Defias Pillager", ctype = "Humanoid" }
 units.nameplate2 = alive
 fire("UNIT_COMBAT", "nameplate2", "WOUND", "", 30, 1)
@@ -629,6 +638,72 @@ do
   SlashCmdList.SKINDEEP("pvp off")
   check(SkinDeepDB.pvpSkin == nil, "/skindeep pvp off clears it")
   units.target = dummy
+end
+
+print("== round 3 feats")
+do
+  local F = ns.Feats
+  local C = function(k) return SkinDeepDB.counters[k] or 0 end
+  units.target = { name = "Training Dummy", ctype = "Mechanical" }
+  -- Night crits: server clock 9 PM to 5 AM.
+  gameHour = 12
+  fire("UNIT_COMBAT", "target", "WOUND", "CRITICAL", 50, 1)
+  check(C("nightCrits") == 0, "a crit at noon is not a night crit")
+  gameHour = 22
+  for _ = 1, 100 do fire("UNIT_COMBAT", "target", "WOUND", "CRITICAL", 50, 1) end
+  gameHour = 3
+  fire("UNIT_COMBAT", "target", "WOUND", "CRITICAL", 50, 1)
+  check(C("nightCrits") == 101 and F.IsDone(F.ByID.starfall), "crits at 10 PM and 3 AM count; 100 unlock Starfall")
+  -- Seasonal months.
+  monthNow = 10
+  for _ = 1, 500 do fire("UNIT_COMBAT", "target", "WOUND", "", 50, 1) end
+  check(C("hitsOct") == 500 and F.IsDone(F.ByID.hallows) and C("hitsDec") == 0, "500 hits in October unlock Hallow's End, and only October counts")
+  monthNow = 6
+  fire("UNIT_COMBAT", "target", "WOUND", "", 50, 1)
+  check(C("hitsOct") == 500, "June hits count toward no season")
+  -- Kills: names, creature types, once per kill.
+  local function kill(name, ctype)
+    local m = { name = name, ctype = ctype }
+    units.nameplate4 = m
+    fire("UNIT_COMBAT", "nameplate4", "WOUND", "", 30, 1)
+    m.dead = true
+    fire("UNIT_HEALTH", "nameplate4")
+  end
+  for _ = 1, 100 do kill("Murloc Tidehunter", "Humanoid") end
+  check(C("murloc") == 100 and F.IsDone(F.ByID.murloc), "100 Murlocs unlock Murloc Mayhem")
+  kill("Gurubashi Hakkari Shadowcaster", "Humanoid")
+  check(C("gurubashi") == 1, "a mob matching two Gurubashi words counts once")
+  kill("Bloodsail Swabby", "Humanoid")
+  kill("Twilight Cultist", "Humanoid")
+  kill("Qiraji Gladiator", "Humanoid")
+  kill("Clockwork Gnome", "Mechanical")
+  kill("Water Elemental", "Elemental")
+  check(C("bloodsail") == 1 and C("twilight") == 1 and C("silithid") == 1 and C("mechanical") == 1 and C("elemental") == 1,
+    "Bloodsail, Twilight, Qiraji, Mechanical and Elemental kills each count")
+  fire("ENCOUNTER_END", 790, "Hakkar", 1, 20, 1)
+  check(F.IsDone(F.ByID.hexbound), "defeating Hakkar unlocks Hexbound")
+  -- Honorable kills: lifetime per character, summed by faction.
+  units.player = { name = "Shockalacka" }
+  playerFactionName, lifetimeHK = "Alliance", 120
+  fire("PLAYER_ENTERING_WORLD")
+  check(C("hk") == 120 and C("hkAlliance") == 120 and F.IsDone(F.ByID.tally), "a lifetime of 120 honorable kills counts at login (Tally Marks)")
+  fire("CHAT_MSG_COMBAT_HONOR_GAIN", "You have been awarded 45 honor points.")
+  check(C("hk") == 120, "a bonus honor line is not a kill")
+  fire("CHAT_MSG_COMBAT_HONOR_GAIN", "Grimtusk dies, honorable kill Rank: Grunt (Estimated Honor Points: 12)")
+  check(C("hk") == 121, "an honorable kill line counts one kill")
+  fire("PLAYER_PVP_KILLS_CHANGED")
+  check(C("hk") == 121, "the game's lifetime total doesn't double count the live kill")
+  units.player = { name = "Grukk" }
+  playerFactionName, lifetimeHK = "Horde", 300
+  fire("PLAYER_ENTERING_WORLD")
+  check(C("hkHorde") == 300 and C("hkAlliance") == 121 and C("hk") == 421, "a Horde character adds its own kills; the account sums both")
+  check(F.IsDone(F.ByID.bloodthunder) and not F.IsDone(F.ByID.lionspride), "250 Horde kills unlock Blood & Thunder, not Lion's Pride")
+  units.player = { name = "Shockalacka" }
+  playerFactionName, lifetimeHK = "Alliance", 1000
+  fire("PLAYER_ENTERING_WORLD")
+  check(C("hk") == 1300 and F.IsDone(F.ByID.headhunter) and F.IsDone(F.ByID.lionspride), "the game's newer lifetime total raises the count (Headhunter, Lion's Pride)")
+  units.target = dummy
+  gameHour, monthNow = 12, 6
 end
 
 print("== version")

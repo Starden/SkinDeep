@@ -345,6 +345,108 @@ const TEXTURES = {
     }
     return al;
   }],
+  // --- Round 3 (original designs) -----------------------------------------
+  // Five-pointed star.
+  star: [64, 64, (u, v) => {
+    const [r, a] = polar(u, -v);
+    const k = Math.cos(Math.PI / 5) / Math.cos(((a + Math.PI / 2) % (2 * Math.PI / 5) + 2 * Math.PI / 5) % (2 * Math.PI / 5) - Math.PI / 5);
+    return 1 - smooth(0.9, 1, r / (0.92 * (0.45 + 0.55 * Math.pow(clamp(k - 0.809) / 0.191, 1.6))));
+  }],
+  // Cog with twelve teeth and a hub.
+  gear: [128, 128, (u, v) => {
+    const [r, a] = polar(u, v);
+    const tooth = (((a / (Math.PI * 2)) * 12 % 1) + 1) % 1 < 0.5 ? 0.92 : 0.74;
+    const body = 1 - smooth(tooth - 0.03, tooth, r);
+    const hole = 1 - smooth(0.2, 0.24, r);
+    const spoke = r < 0.6 && r > 0.24 && (Math.abs(u) < 0.07 || Math.abs(v) < 0.07) ? 0 : 1;
+    const window_ = r > 0.3 && r < 0.6 ? 0.35 : 1;
+    return [body * (1 - hole) * Math.max(window_, 1 - spoke), 0.75 + 0.25 * (r > 0.6 ? 1 : 0.6)];
+  }],
+  // Soap bubble: thin rim with a highlight.
+  bubble: [64, 64, (u, v) => {
+    const r = Math.hypot(u, v);
+    const rim = 1 - smooth(0.05, 0.1, Math.abs(r - 0.82));
+    const shine = 1 - smooth(0.06, 0.14, Math.hypot(u + 0.32, v - 0.34));
+    return Math.max(rim, shine, 0.12 * (r < 0.82 ? 1 : 0));
+  }],
+  // Bat in flight.
+  bat: [64, 32, (u, v) => {
+    const body = 1 - smooth(0.16, 0.2, Math.hypot(u * 1.4, v + 0.1));
+    const span = Math.abs(u);
+    // Flat leading edge sloping to the tip, scalloped trailing edge below.
+    const wingTop = 0.55 - 0.35 * span;
+    const wingBot = -0.35 + 0.5 * span - 0.22 * Math.abs(Math.sin(span * 7.85));
+    const wing = span < 0.98 && v < wingTop && v > wingBot ? 1 : 0;
+    const ear = Math.abs(Math.abs(u) - 0.09) < 0.05 && v > 0.05 && v < 0.35 - Math.abs(u) ? 1 : 0;
+    return Math.max(body, wing, ear);
+  }],
+  // Jack-o'-lantern: ribbed pumpkin, stem, carved face (hollow).
+  pumpkin: [64, 64, (u, v) => {
+    let body = 0;
+    for (const ox of [-0.32, 0, 0.32]) body = Math.max(body, 1 - smooth(0.95, 1.05, Math.hypot((u - ox) / 0.5, (v + 0.08) / 0.72)));
+    const stem = Math.abs(u) < 0.08 && v > 0.55 && v < 0.88 ? 1 : 0;
+    let face = 0;
+    for (const ex of [-0.3, 0.3]) if (v > 0.02 && v < 0.24 && Math.abs(u - ex) < (0.24 - v) * 0.7) face = 1;
+    if (v < -0.2 && v > -0.42 && Math.abs(u) < 0.42 && !(v > -0.3 && Math.abs((u * 5) % 1) < 0.2)) face = 1;
+    return [Math.max(stem, body * (1 - face)), stem ? 0.55 : 0.8 + 0.2 * Math.cos(u * 9)];
+  }],
+  // Wrapped gift: box, ribbon cross, bow.
+  gift: [64, 64, (u, v) => {
+    const box = Math.abs(u) < 0.7 && v > -0.85 && v < 0.35 ? 1 : 0;
+    const ribbon = box && (Math.abs(u) < 0.12 || Math.abs(v + 0.25) < 0.1) ? 1 : 0;
+    let bow = 0;
+    for (const s of [-1, 1]) bow = Math.max(bow, 1 - smooth(0.9, 1.05, Math.hypot((u - s * 0.25) / 0.26, (v - 0.55) / 0.17)));
+    return [Math.max(box, bow), ribbon || bow ? 1 : 0.6];
+  }],
+  // Heart.
+  heart: [64, 64, (u, v) => {
+    const x = u * 1.15, y = v * 1.15 + 0.15;
+    const f = Math.pow(x * x + y * y - 0.55, 3) - x * x * y * y * y;
+    return f < 0 ? 1 : 1 - smooth(0, 0.004, f);
+  }],
+  // Voodoo hex mask: tall face, slit eyes, bared teeth.
+  mask: [64, 64, (u, v) => {
+    const face = 1 - smooth(0.95, 1.05, Math.hypot(u / 0.62, v / 0.95));
+    let holes = 0;
+    for (const ex of [-0.25, 0.25]) if (Math.abs(v - 0.2) < 0.08 - Math.abs(u - ex) * 0.25 && Math.abs(u - ex) < 0.2) holes = 1;
+    if (v < -0.35 && v > -0.55 && Math.abs(u) < 0.3 && Math.abs((u * 6) % 1) > 0.25) holes = 1;
+    const stripe = Math.abs(u) < 0.05 && v > 0.35 ? 1 : 0;
+    return [face * (1 - holes), stripe ? 1 : 0.7 + 0.3 * (1 - Math.abs(u))];
+  }],
+  // Watching eye with a slit pupil.
+  eye: [64, 32, (u, v) => {
+    const lid = Math.abs(v) < 0.95 * Math.sqrt(clamp(1 - u * u)) ? 1 : 0;
+    const pupil = Math.abs(u) < 0.12 * Math.sqrt(clamp(1 - v * v)) ? 1 : 0;
+    const iris = 1 - smooth(0.4, 0.45, Math.hypot(u, v * 0.5));
+    return [lid * (1 - pupil * 0.95), iris ? 1 : 0.65];
+  }],
+  // Beetle: shell, head, six legs.
+  bug: [32, 32, (u, v) => {
+    const shell = 1 - smooth(0.9, 1.05, Math.hypot(u / 0.38, (v + 0.1) / 0.62));
+    const head = 1 - smooth(0.17, 0.21, Math.hypot(u, v - 0.6));
+    let legs = 0;
+    for (const ly of [-0.35, -0.05, 0.25]) for (const s of [-1, 1]) {
+      const d = segDist(u, v, s * 0.3, ly, s * 0.8, ly + 0.15);
+      legs = Math.max(legs, 1 - smooth(0.04, 0.07, d));
+    }
+    const seam = Math.abs(u) < 0.03 && v < 0.45 ? 1 : 0;
+    return [Math.max(shell, head, legs), seam ? 0.5 : 0.9];
+  }],
+  // Water droplet.
+  drop: [32, 64, (u, v) => {
+    const w = v < -0.35 ? 0.6 * Math.sqrt(clamp(1 - Math.pow((v + 0.35) / 0.6, 2)))
+                        : 0.6 * Math.pow(clamp(1 - (v + 0.35) / 1.3), 1.2);
+    const inside = 1 - smooth(w * 0.85, w, Math.abs(u));
+    const shine = 1 - smooth(0.06, 0.12, Math.hypot(u + 0.2, v + 0.35));
+    return [Math.max(inside, shine), 0.75 + 0.25 * shine];
+  }],
+  // Five tally marks: four strokes and a slash.
+  tally: [64, 64, (u, v) => {
+    let al = 0;
+    for (let i = 0; i < 4; i++) al = Math.max(al, 1 - smooth(0.05, 0.08, segDist(u, v, -0.55 + i * 0.32, -0.7, -0.5 + i * 0.32, 0.7)));
+    al = Math.max(al, 1 - smooth(0.05, 0.08, segDist(u, v, -0.85, -0.5, 0.7, 0.45)));
+    return al;
+  }],
   // Four-point twinkle.
   twinkle: [64, 64, (u, v) => {
     const r = Math.hypot(u, v);
