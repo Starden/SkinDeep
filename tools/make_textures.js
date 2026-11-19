@@ -231,6 +231,44 @@ const TEXTURES = {
     const heart = 1 - smooth(0.16, 0.2, r);
     return [Math.max(al, heart), heart > 0.5 ? 1 : 0.7 + 0.3 * (1 - r)];
   }],
+  // --- Faction skins -------------------------------------------------------
+  // Crusade sigil (original design): a ring around a flame, over a bar.
+  sigil: [128, 128, (u, v) => {
+    const r = Math.hypot(u, v);
+    let al = 1 - smooth(0.035, 0.06, Math.abs(r - 0.86));
+    al += 1 - smooth(0.015, 0.03, Math.abs(r - 0.74));
+    // Flame: round below, pointed above, centred a little high.
+    const fy = v - 0.1;
+    const w = fy < -0.15 ? 0.3 * Math.sqrt(clamp(1 - Math.pow((fy + 0.15) / 0.3, 2)))
+                         : 0.3 * Math.pow(clamp(1 - (fy + 0.15) / 0.6), 1.4);
+    if (fy > -0.45 && fy < 0.45) al += 1 - smooth(w - 0.03, w, Math.abs(u));
+    // Bar and post beneath the flame.
+    if (Math.abs(u) < 0.42 && Math.abs(v + 0.42) < 0.045) al += 1;
+    if (Math.abs(u) < 0.045 && v < -0.36 && v > -0.62) al += 1;
+    return al;
+  }],
+  // Flame tongue: round base, pointed tip, hotter core.
+  flame: [32, 64, (u, v) => {
+    const w = v < -0.35 ? 0.62 * Math.sqrt(clamp(1 - Math.pow((v + 0.35) / 0.62, 2)))
+                        : 0.62 * Math.pow(clamp(1 - (v + 0.35) / 1.35), 1.3);
+    const inside = 1 - smooth(w * 0.8, w, Math.abs(u));
+    return [inside, 1 - 0.45 * clamp(Math.abs(u) / (w || 1))];
+  }],
+  // Soft smoke / plague puff: three overlapping soft blobs.
+  puff: [64, 64, (u, v) => {
+    const blob = (cx, cy, rad) => 1 - smooth(rad * 0.4, rad, Math.hypot(u - cx, v - cy));
+    return 0.85 * Math.max(blob(0, 0.05, 0.62), blob(0.35, -0.15, 0.45), blob(-0.38, -0.12, 0.42));
+  }],
+  // Skull: cranium, jaw, hollow eyes and nose.
+  skull: [64, 64, (u, v) => {
+    const head = 1 - smooth(0.52, 0.56, Math.hypot(u, (v - 0.12) * 1.05));
+    const jaw = (Math.abs(u) < 0.32 && v < -0.2 && v > -0.62) ? 1 : 0;
+    let al = Math.max(head, jaw);
+    for (const ex of [-0.2, 0.2]) al -= 1 - smooth(0.11, 0.14, Math.hypot(u - ex, v - 0.05));
+    if (v < -0.08 && v > -0.24 && Math.abs(u) < (v + 0.24) * 0.4) al = 0;   // nose
+    if (v < -0.42 && v > -0.62 && Math.abs(u) < 0.3 && Math.abs((u * 6) % 1) < 0.25) al = 0; // teeth gaps
+    return [clamp(al), 0.95];
+  }],
   // Four-point twinkle.
   twinkle: [64, 64, (u, v) => {
     const r = Math.hypot(u, v);

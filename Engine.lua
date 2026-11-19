@@ -187,6 +187,34 @@ MOTIONS.implode = {
     end,
 }
 
+-- Rises in a few measured steps, each one stamped with a little pulse.
+MOTIONS.march = {
+    update = function(p, t, dt, a)
+        local stepTime, steps = a.stepTime or 0.22, a.steps or 3
+        local step = min(steps, floor(t / stepTime))
+        p.my = step * (a.px or 14) + (step >= steps and (t - steps * stepTime) * (a.drift or 10) or 0)
+        local k = (t % stepTime) / stepTime
+        p.ms = step < steps and 1 + (a.pulse or 0.12) * max(0, 1 - k * 4) or 1
+    end,
+}
+
+-- Rises with a lurching side-to-side stagger.
+MOTIONS.lurch = {
+    update = function(p, t, dt, a)
+        local side = floor(t / (a.period or 0.16)) % 2 == 0 and -1 or 1
+        p.mx = side * (a.amp or 6) * p.dir
+        p.my = (a.speed or 22) * t
+    end,
+}
+
+-- Pops up from below, then rises.
+MOTIONS.sneak = {
+    update = function(p, t, dt, a)
+        local rise = a.rise or 0.1
+        p.my = t < rise and -(a.from or 16) * (1 - t / rise) or (a.speed or 28) * (t - rise)
+    end,
+}
+
 Engine.MOTIONS = MOTIONS
 
 ---------------------------------------------------------------------------

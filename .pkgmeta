@@ -12,6 +12,7 @@ ignore:
   - tools
   - tests
   - docs
+  - .github
   - package.json
   - package-lock.json
   - node_modules

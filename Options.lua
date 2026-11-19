@@ -9,7 +9,7 @@ local _, ns = ...
 -- differ between clients.
 
 local floor = math.floor
-local W, H = 660, 600
+local W, H = 660, 680
 local window, previewBox, skinsPage, featsPage
 local previewClock = 0
 local previewId        -- a locked skin being previewed (not equipped)
@@ -227,9 +227,9 @@ end
 -- Skins page
 ---------------------------------------------------------------------------
 local function buildSkins(page)
-    -- Skin list in two groups (styles, then classes), each name drawn in
+    -- Skin list in groups (styles, classes, factions), each name drawn in
     -- its own font and color.
-    local ROW = 24
+    local ROW = 21
     local y = -44
     local function header(text)
         local h = page:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -237,17 +237,16 @@ local function buildSkins(page)
         h:SetText(text)
         y = y - 20
     end
-    local ordered = {}
-    for _, id in ipairs(ns.SkinOrder) do
-        if ns.Skins[id].group ~= "class" then ordered[#ordered + 1] = id end
+    local GROUPS = { { nil, "STYLES" }, { "class", "CLASSES" }, { "faction", "FACTIONS" } }
+    local ordered, headerAt = {}, {}
+    for _, g in ipairs(GROUPS) do
+        headerAt[#ordered + 1] = g[2]
+        -- "Auto: my class" heads the styles.
+        if g[1] == nil then ordered[#ordered + 1] = ns.AUTO end
+        for _, id in ipairs(ns.SkinOrder) do
+            if ns.Skins[id].group == g[1] then ordered[#ordered + 1] = id end
+        end
     end
-    local firstClass = #ordered + 1
-    for _, id in ipairs(ns.SkinOrder) do
-        if ns.Skins[id].group == "class" then ordered[#ordered + 1] = id end
-    end
-    -- "Auto: my class" heads the list, drawn in the class skin's look.
-    tinsert(ordered, 1, ns.AUTO)
-    firstClass = firstClass + 1
     local mine = ns.Skins[ns.ClassSkinID() or ""]
     -- Plain font in the class color: some class skins' fonts (crystal, dots)
     -- are hard to read at list size.
@@ -259,9 +258,11 @@ local function buildSkins(page)
         class = mine and mine.class,
         tagline = "Uses the class skin of whichever character you're playing.",
     }
-    header("STYLES")
     for i, id in ipairs(ordered) do
-        if i == firstClass then y = y - 4; header("CLASSES") end
+        if headerAt[i] then
+            if i > 1 then y = y - 4 end
+            header(headerAt[i])
+        end
         local skin = id == ns.AUTO and autoEntry or ns.Skins[id]
         local b = CreateFrame("Button", nil, page)
         b.id = id
@@ -278,8 +279,8 @@ local function buildSkins(page)
         hl:SetAllPoints()
         hl:SetColorTexture(1, 1, 1, 0.06)
         local label = b:CreateFontString(nil, "OVERLAY")
-        label:SetFont(skin.font, 14, skin.outline or "OUTLINE")
-        if not label:GetFont() then label:SetFont(ns.Fonts.friz, 14, "OUTLINE") end
+        label:SetFont(skin.font, 13, skin.outline or "OUTLINE")
+        if not label:GetFont() then label:SetFont(ns.Fonts.friz, 13, "OUTLINE") end
         label:SetPoint("LEFT", 12, 0)
         label:SetTextColor(skin.color[1], skin.color[2], skin.color[3])
         label:SetText(skin.name)
@@ -287,7 +288,7 @@ local function buildSkins(page)
         -- Right side: the class it belongs to, or "Locked".
         b.right = b:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
         b.right:SetPoint("RIGHT", -8, 0)
-        b.rightText = skin.class and Feats.ClassName(skin.class) or nil
+        b.rightText = (skin.class and Feats.ClassName(skin.class)) or skin.faction
         b:SetScript("OnClick", function()
             if isLocked(id) then
                 previewId = id      -- look, but don't equip

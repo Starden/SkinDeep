@@ -191,7 +191,7 @@ end
 
 -- Load the addon like the client: each file gets (addonName, ns).
 local ns = {}
-for _, file in ipairs({ "Skins.lua", "ClassSkins.lua", "Core.lua", "Feats.lua", "Engine.lua", "Jackpot.lua", "Options.lua", "Welcome.lua" }) do
+for _, file in ipairs({ "Skins.lua", "ClassSkins.lua", "FactionSkins.lua", "Core.lua", "Feats.lua", "Engine.lua", "Jackpot.lua", "Options.lua", "Welcome.lua" }) do
   local chunk, err = loadfile(ADDON_DIR .. "/" .. file)
   if not chunk then error(err) end
   chunk("SkinDeep", ns)
@@ -209,7 +209,15 @@ check(SkinDeepDB.borrowed.floatingCombatTextCombatDamage_v2 == "1", "original CV
 print("== class skins")
 local nClass = 0
 for _, id in ipairs(ns.SkinOrder) do if ns.Skins[id].group == "class" then nClass = nClass + 1 end end
-check(#ns.SkinOrder == 19 and nClass == 9, "19 skins, 9 of them class skins (" .. #ns.SkinOrder .. ", " .. nClass .. ")")
+local nFaction, unpaired = 0, {}
+for _, id in ipairs(ns.SkinOrder) do
+  if ns.Skins[id].group == "faction" then
+    nFaction = nFaction + 1
+    if not ns.Feats.FeatForSkin(id) then unpaired[#unpaired + 1] = id end
+  end
+end
+check(#ns.SkinOrder == 25 and nClass == 9 and nFaction == 6, "25 skins: 9 class, 6 faction (" .. #ns.SkinOrder .. ", " .. nClass .. ", " .. nFaction .. ")")
+check(#unpaired == 0, "every faction skin has the feat that unlocks it" .. (#unpaired > 0 and (": missing " .. table.concat(unpaired, ", ")) or ""))
 print("== every skin, plain and secret hits")
 SkinDeepDB.incoming = true
 for _, id in ipairs(ns.SkinOrder) do
@@ -464,6 +472,9 @@ fire("UNIT_COMBAT", "target", "WOUND", "", 0, 1)
 check(SkinDeepDB.counters.hits == 1277, "zero-damage results do not count as hits")
 
 print("== kills and bosses")
+-- Pretend two faction skins are not released yet, to check feats wait for them.
+local realScourge, realDefias = ns.Skins.scourge, ns.Skins.defias
+ns.Skins.scourge, ns.Skins.defias = nil, nil
 local monk = { name = "Scarlet Monk", ctype = "Humanoid" }
 fire("NAME_PLATE_UNIT_REMOVED", "nameplate1")   -- the dummy plate goes away
 units.target, units.nameplate1 = monk, monk
@@ -484,9 +495,7 @@ for i = 1, 250 do
 end
 check(SkinDeepDB.counters.undead == 250, "Undead kills are counted (250)")
 check(not F.IsDone(F.ByID.scourge), "a feat whose skin is not released does not complete")
-local listed = false
-for _, v in ipairs(F.Visible()) do if v.flavor then listed = true end end
-check(not listed and #F.Visible() == 18, "unreleased faction feats are not listed (18 feats shown)")
+check(#F.Visible() == 22, "unreleased feats are not listed (22 of 24 shown while two skins are held back)")
 local alive = { name = "Defias Pillager", ctype = "Humanoid" }
 units.nameplate2 = alive
 fire("UNIT_COMBAT", "nameplate2", "WOUND", "", 30, 1)
@@ -496,14 +505,12 @@ check((SkinDeepDB.counters.defias or 0) == 0, "a mob that left view alive is not
 fire("ENCOUNTER_END", 1234, "Edwin VanCleef", 1, 5, 1)
 check(SkinDeepDB.bosses["Edwin VanCleef"] and not F.IsDone(F.ByID.defias), "the VanCleef kill is recorded, but its feat waits for its skin")
 -- The skin ships: the feats already met complete right away.
-ns.Skins.defias = setmetatable({ id = "defias", name = "Red Kerchief" }, { __index = ns.Skins.classic })
-ns.Skins.scourge = setmetatable({ id = "scourge", name = "Plague Tide" }, { __index = ns.Skins.classic })
+ns.Skins.defias, ns.Skins.scourge = realDefias, realScourge
 F.Check()
 check(F.IsDone(F.ByID.defias) and F.IsDone(F.ByID.scourge), "once their skins exist, earlier progress completes the faction feats")
 local sawPlague = false
 for _ = 1, 60 do run(1); if texts()["Plague Tide"] then sawPlague = true; break end end  -- toasts queue, ~5s each
 check(sawPlague, "the faction skin unlock pops its toast")
-ns.Skins.defias, ns.Skins.scourge = nil, nil
 fire("ENCOUNTER_END", 1235, "Emperor Dagran Thaurissan", 1, 5, 0)
 check(not SkinDeepDB.bosses["Emperor Dagran Thaurissan"], "a failed encounter does not count")
 

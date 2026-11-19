@@ -4,8 +4,8 @@
 
 SkinDeep replaces the numbers that pop over your enemies with animated, themed
 "damage skins": custom fonts, motion, colors, crit bursts and particles. It ships
-with 19 skins, including one for every class and a slot-machine skin that rolls
-every hit and hits the JACKPOT on crits.
+with 25 skins, including one for every class, six faction skins and a
+slot-machine skin that rolls every hit and hits the JACKPOT on crits.
 
 Type `/skindeep` to open the skin picker with a live preview.
 
@@ -39,6 +39,15 @@ every character gets its own look.
 | **Spellweave** (Mage) | Sparks converge and the number bursts out; crits ripple fire, frost and arcane. |
 | **Fel Pact** (Warlock) | Flickering numbers over a fel sigil; crits flare fel fire and a void ring. |
 | **Wild Bloom** (Druid) | Numbers sway up like falling leaves; crits bloom a flower. |
+
+| Faction skins | |
+|---|---|
+| **Crimson Oath** (Scarlet Crusade) | Numbers march up over the crusade's sigil; crits burn with holy fire. Earn it: slay 100 Scarlet Crusade or defeat Whitemane. |
+| **Plague Tide** (Scourge) | Numbers lurch through plague mist; crits raise an icy rune and a skull. Earn it: slay 250 Undead or defeat Baron Rivendare. |
+| **Red Kerchief** (Defias Brotherhood) | Numbers pop up from below; crits go off in a gunpowder flash. Earn it: defeat Edwin VanCleef. |
+| **Molten Anvil** (Dark Iron) | Molten numbers slam down and throw forge sparks. Earn it: slay 100 Dark Iron or defeat Emperor Thaurissan. |
+| **Broodmother** (Black Dragonflight) | Violet numbers rise; crits breathe a cone of dragonfire. Earn it: defeat Onyxia. |
+| **Silver Dawn** (Argent Dawn) | Silver numbers rise over the dawn light; crits break into rays. Earn it: defeat Darkmaster Gandling. |
 
 | Style skins | |
 |---|---|
