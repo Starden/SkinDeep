@@ -61,15 +61,15 @@ end
 -- Faction flavor skins (coming in the next update; counted from now on).
 local FLAVOR = {
     { id = "scarlet",  title = "Crimson Oath", faction = "Scarlet Crusade", color = { 0.92, 0.14, 0.14 },
-      text = "Slay 100 Scarlet Crusade foes, or defeat High Inquisitor Whitemane",
+      text = "Slay 100 Scarlet Crusade or defeat Whitemane",
       counter = "scarlet", goal = 100, boss = { "High Inquisitor Whitemane" } },
     { id = "scourge",  title = "Plague Tide", faction = "Scourge", color = { 0.55, 1, 0.35 },
-      text = "Slay 250 Undead, or defeat Baron Rivendare",
+      text = "Slay 250 Undead or defeat Baron Rivendare",
       counter = "undead", goal = 250, boss = { "Baron Rivendare" } },
     { id = "defias",   title = "Red Kerchief", faction = "Defias Brotherhood", color = { 0.88, 0.25, 0.18 },
       text = "Defeat Edwin VanCleef", boss = { "Edwin VanCleef" } },
     { id = "darkiron", title = "Molten Anvil", faction = "Dark Iron", color = { 1, 0.55, 0.2 },
-      text = "Slay 100 Dark Iron foes, or defeat Emperor Dagran Thaurissan",
+      text = "Slay 100 Dark Iron or defeat Emperor Thaurissan",
       counter = "darkiron", goal = 100, boss = { "Emperor Dagran Thaurissan" } },
     { id = "brood",    title = "Broodmother", faction = "Black Dragonflight", color = { 0.7, 0.45, 1 },
       text = "Defeat Onyxia", boss = { "Onyxia" } },
@@ -128,12 +128,16 @@ function Feats.Progress(f)
     return 0, 1
 end
 
-function Feats.ProgressText(f)
+-- short: the compact form for the Feats tab's right-hand column.
+function Feats.ProgressText(f, short)
     if Feats.IsDone(f) then return "Complete" end
     if not f.counter and not f.classLevel then return "Not yet" end
     local cur, goal = Feats.Progress(f)
     if f.money then return ("%d / %d gold"):format(floor(cur / GOLD), floor(goal / GOLD)) end
-    if f.classLevel then return ("Best %s: level %d / %d"):format(className(f.classLevel), cur, goal) end
+    if f.classLevel then
+        if short then return ("Level %d / %d"):format(cur, goal) end
+        return ("Best %s: level %d / %d"):format(className(f.classLevel), cur, goal)
+    end
     return ("%d / %d"):format(cur, goal)
 end
 

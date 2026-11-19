@@ -115,7 +115,7 @@ local function refreshFeats()
         local isDone = Feats.IsDone(f)
         local cur, goal = Feats.Progress(f)
         if isDone then cur, goal = 1, 1 end
-        row.status:SetText(isDone and "|cff7fe07fComplete|r" or ("|cffaaa59a" .. Feats.ProgressText(f) .. "|r"))
+        row.status:SetText(isDone and "|cff7fe07fComplete|r" or ("|cffaaa59a" .. Feats.ProgressText(f, true) .. "|r"))
         row.fill:SetWidth(math.max(0.01, row.barWidth * (goal > 0 and cur / goal or 0)))
         row.fill:SetColorTexture(isDone and 0.45 or 0.85, isDone and 0.85 or 0.64, isDone and 0.4 or 0.15, 1)
         row.name:SetAlpha(isDone and 1 or 0.75)
@@ -249,10 +249,12 @@ local function buildSkins(page)
     tinsert(ordered, 1, ns.AUTO)
     firstClass = firstClass + 1
     local mine = ns.Skins[ns.ClassSkinID() or ""]
+    -- Plain font in the class color: some class skins' fonts (crystal, dots)
+    -- are hard to read at list size.
     local autoEntry = {
         name = "Auto: my class",
-        font = mine and mine.font or ns.Fonts.friz,
-        outline = mine and mine.outline or "OUTLINE",
+        font = ns.Fonts.friz,
+        outline = "OUTLINE",
         color = mine and mine.color or { 1, 1, 1 },
         class = mine and mine.class,
         tagline = "Uses the class skin of whichever character you're playing.",
@@ -502,17 +504,27 @@ local function buildFeats(page)
         r.name = r:CreateFontString(nil, "OVERLAY")
         r.name:SetFont((skin and skin.font) or ns.Fonts.friz, 13, (skin and skin.outline) or "OUTLINE")
         if not r.name:GetFont() then r.name:SetFont(ns.Fonts.friz, 13, "OUTLINE") end
+        -- One line each, in fixed lanes: name on the left, progress on the
+        -- right, requirement below. Nothing wraps or runs into its neighbor.
+        local STATUS_W = 96
         r.name:SetPoint("TOPLEFT", 0, 0)
+        r.name:SetWidth(colW - STATUS_W - 6)
+        r.name:SetJustifyH("LEFT")
+        if r.name.SetWordWrap then r.name:SetWordWrap(false) end
         r.name:SetTextColor(color[1], color[2], color[3])
         local label = skin and skin.name or f.title
-        if f.flavor and not skin then label = label .. "  |cff8c8577(" .. f.faction .. ", coming soon)|r" end
+        if f.flavor and not skin then label = label .. "  |cff8c8577soon|r" end
         r.name:SetText(label)
         r.status = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         r.status:SetPoint("TOPRIGHT", 0, -1)
+        r.status:SetWidth(STATUS_W)
+        r.status:SetJustifyH("RIGHT")
+        if r.status.SetWordWrap then r.status:SetWordWrap(false) end
         r.text = r:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-        r.text:SetPoint("TOPLEFT", r.name, "BOTTOMLEFT", 0, -2)
+        r.text:SetPoint("TOPLEFT", 0, -16)
         r.text:SetWidth(colW)
         r.text:SetJustifyH("LEFT")
+        if r.text.SetWordWrap then r.text:SetWordWrap(false) end
         r.text:SetText(f.text)
         r.barWidth = colW
         local track = r:CreateTexture(nil, "BACKGROUND")
