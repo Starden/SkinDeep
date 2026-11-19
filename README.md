@@ -4,8 +4,9 @@
 
 SkinDeep replaces the numbers that pop over your enemies with animated, themed
 "damage skins": custom fonts, motion, colors, crit bursts and particles. It ships
-with 25 skins, including one for every class, six faction skins and a
-slot-machine skin that rolls every hit and hits the JACKPOT on crits.
+with 35 skins, including one for every class, six faction skins, ten PvP skins
+(up to Grand Marshal and High Warlord) and a slot-machine skin that rolls every
+hit and hits the JACKPOT on crits.
 
 Type `/skindeep` to open the skin picker with a live preview.
 
@@ -48,6 +49,18 @@ every character gets its own look.
 | **Molten Anvil** (Dark Iron) | Molten numbers slam down and throw forge sparks. Earn it: slay 100 Dark Iron or defeat Emperor Thaurissan. |
 | **Broodmother** (Black Dragonflight) | Violet numbers rise; crits breathe a cone of dragonfire. Earn it: defeat Onyxia. |
 | **Silver Dawn** (Argent Dawn) | Silver numbers rise over the dawn light; crits break into rays. Earn it: defeat Darkmaster Gandling. |
+
+| PvP skins | |
+|---|---|
+| **Knight · Lieutenant Commander · Grand Marshal** (Alliance) | Blue-and-gold ranks; reach honor level 6, 10 and 14 on an Alliance character. Grand Marshal crowns every crit with a crest, a sunburst, its title and a shower of gold. |
+| **Stone Guard · Champion · High Warlord** (Horde) | Iron-and-blood ranks; reach honor level 6, 10 and 14 on a Horde character. High Warlord crits beat the war drum, split the ground and erupt in fire and skulls. |
+| **Flag Runner** (Warsong Gulch) | Numbers sprint in; crits plant the flag. Win 5 Warsong Gulch battles. |
+| **Five Banners** (Arathi Basin) | Numbers climb around the five nodes. Win 5 Arathi Basin battles. |
+| **Winter Siege** (Alterac Valley) | Frosty numbers slam in with snow. Win 3 Alterac Valley battles. |
+| **Duelist** (Duels) | Numbers feint and strike; crits flash crossed blades. Win 25 duels. |
+
+Shift-click any skin to make it your **PvP skin**, used automatically in
+battlegrounds and against players.
 
 | Style skins | |
 |---|---|

@@ -84,6 +84,27 @@ for _, f in ipairs(FLAVOR) do
     LIST[#LIST + 1] = f
 end
 
+-- PvP. Ranks follow Forever's honor level (UnitHonorLevel): the highest any
+-- character of that faction has reached. Battleground wins come from
+-- PVP_MATCH_COMPLETE, duels from the game's "has defeated ... in a duel" line.
+local PVP = {
+    { id = "knight",       counter = "honorAlliance", goal = 6,  text = "Reach honor level 6 on an Alliance character" },
+    { id = "ltcommander",  counter = "honorAlliance", goal = 10, text = "Reach honor level 10 on an Alliance character" },
+    { id = "grandmarshal", counter = "honorAlliance", goal = 14, text = "Reach honor level 14 on an Alliance character" },
+    { id = "stoneguard",   counter = "honorHorde",    goal = 6,  text = "Reach honor level 6 on a Horde character" },
+    { id = "champion",     counter = "honorHorde",    goal = 10, text = "Reach honor level 10 on a Horde character" },
+    { id = "highwarlord",  counter = "honorHorde",    goal = 14, text = "Reach honor level 14 on a Horde character" },
+    { id = "flagrunner",   counter = "winWSG",        goal = 5,  text = "Win 5 Warsong Gulch battles" },
+    { id = "fivebanners",  counter = "winAB",         goal = 5,  text = "Win 5 Arathi Basin battles" },
+    { id = "wintersiege",  counter = "winAV",         goal = 3,  text = "Win 3 Alterac Valley battles" },
+    { id = "duelist",      counter = "duels",         goal = 25, text = "Win 25 duels" },
+}
+for _, f in ipairs(PVP) do
+    f.pvp = true
+    f.skin = f.id
+    LIST[#LIST + 1] = f
+end
+
 Feats.ALL = LIST
 
 -- A feat is part of the game once the skin it unlocks is.
@@ -232,6 +253,15 @@ local function bump(counter, by)
 end
 Feats.Bump = bump
 
+-- For "highest reached" counters (levels, honor levels).
+local function raise(counter, value)
+    local c = db().counters
+    if value and (c[counter] or 0) < value then
+        c[counter] = value
+        if BY_COUNTER[counter] then Feats.Check(BY_COUNTER[counter]) end
+    end
+end
+
 function Feats.BossKilled(name)
     name = ns.Plain(name, "string")
     if not name or not BY_BOSS[name] then return end
@@ -352,9 +382,75 @@ local function level(newLevel)
     Feats.Check()
 end
 
+---------------------------------------------------------------------------
+-- PvP tracking
+---------------------------------------------------------------------------
+local function playerFaction()
+    local ok, f = pcall(UnitFactionGroup, "player")
+    f = ok and ns.Plain(f, "string")
+    return (f == "Alliance" or f == "Horde") and f or nil
+end
+
+-- This character's honor level, or nil when the client doesn't say.
+function Feats.HonorLevel()
+    return ns.Plain(call(UnitHonorLevel, "player"), "number")
+end
+
+local function honor()
+    local lvl, faction = Feats.HonorLevel(), playerFaction()
+    if lvl and faction then raise("honor" .. faction, lvl) end
+end
+
+local BG = { { "Warsong", "winWSG" }, { "Arathi", "winAB" }, { "Alterac", "winAV" } }
+local lastMatch = -100
+
+local function matchComplete(winner)
+    winner = ns.Plain(winner, "number")
+    local mine = ns.Plain(call(GetBattlefieldArenaFaction), "number")
+    if not (winner and mine) or winner ~= mine then return end
+    local now = GetTime()
+    if now - lastMatch < 60 then return end  -- one result per battle
+    lastMatch = now
+    local map = ns.Plain(call(GetInstanceInfo), "string") or ""
+    for _, bg in ipairs(BG) do
+        if map:find(bg[1], 1, true) then bump(bg[2]) end
+    end
+end
+
+-- The duel result line as a pattern, with which capture is the winner.
+local duelPattern, winnerFirst
+local function buildDuelPattern()
+    local f = type(DUEL_WINNER_KNOCKOUT) == "string" and DUEL_WINNER_KNOCKOUT or "%1$s has defeated %2$s in a duel"
+    local i1, i2 = f:find("%1$s", 1, true), f:find("%2$s", 1, true)
+    if not (i1 and i2) then return end
+    winnerFirst = i1 < i2
+    f = f:gsub("%%1%$s", "\1")
+    f = f:gsub("%%2%$s", "\2")
+    f = f:gsub("[%(%)%.%%%+%-%*%?%[%]%^%$]", "%%%0")
+    f = f:gsub("[\1\2]", "(.+)")
+    duelPattern = "^" .. f .. "$"
+end
+
+function Feats.OnSystemMessage(msg)
+    msg = ns.Plain(msg, "string")
+    if not msg then return end
+    if not duelPattern then buildDuelPattern() end
+    if not duelPattern then return end
+    local a, b = msg:match(duelPattern)
+    if not a then return end
+    local winner = winnerFirst and a or b
+    local me = ns.Plain(call(UnitName, "player"), "string")
+    if not me then return end
+    -- The line may carry a surname or realm after the first name.
+    if winner == me or winner:sub(1, #me + 1) == me .. " " or winner:sub(1, #me + 1) == me .. "-" then
+        bump("duels")
+    end
+end
+
 local events = CreateFrame("Frame")
 for _, e in ipairs({ "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "UNIT_COMBAT", "UNIT_HEALTH", "PLAYER_TARGET_CHANGED",
-                     "NAME_PLATE_UNIT_REMOVED", "ENCOUNTER_END", "BOSS_KILL", "PLAYER_MONEY", "PLAYER_LEVEL_UP" }) do
+                     "NAME_PLATE_UNIT_REMOVED", "ENCOUNTER_END", "BOSS_KILL", "PLAYER_MONEY", "PLAYER_LEVEL_UP",
+                     "HONOR_LEVEL_UPDATE", "PVP_MATCH_COMPLETE", "CHAT_MSG_SYSTEM" }) do
     pcall(events.RegisterEvent, events, e)
 end
 events:SetScript("OnEvent", function(_, event, a, b, c, d, e)
@@ -380,12 +476,20 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d, e)
         money()
     elseif event == "PLAYER_LEVEL_UP" then
         level(a)
+    elseif event == "HONOR_LEVEL_UPDATE" then
+        honor()
+    elseif event == "PVP_MATCH_COMPLETE" then
+        matchComplete(a)
+    elseif event == "CHAT_MSG_SYSTEM" then
+        Feats.OnSystemMessage(a)
     elseif event == "PLAYER_LOGIN" then
-        -- Records this character's level (and checks every feat: anything
-        -- already reached, like a level 60's class feat, pops now).
+        -- Records this character's level and honor (and checks every feat:
+        -- anything already reached, like a level 60's class feat, pops now).
+        honor()
         level()
     elseif event == "PLAYER_ENTERING_WORLD" then
         lastMoney = nil
         money()
+        honor()
     end
 end)

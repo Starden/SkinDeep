@@ -269,6 +269,82 @@ const TEXTURES = {
     if (v < -0.42 && v > -0.62 && Math.abs(u) < 0.3 && Math.abs((u * 6) % 1) < 0.25) al = 0; // teeth gaps
     return [clamp(al), 0.95];
   }],
+  // --- PvP skins (original designs) ----------------------------------------
+  // Heater shield with a cross, bevel-lit.
+  shield: [64, 64, (u, v) => {
+    const top = 0.78, half = 0.72;
+    let w = half;
+    if (v < 0.1) w = half * Math.sqrt(clamp(1 - Math.pow((0.1 - v) / 0.95, 2)));
+    const inside = v < top && v > -0.88 && Math.abs(u) < w ? 1 : 0;
+    const edge = inside && (Math.abs(u) > w - 0.12 || v > top - 0.12) ? 1 : 0;
+    const cross = inside && (Math.abs(u) < 0.08 || Math.abs(v - 0.22) < 0.08) ? 1 : 0;
+    return [inside, edge || cross ? 1 : 0.55 + 0.25 * (v + 1) / 2];
+  }],
+  // War ring: a thick ring crowned with ten spikes.
+  spikes: [128, 128, (u, v) => {
+    const [r, a] = polar(u, v);
+    const ring = 1 - smooth(0.06, 0.09, Math.abs(r - 0.5));
+    const seg = ((a / (Math.PI * 2)) * 10 % 1 + 1) % 1;
+    const tri = 1 - Math.abs(seg - 0.5) * 2;          // 0 at the gaps, 1 mid-spike
+    const spike = r > 0.55 && r < 0.55 + 0.42 * tri ? 1 : 0;
+    return Math.max(ring, spike);
+  }],
+  // Rank chevrons: three stacked V stripes.
+  chevron: [64, 64, (u, v) => {
+    let al = 0;
+    for (const off of [-0.45, 0, 0.45]) {
+      const d = Math.abs((v - off) - (0.25 - Math.abs(u) * 0.6));
+      if (Math.abs(u) < 0.8) al = Math.max(al, 1 - smooth(0.06, 0.1, d));
+    }
+    return al;
+  }],
+  // Battle flag on a pole.
+  flag: [64, 64, (u, v) => {
+    const pole = Math.abs(u + 0.7) < 0.06 && v > -0.95 && v < 0.9 ? 1 : 0;
+    const wave = 0.08 * Math.sin((u + 0.7) * 5);
+    const cloth = u > -0.66 && u < 0.85 && v > 0.05 + wave && v < 0.85 + wave ? 1 : 0;
+    return [Math.max(pole, cloth), pole ? 0.7 : 1];
+  }],
+  // Five capture nodes on a ring.
+  nodes: [128, 128, (u, v) => {
+    const r = Math.hypot(u, v);
+    let al = 0.6 * (1 - smooth(0.02, 0.035, Math.abs(r - 0.78)));
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + i * 2 * Math.PI / 5;
+      al = Math.max(al, 1 - smooth(0.11, 0.14, Math.hypot(u - Math.cos(a) * 0.78, v - Math.sin(a) * 0.78)));
+    }
+    return al;
+  }],
+  // Crossed blades.
+  blades: [128, 128, (u, v) => {
+    let al = 0;
+    for (const ang of [Math.PI / 4, -Math.PI / 4]) {
+      const x = Math.cos(ang) * u + Math.sin(ang) * v, y = -Math.sin(ang) * u + Math.cos(ang) * v;
+      const blade = y > -0.55 && y < 0.9 && Math.abs(x) < 0.07 * (y > 0.75 ? (0.9 - y) / 0.15 : 1) ? 1 : 0;
+      const guard = Math.abs(y + 0.55) < 0.04 && Math.abs(x) < 0.22 ? 1 : 0;
+      const grip = y < -0.55 && y > -0.85 && Math.abs(x) < 0.05 ? 1 : 0;
+      al = Math.max(al, blade, guard, grip);
+    }
+    return al;
+  }],
+  // Six-armed snowflake.
+  snowflake: [64, 64, (u, v) => {
+    const [r, a] = polar(u, v);
+    const arm = Math.abs(Math.sin(a * 3)) * r;           // distance to the nearest of 6 arms
+    let al = r < 0.92 ? 1 - smooth(0.09, 0.14, arm) : 0;
+    al = Math.max(al, 1 - smooth(0.16, 0.22, r));          // solid heart
+    // Little side twigs two-thirds out on each arm.
+    for (let i = 0; i < 6; i++) {
+      const ca = i * Math.PI / 3, px = Math.cos(ca) * 0.6, py = Math.sin(ca) * 0.6;
+      for (const s of [-1, 1]) {
+        const ta = ca + s * Math.PI / 4;
+        const dx = u - px, dy = v - py;
+        const along = dx * Math.cos(ta) + dy * Math.sin(ta), across = -dx * Math.sin(ta) + dy * Math.cos(ta);
+        if (along > 0 && along < 0.28) al = Math.max(al, 1 - smooth(0.05, 0.09, Math.abs(across)));
+      }
+    }
+    return al;
+  }],
   // Four-point twinkle.
   twinkle: [64, 64, (u, v) => {
     const r = Math.hypot(u, v);

@@ -332,6 +332,7 @@ function ns.HandleCombat(unit, action, flags, amount, school)
         return
     end
     e.anchor, e.point, e.ax, e.ay = ns.Engine.AnchorFor(u, side)
+    e.skin = ns.PvPSkinFor(u, side)
     ns.Engine.Spawn(e)
 end
 
@@ -410,6 +411,29 @@ local function announceGroup()
     end
 end
 
+---------------------------------------------------------------------------
+-- PvP skin: a second skin for battlegrounds and fights with players
+---------------------------------------------------------------------------
+local inBattleground = false
+
+function ns.UpdateInstance()
+    local ok, _, kind = pcall(IsInInstance)
+    inBattleground = ok and ns.Plain(kind, "string") == "pvp" or false
+end
+
+function ns.InBattleground() return inBattleground end
+
+-- The PvP skin for a hit, or nil for the usual one. Hits you take have no
+-- known source, so for those only battlegrounds count.
+function ns.PvPSkinFor(unit, side)
+    local id = ns.db and ns.db.pvpSkin
+    if not id or not ns.Skins[id] then return nil end
+    if ns.Feats and not ns.Feats.IsUnlocked(id) then return nil end
+    if inBattleground then return id end
+    if side == "out" and unit and ns.SafeBool(UnitIsPlayer, unit) then return id end
+    return nil
+end
+
 local events = CreateFrame("Frame")
 events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("PLAYER_LOGIN")
@@ -418,10 +442,14 @@ events:RegisterEvent("PLAYER_REGEN_ENABLED")
 events:RegisterEvent("GROUP_ROSTER_UPDATE")
 events:RegisterEvent("UNIT_COMBAT")
 events:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
+events:RegisterEvent("PLAYER_ENTERING_WORLD")
+events:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 
 events:SetScript("OnEvent", function(_, event, ...)
     if event == "UNIT_COMBAT" then
         ns.HandleCombat(...)
+    elseif event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED_NEW_AREA" then
+        ns.UpdateInstance()
     elseif event == "NAME_PLATE_UNIT_REMOVED" then
         ns.Engine.PlateRemoved(...)
     elseif event == "ADDON_LOADED" then

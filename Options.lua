@@ -9,7 +9,7 @@ local _, ns = ...
 -- differ between clients.
 
 local floor = math.floor
-local W, H = 660, 680
+local W, H = 660, 620
 local window, previewBox, skinsPage, featsPage
 local previewClock = 0
 local previewId        -- a locked skin being previewed (not equipped)
@@ -17,6 +17,69 @@ local skinButtons, checks, modeButtons, colorButtons, unlockButtons, featRows, t
 local sizeLabel, speedLabel, nameText, tagText, noteText, unlockButton, countText
 
 local Feats = ns.Feats
+
+-- Skins and feats are shown one group at a time.
+local GROUPS = { { "style", "Styles" }, { "class", "Classes" }, { "faction", "Factions" }, { "pvp", "PvP" } }
+local LIST_ROW, LIST_TOP = 24, -70
+local listGroup, featGroup = "style", "style"
+local skinGroupTabs, featGroupTabs = {}, {}
+
+local function groupOf(id)
+    local skin = ns.Skins[id]
+    return (skin and skin.group) or "style"
+end
+
+-- A small flat tab button.
+local function groupTab(parent, text, onClick)
+    local b = CreateFrame("Button", nil, parent)
+    b:SetSize(49, 20)
+    b.bg = b:CreateTexture(nil, "BACKGROUND")
+    b.bg:SetAllPoints()
+    b.label = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    b.label:SetPoint("CENTER")
+    b.label:SetText(text)
+    local hl = b:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints()
+    hl:SetColorTexture(1, 1, 1, 0.08)
+    function b.SetOn(on)
+        b.bg:SetColorTexture(on and 0.45 or 0.14, on and 0.3 or 0.12, on and 0.08 or 0.16, 1)
+        b.label:SetTextColor(on and 1 or 0.7, on and 0.85 or 0.68, on and 0.4 or 0.62)
+    end
+    b:SetScript("OnClick", onClick)
+    b.SetOn(false)
+    return b
+end
+
+local function layoutSkins()
+    local y = LIST_TOP
+    for _, b in ipairs(skinButtons) do
+        if b.group == listGroup then
+            b:ClearAllPoints()
+            b:SetPoint("TOPLEFT", 14, y)
+            b:Show()
+            y = y - LIST_ROW
+        else
+            b:Hide()
+        end
+    end
+    for _, t in ipairs(skinGroupTabs) do t.SetOn(t.group == listGroup) end
+end
+
+local function layoutFeats()
+    local shown = {}
+    for _, r in ipairs(featRows) do
+        local on = r.group == featGroup and Feats.Available(r.feat)
+        r:SetShown(on)
+        if on then shown[#shown + 1] = r end
+    end
+    local perCol = math.ceil(#shown / 2)
+    for i, r in ipairs(shown) do
+        local col, row = floor((i - 1) / perCol), (i - 1) % perCol
+        r:ClearAllPoints()
+        r:SetPoint("TOPLEFT", 16 + col * (r.colW + 16), -132 - row * 34)
+    end
+    for _, t in ipairs(featGroupTabs) do t.SetOn(t.group == featGroup) end
+end
 
 local function isLocked(id)
     return id ~= ns.AUTO and not Feats.IsUnlocked(id)
@@ -44,6 +107,8 @@ local function refreshSkins()
         if b.right then
             if locked then
                 b.right:SetText("|cff8c8577Locked|r")
+            elseif b.id == db.pvpSkin then
+                b.right:SetText("|cffffd84aPvP skin|r")
             else
                 b.right:SetText(b.rightText or "")
             end
@@ -87,6 +152,10 @@ local function refreshSkins()
     if db.unlockMode == "collector" then
         local have, total = Feats.UnlockedCount()
         notes[#notes + 1] = ("Collector: %d / %d skins unlocked. The Feats tab shows how to earn the rest."):format(have, total)
+    end
+    if db.pvpSkin and ns.Skins[db.pvpSkin] then
+        notes[#notes + 1] = ("PvP skin: %s, in battlegrounds and against players. Shift-click a skin to change it.")
+            :format(ns.Skins[db.pvpSkin].name)
     end
     if ns.WorldFontPending() then
         notes[#notes + 1] = "|cffffd84aBlizzard's numbers get the new font after you log out and back in.|r"
@@ -227,25 +296,21 @@ end
 -- Skins page
 ---------------------------------------------------------------------------
 local function buildSkins(page)
-    -- Skin list in groups (styles, classes, factions), each name drawn in
-    -- its own font and color.
-    local ROW = 21
-    local y = -44
-    local function header(text)
-        local h = page:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-        h:SetPoint("TOPLEFT", 16, y - 4)
-        h:SetText(text)
-        y = y - 20
-    end
-    local GROUPS = { { nil, "STYLES" }, { "class", "CLASSES" }, { "faction", "FACTIONS" } }
-    local ordered, headerAt = {}, {}
+    -- Skin list, one group at a time (Styles · Classes · Factions · PvP),
+    -- each name drawn in its own font and color. "Auto: my class" heads the
+    -- styles.
+    local ordered = { ns.AUTO }
+    for _, id in ipairs(ns.SkinOrder) do ordered[#ordered + 1] = id end
+    local x = 14
     for _, g in ipairs(GROUPS) do
-        headerAt[#ordered + 1] = g[2]
-        -- "Auto: my class" heads the styles.
-        if g[1] == nil then ordered[#ordered + 1] = ns.AUTO end
-        for _, id in ipairs(ns.SkinOrder) do
-            if ns.Skins[id].group == g[1] then ordered[#ordered + 1] = id end
-        end
+        local t = groupTab(page, g[2], function()
+            listGroup = g[1]
+            layoutSkins()
+        end)
+        t.group = g[1]
+        t:SetPoint("TOPLEFT", x, -44)
+        x = x + 51
+        skinGroupTabs[#skinGroupTabs + 1] = t
     end
     local mine = ns.Skins[ns.ClassSkinID() or ""]
     -- Plain font in the class color: some class skins' fonts (crystal, dots)
@@ -258,17 +323,12 @@ local function buildSkins(page)
         class = mine and mine.class,
         tagline = "Uses the class skin of whichever character you're playing.",
     }
-    for i, id in ipairs(ordered) do
-        if headerAt[i] then
-            if i > 1 then y = y - 4 end
-            header(headerAt[i])
-        end
+    for _, id in ipairs(ordered) do
         local skin = id == ns.AUTO and autoEntry or ns.Skins[id]
         local b = CreateFrame("Button", nil, page)
         b.id = id
-        b:SetSize(200, ROW - 2)
-        b:SetPoint("TOPLEFT", 14, y)
-        y = y - ROW
+        b.group = groupOf(id)
+        b:SetSize(200, LIST_ROW - 2)
         b.bg = b:CreateTexture(nil, "BACKGROUND")
         b.bg:SetAllPoints()
         b.sel = b:CreateTexture(nil, "BORDER")
@@ -279,8 +339,8 @@ local function buildSkins(page)
         hl:SetAllPoints()
         hl:SetColorTexture(1, 1, 1, 0.06)
         local label = b:CreateFontString(nil, "OVERLAY")
-        label:SetFont(skin.font, 13, skin.outline or "OUTLINE")
-        if not label:GetFont() then label:SetFont(ns.Fonts.friz, 13, "OUTLINE") end
+        label:SetFont(skin.font, 14, skin.outline or "OUTLINE")
+        if not label:GetFont() then label:SetFont(ns.Fonts.friz, 14, "OUTLINE") end
         label:SetPoint("LEFT", 12, 0)
         label:SetTextColor(skin.color[1], skin.color[2], skin.color[3])
         label:SetText(skin.name)
@@ -288,8 +348,23 @@ local function buildSkins(page)
         -- Right side: the class it belongs to, or "Locked".
         b.right = b:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
         b.right:SetPoint("RIGHT", -8, 0)
-        b.rightText = (skin.class and Feats.ClassName(skin.class)) or skin.faction
+        b.rightText = (skin.class and Feats.ClassName(skin.class))
+            or (skin.rank and ("%s · R%d"):format(skin.faction, skin.rank)) or skin.faction
         b:SetScript("OnClick", function()
+            if IsShiftKeyDown and IsShiftKeyDown() and id ~= ns.AUTO then
+                -- Shift-click: the skin used in battlegrounds and against players.
+                if isLocked(id) then
+                    ns.Print("that skin is locked. Earn it first: " .. Feats.FeatForSkin(id).text .. ".")
+                elseif ns.db.pvpSkin == id then
+                    ns.db.pvpSkin = nil
+                    ns.Print("PvP skin off: your usual skin shows everywhere.")
+                else
+                    ns.db.pvpSkin = id
+                    ns.Print(("PvP skin: %s, in battlegrounds and against players."):format(skin.name))
+                end
+                refresh()
+                return
+            end
             if isLocked(id) then
                 previewId = id      -- look, but don't equip
             else
@@ -309,6 +384,10 @@ local function buildSkins(page)
                 GameTooltip:AddLine("Locked. Earn it: " .. f.text, 1, 0.82, 0.29, true)
                 GameTooltip:AddLine(Feats.ProgressText(f), 0.7, 0.7, 0.7)
                 GameTooltip:AddLine("Click to preview it.", 0.6, 0.6, 0.6)
+            elseif id ~= ns.AUTO then
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine(ns.db.pvpSkin == id and "Your PvP skin. Shift-click to turn that off."
+                    or "Shift-click: use it in battlegrounds and against players.", 0.6, 0.6, 0.6, true)
             end
             GameTooltip:Show()
         end)
@@ -490,17 +569,28 @@ local function buildFeats(page)
     local fan = checkbox(page, "Popup fanfare", "toastSound", "The popup plays the achievement fanfare.")
     fan:SetPoint("TOPLEFT", 510, -79)
 
-    -- The feats, two columns: styles, then classes (and any faction skins).
-    local COLS, ROWH, TOP = 2, 34, -112
+    -- Feat groups, like the skin list.
+    local x = 16
+    for _, g in ipairs(GROUPS) do
+        local t = groupTab(page, g[2], function()
+            featGroup = g[1]
+            layoutFeats()
+        end)
+        t.group = g[1]
+        t:SetPoint("TOPLEFT", x, -106)
+        x = x + 51
+        featGroupTabs[#featGroupTabs + 1] = t
+    end
+
+    -- The feats of the chosen group, two columns (laid out by layoutFeats).
+    local COLS, ROWH = 2, 34
     local colW = (W - 32 - 16) / COLS
-    local list = Feats.Visible()
-    local perCol = math.ceil(#list / COLS)
-    for i, f in ipairs(list) do
-        local col, row = floor((i - 1) / perCol), (i - 1) % perCol
+    for _, f in ipairs(Feats.Visible()) do
         local r = CreateFrame("Frame", nil, page)
         r:SetSize(colW, ROWH - 4)
-        r:SetPoint("TOPLEFT", 16 + col * (colW + 16), TOP - row * ROWH)
+        r.colW = colW
         r.feat = f
+        r.group = groupOf(f.skin)
         local skin = ns.Skins[f.skin]
         local color = skin.color
         r.name = r:CreateFontString(nil, "OVERLAY")
@@ -595,6 +685,10 @@ local function build()
     buildSkins(skinsPage)
     buildFeats(featsPage)
     featsPage:Hide()
+    -- Open on the group of the skin in use.
+    listGroup = groupOf(ns.db.skin)
+    layoutSkins()
+    layoutFeats()
 
     window:SetScript("OnShow", function()
         refresh()
@@ -683,6 +777,32 @@ SlashCmdList.SKINDEEP = function(msg)
         ns.OpenWindow("feats")
     elseif cmd == "welcome" then
         ns.ShowWelcome()
+    elseif cmd == "honor" then
+        -- What SkinDeep reads for the PvP rank skins.
+        local lvl = Feats.HonorLevel()
+        local ok, faction = pcall(UnitFactionGroup, "player")
+        faction = ok and ns.Plain(faction, "string") or "?"
+        local c = ns.db.counters
+        ns.Print(("honor level %s (%s). Best so far: Alliance %d, Horde %d. Ranks unlock at 6, 10 and 14.")
+            :format(lvl and tostring(lvl) or "not available", faction, c.honorAlliance or 0, c.honorHorde or 0))
+        ns.Print(("battlegrounds won: Warsong %d, Arathi %d, Alterac %d. Duels won: %d.")
+            :format(c.winWSG or 0, c.winAB or 0, c.winAV or 0, c.duels or 0))
+    elseif cmd == "pvp" then
+        if rest == "" or rest:lower() == "off" then
+            ns.db.pvpSkin = nil
+            ns.Print("PvP skin off: your usual skin shows everywhere.")
+        else
+            local id = findSkin(rest)
+            if not id or id == ns.AUTO then
+                ns.Print("no skin called '" .. rest .. "'. /skindeep list")
+            elseif isLocked(id) then
+                ns.Print(("%s is locked. Earn it: %s."):format(ns.Skins[id].name, Feats.FeatForSkin(id).text))
+            else
+                ns.db.pvpSkin = id
+                ns.Print(("PvP skin: %s, in battlegrounds and against players."):format(ns.Skins[id].name))
+            end
+        end
+        refresh()
     elseif cmd == "list" then
         ns.Print(("|cffffd84aauto|r  Auto: my class (%s)%s"):format(ns.Skins[ns.ResolvedSkinID()].name,
             ns.db.skin == ns.AUTO and "  (current)" or ""))
@@ -715,6 +835,6 @@ SlashCmdList.SKINDEEP = function(msg)
         ns.Engine.SetUnlocked(cmd == "unlock")
         refresh()
     else
-        ns.Print("/skindeep [test | feats | list | skin <name> | welcome | on | off | restore | unlock | lock]")
+        ns.Print("/skindeep [test | feats | list | skin <name> | pvp <name|off> | honor | welcome | on | off | restore | unlock | lock]")
     end
 end

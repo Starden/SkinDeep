@@ -11,7 +11,7 @@ local Engine = {}
 ns.Engine = Engine
 
 local TEX = "Interface\\AddOns\\SkinDeep\\Media\\Textures\\"
-local MAX_POPS, MAX_LAYERS, MAX_PARTS = 40, 5, 12
+local MAX_POPS, MAX_LAYERS, MAX_PARTS = 40, 5, 24
 local FADE_IN = 0.05
 local POP_TIME = 0.12
 
@@ -255,6 +255,27 @@ local function hideTextures(p)
     for _, c in pairs(p.containers) do c:Hide() end
 end
 
+-- The crit title's widgets: an unscaled holder at the title's offset, and a
+-- frame centered on it that scales on its own (an offset on a scaled frame
+-- would scale too).
+function Engine.TitleKit(p)
+    local c = Engine.Container(p, "critTitle", true)
+    if not c.frame then
+        c.holder = CreateFrame("Frame", nil, c)
+        c.holder:SetSize(1, 1)
+        c.frame = CreateFrame("Frame", nil, c.holder)
+        c.frame:SetSize(1, 1)
+        c.frame:SetPoint("CENTER")
+        c.shadow = c.frame:CreateFontString(nil, "OVERLAY")
+        c.shadow:SetDrawLayer("OVERLAY", 1)
+        c.shadow:SetPoint("CENTER", c.frame, "CENTER", 2, -2)
+        c.text = c.frame:CreateFontString(nil, "OVERLAY")
+        c.text:SetDrawLayer("OVERLAY", 2)
+        c.text:SetPoint("CENTER", c.frame, "CENTER", 0, 0)
+    end
+    return c
+end
+
 -- A frame a skin can build its own widgets in, kept with the pop and
 -- reused. scaled: inside the scaled inner frame (moves and scales with the
 -- number); otherwise unscaled on the holder (for loose particles).
@@ -353,10 +374,14 @@ local function laneOffset(anchor, step)
     return ((lane.n - 1) % 4) * (step or 16)
 end
 
-local function spawnParticles(p, pd, crit, color)
+-- Fills particle slots from `first` on; returns the next free slot, so a
+-- second system (skin.particles2) can follow the first. Unused slots were
+-- already hidden by hideTextures.
+local function spawnParticles(p, pd, crit, color, first)
+    first = first or 1
     local count = crit and (pd.critCount or pd.count or 0) or (pd.count or 0)
-    count = min(count, MAX_PARTS)
-    for i = 1, count do
+    count = min(count, MAX_PARTS - first + 1)
+    for i = first, first + count - 1 do
         local part = p.parts[i]
         if not part then
             part = { tex = p:CreateTexture(nil, "OVERLAY") }
@@ -393,7 +418,7 @@ local function spawnParticles(p, pd, crit, color)
         part.alive = true
         tex:Show()
     end
-    for i = count + 1, #p.parts do p.parts[i].alive = false; p.parts[i].tex:Hide() end
+    return first + count
 end
 
 function Engine.Spawn(e)
@@ -413,6 +438,7 @@ function Engine.Spawn(e)
     p.pop = skin.pop or 0.3
     p.base = (db.scale or 1) * (inc and 0.8 or 1) * (crit and (skin.critScale or 1.5) or 1)
     p.shake = crit and skin.shake or nil
+    p.drum = crit and skin.drum or nil
     p.t, p.mx, p.my, p.ms = 0, 0, 0, 1
     p.dir = e.dir or (random() < 0.5 and -1 or 1)
     p.phase = random() * 6.28
@@ -493,7 +519,28 @@ function Engine.Spawn(e)
                           grow = skin.ring.grow, blend = "ADD" }
             setupTexture(p.ring, p.ringDef, 0)
         end
-        if skin.particles then spawnParticles(p, skin.particles, crit, color) end
+        local slot = 1
+        if skin.particles then slot = spawnParticles(p, skin.particles, crit, color, slot) end
+        if skin.particles2 then spawnParticles(p, skin.particles2, crit, color, slot) end
+    end
+
+    -- Crit title: a banner word above the number ("GRAND MARSHAL").
+    p.titleDef = nil
+    if crit and skin.critTitle and e.kind == "dmg" then
+        local d, c = skin.critTitle, Engine.TitleKit(p)
+        c.holder:ClearAllPoints()
+        c.holder:SetPoint("CENTER", c, "CENTER", d.x or 0, d.y or 44)
+        for _, fs in ipairs({ c.shadow, c.text }) do
+            setFont(fs, d.font or ns.Fonts.friz, d.size or 18, "THICKOUTLINE")
+            fs:SetText(d.text)
+        end
+        local sc = d.shadowColor or { 0, 0, 0 }
+        c.shadow:SetTextColor(sc[1], sc[2], sc[3], 1)
+        local c1 = d.colors[1]
+        c.text:SetTextColor(c1[1], c1[2], c1[3], 1)
+        c.frame:SetScale(1)
+        c.frame:SetAlpha(0)
+        p.titleDef, p.titleKit = d, c
     end
 
     -- Skins with their own machinery (Jackpot.lua) build it here; they may
@@ -556,7 +603,34 @@ function Engine.Step(p, dt)
         local k = 1 - t / POP_TIME
         s = s * (1 + p.pop * k * k)
     end
+    -- War drum: a few hard pulses in a row on crits.
+    if p.drum then
+        local gap = p.drum.gap or 0.13
+        for i = 0, (p.drum.count or 3) - 1 do
+            local d = t - i * gap
+            if d >= 0 and d < gap then
+                local q = 1 - d / gap
+                s = s * (1 + (p.drum.amp or 0.25) * q * q)
+            end
+        end
+    end
     p.inner:SetScale(max(0.01, s))
+
+    -- Crit title: pops in big, flashes through its colors, then settles.
+    if p.titleDef then
+        local d, c = p.titleDef, p.titleKit
+        local k = t - (d.delay or 0.05)
+        if k < 0 then
+            c.frame:SetAlpha(0)
+        else
+            local pop = max(0, 1 - k / 0.2)
+            c.frame:SetScale(1 + (d.pop or 1.2) * pop * pop)
+            c.frame:SetAlpha(min(1, k / 0.05))
+            local cols = d.colors
+            local col = k > (d.cycleFor or 0.8) and cols[1] or cols[floor(k / (d.period or 0.08)) % #cols + 1]
+            c.text:SetTextColor(col[1], col[2], col[3], 1)
+        end
+    end
 
     -- Alpha: quick fade in, fade out over the last part.
     local fadeStart = p.dur * (1 - p.fade)

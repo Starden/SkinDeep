@@ -23,11 +23,24 @@ Collect your skins.
     cone of dragonfire.
   - **Silver Dawn** (Argent Dawn): silver numbers rise over the dawn light;
     crits break into rays.
+- **Ten PvP skins**:
+  - **Rank ladders** that follow your honor level, for each faction: Knight,
+    Lieutenant Commander and **Grand Marshal** (Alliance); Stone Guard,
+    Champion and **High Warlord** (Horde). The Rank 14 skins are the most
+    extravagant in SkinDeep: an aura on every hit, and crits with a title
+    banner, layered bursts, confetti or fire and skulls, and (High Warlord)
+    a triple war-drum pulse.
+  - **Flag Runner** (win 5 Warsong Gulch), **Five Banners** (win 5 Arathi
+    Basin), **Winter Siege** (win 3 Alterac Valley), **Duelist** (win 25 duels).
+- **PvP skin**: Shift-click a skin to use it automatically in battlegrounds and
+  against players (`/skindeep pvp <name|off>`).
 - **Unlock popups** with the achievement fanfare (both can be turned off).
-- The window has **Skins** and **Feats** tabs. Locked skins show what earns
-  them with your progress, and can still be previewed.
+- The window has **Skins** and **Feats** tabs, each grouped into Styles,
+  Classes, Factions and PvP. Locked skins show what earns them with your
+  progress, and can still be previewed.
 - Progress and unlocks are shared by all your characters.
-- New commands: `/skindeep feats`, `/skindeep welcome`.
+- New commands: `/skindeep feats`, `/skindeep welcome`, `/skindeep pvp`,
+  `/skindeep honor`.
 
 ## 1.1.0
 

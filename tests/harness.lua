@@ -125,7 +125,15 @@ function UnitIsUnit(a, b) return units[a] ~= nil and units[a] == units[b] end
 function UnitName(u) return units[u] and units[u].name end
 function UnitCreatureType(u) return units[u] and units[u].ctype end
 function UnitIsDead(u) return units[u] ~= nil and units[u].dead == true end
-function UnitIsPlayer(u) return u == "player" end
+function UnitIsPlayer(u) return u == "player" or (units[u] ~= nil and units[u].player == true) end
+honorLevel, playerFactionName, inInstanceKind, instanceName, arenaFaction = 1, "Alliance", "none", "", 0
+function UnitHonorLevel(u) return honorLevel end
+function UnitFactionGroup(u) return playerFactionName end
+function IsInInstance() return inInstanceKind ~= "none", inInstanceKind end
+function GetInstanceInfo() return instanceName end
+function GetBattlefieldArenaFaction() return arenaFaction end
+function IsShiftKeyDown() return false end
+DUEL_WINNER_KNOCKOUT = "%1$s has defeated %2$s in a duel"
 playerLevel, money = 12, 5000
 function UnitLevel(u) return playerLevel end
 function GetMoney() return money end
@@ -191,7 +199,7 @@ end
 
 -- Load the addon like the client: each file gets (addonName, ns).
 local ns = {}
-for _, file in ipairs({ "Skins.lua", "ClassSkins.lua", "FactionSkins.lua", "Core.lua", "Feats.lua", "Engine.lua", "Jackpot.lua", "Options.lua", "Welcome.lua" }) do
+for _, file in ipairs({ "Skins.lua", "ClassSkins.lua", "FactionSkins.lua", "PvPSkins.lua", "Core.lua", "Feats.lua", "Engine.lua", "Jackpot.lua", "Options.lua", "Welcome.lua" }) do
   local chunk, err = loadfile(ADDON_DIR .. "/" .. file)
   if not chunk then error(err) end
   chunk("SkinDeep", ns)
@@ -216,8 +224,10 @@ for _, id in ipairs(ns.SkinOrder) do
     if not ns.Feats.FeatForSkin(id) then unpaired[#unpaired + 1] = id end
   end
 end
-check(#ns.SkinOrder == 25 and nClass == 9 and nFaction == 6, "25 skins: 9 class, 6 faction (" .. #ns.SkinOrder .. ", " .. nClass .. ", " .. nFaction .. ")")
-check(#unpaired == 0, "every faction skin has the feat that unlocks it" .. (#unpaired > 0 and (": missing " .. table.concat(unpaired, ", ")) or ""))
+local nPvP = 0
+for _, id in ipairs(ns.SkinOrder) do if ns.Skins[id].group == "pvp" then nPvP = nPvP + 1; if not ns.Feats.FeatForSkin(id) then unpaired[#unpaired + 1] = id end end end
+check(#ns.SkinOrder == 35 and nClass == 9 and nFaction == 6 and nPvP == 10, "35 skins: 9 class, 6 faction, 10 PvP (" .. #ns.SkinOrder .. ", " .. nClass .. ", " .. nFaction .. ", " .. nPvP .. ")")
+check(#unpaired == 0, "every faction and PvP skin has the feat that unlocks it" .. (#unpaired > 0 and (": missing " .. table.concat(unpaired, ", ")) or ""))
 print("== every skin, plain and secret hits")
 SkinDeepDB.incoming = true
 for _, id in ipairs(ns.SkinOrder) do
@@ -495,7 +505,7 @@ for i = 1, 250 do
 end
 check(SkinDeepDB.counters.undead == 250, "Undead kills are counted (250)")
 check(not F.IsDone(F.ByID.scourge), "a feat whose skin is not released does not complete")
-check(#F.Visible() == 22, "unreleased feats are not listed (22 of 24 shown while two skins are held back)")
+check(#F.Visible() == 32, "unreleased feats are not listed (32 of 34 shown while two skins are held back)")
 local alive = { name = "Defias Pillager", ctype = "Humanoid" }
 units.nameplate2 = alive
 fire("UNIT_COMBAT", "nameplate2", "WOUND", "", 30, 1)
@@ -548,6 +558,71 @@ for _, w in ipairs(frames) do
 end
 check(SkinDeepDB.unlockMode ~= nil, "the welcome window choices work")
 run(1)
+
+print("== pvp")
+do
+  local F = ns.Feats
+  local function texts() local t = {}; for _, w in ipairs(frames) do if w.kind == "FontString" and w.text then t[w.text] = true end end; return t end
+  -- Rank ladders follow the honor level, per faction.
+  honorLevel, playerFactionName = 7, "Alliance"
+  fire("HONOR_LEVEL_UPDATE")
+  check(SkinDeepDB.counters.honorAlliance == 7 and F.IsDone(F.ByID.knight) and not F.IsDone(F.ByID.ltcommander),
+    "honor level 7 on an Alliance character unlocks Knight, not yet Lieutenant Commander")
+  honorLevel, playerFactionName = 14, "Horde"
+  fire("HONOR_LEVEL_UPDATE")
+  check(F.IsDone(F.ByID.stoneguard) and F.IsDone(F.ByID.champion) and F.IsDone(F.ByID.highwarlord),
+    "honor level 14 on a Horde character unlocks the whole Horde ladder up to High Warlord")
+  check(not F.IsDone(F.ByID.grandmarshal), "Horde honor does not unlock Grand Marshal")
+  honorLevel, playerFactionName = 3, "Horde"
+  fire("HONOR_LEVEL_UPDATE")
+  check(SkinDeepDB.counters.honorHorde == 14, "a lower honor level later does not lower the best")
+  -- Battleground wins: only wins, one per battle, by map.
+  inInstanceKind, instanceName, arenaFaction = "pvp", "Warsong Gulch", 1
+  fire("PLAYER_ENTERING_WORLD")
+  for _ = 1, 5 do clock = clock + 61; fire("PVP_MATCH_COMPLETE", 1) end
+  check(SkinDeepDB.counters.winWSG == 5 and F.IsDone(F.ByID.flagrunner), "5 Warsong Gulch wins unlock Flag Runner")
+  clock = clock + 61; fire("PVP_MATCH_COMPLETE", 0)
+  check(SkinDeepDB.counters.winWSG == 5, "a loss does not count")
+  clock = clock + 61; fire("PVP_MATCH_COMPLETE", 1); fire("PVP_MATCH_COMPLETE", 1)
+  check(SkinDeepDB.counters.winWSG == 6, "a battle's result counts once")
+  instanceName = "Arathi Basin"
+  clock = clock + 61; fire("PVP_MATCH_COMPLETE", 1)
+  check(SkinDeepDB.counters.winAB == 1 and SkinDeepDB.counters.winWSG == 6, "wins are counted per battleground")
+  -- Duels: only the player's wins.
+  units.player = { name = "Shockalacka" }
+  for _ = 1, 25 do fire("CHAT_MSG_SYSTEM", "Shockalacka has defeated Bob in a duel") end
+  fire("CHAT_MSG_SYSTEM", "Bob has defeated Shockalacka in a duel")
+  fire("CHAT_MSG_SYSTEM", "Bob has defeated Ann in a duel")
+  check(SkinDeepDB.counters.duels == 25 and F.IsDone(F.ByID.duelist), "25 duel wins unlock Duelist (losses and others' duels ignored)")
+  -- PvP skin switch.
+  SkinDeepDB.pvpSkin = "knight"
+  check(ns.PvPSkinFor("player", "inc") == "knight", "in a battleground the PvP skin is used, even for hits on you")
+  inInstanceKind = "none"
+  fire("ZONE_CHANGED_NEW_AREA")
+  local foe = { name = "Grimtusk", ctype = "Humanoid", player = true }
+  units.target = foe
+  check(ns.PvPSkinFor("target", "out") == "knight", "outside battlegrounds the PvP skin is used against players")
+  units.target = { name = "Kobold", ctype = "Humanoid" }
+  check(ns.PvPSkinFor("target", "out") == nil and ns.PvPSkinFor("player", "inc") == nil, "and not against NPCs")
+  SkinDeepDB.unlockMode = "collector"
+  SkinDeepDB.pvpSkin = "grandmarshal"
+  check(ns.PvPSkinFor("target", "out") == nil, "a locked PvP skin is never used")
+  SkinDeepDB.pvpSkin = nil
+  -- Rank 14 crit title shows.
+  SkinDeepDB.unlockMode = "all"
+  ns.SetSkin("highwarlord")
+  units.target = foe
+  fire("UNIT_COMBAT", "target", "WOUND", "CRITICAL", secret(4321), 1)
+  run(0.3)
+  check(texts()["HIGH WARLORD"], "High Warlord crits roar their title")
+  run(3)
+  SlashCmdList.SKINDEEP("honor")
+  SlashCmdList.SKINDEEP("pvp duelist")
+  check(SkinDeepDB.pvpSkin == "duelist", "/skindeep pvp sets the PvP skin")
+  SlashCmdList.SKINDEEP("pvp off")
+  check(SkinDeepDB.pvpSkin == nil, "/skindeep pvp off clears it")
+  units.target = dummy
+end
 
 print("== version")
 check(ns.VERSION == "dev", "unpackaged copy reports version dev")
