@@ -62,6 +62,11 @@ Collect your skins.
   hit, bigger crits and an Artisan title). Skill counts from any character.
   They have their own **Trades** tab; on the Feats tab, step through the
   tiers.
+- **Five loot skins** on a new **Loot** tab: Fresh Find (loot an Uncommon
+  item), Rare Find (Rare or better), Epic Haul (Epic or better: a beam of
+  light on crits), Legendary (a pillar of light, rays and a LEGENDARY banner)
+  and Full Set (wear every piece of an item set: crits snap the set pieces
+  together and call SET BONUS). `/skindeep loot` shows what SkinDeep reads.
 - **PvP skin**: Shift-click a skin to use it automatically in battlegrounds and
   against players (`/skindeep pvp <name|off>`).
 - **Unlock popups** with the achievement fanfare (both can be turned off).
@@ -70,7 +75,7 @@ Collect your skins.
   progress, and can still be previewed.
 - Progress and unlocks are shared by all your characters.
 - New commands: `/skindeep feats`, `/skindeep welcome`, `/skindeep pvp`,
-  `/skindeep rank`, `/skindeep talents`.
+  `/skindeep rank`, `/skindeep talents`, `/skindeep loot`.
 
 ## 1.1.0
 

@@ -179,6 +179,18 @@ C_Traits = {
   end,
 }
 function GetShapeshiftFormID() return shapeForm end
+-- Loot lines and equipped gear (tooltip set lines).
+LOOT_ITEM_SELF = "You receive loot: %s."
+LOOT_ITEM_SELF_MULTIPLE = "You receive loot: %sx%d."
+gear = {}   -- slot -> { link, { tooltip lines } }
+function GetInventoryItemLink(unit, slot) return gear[slot] and gear[slot][1] end
+C_TooltipInfo = { GetInventoryItem = function(unit, slot)
+  local g = gear[slot]
+  if not g then return nil end
+  local lines = { { leftText = g[1] } }
+  for _, t in ipairs(g[2] or {}) do lines[#lines + 1] = { leftText = t } end
+  return { lines = lines }
+end }
 -- Professions: slots 1-2 primary (Forever: 3 First Aid, 4 Fishing, 5 Cooking).
 profList = { { "Blacksmithing", 0, 164 }, { "Mining", 0, 186 } }
 function GetProfessions() return profList[1] and 1 or nil, profList[2] and 2 or nil, nil, nil, nil end
@@ -244,7 +256,7 @@ end
 
 -- Load the addon like the client: each file gets (addonName, ns).
 local ns = {}
-for _, file in ipairs({ "Skins.lua", "StyleSkins.lua", "ClassSkins.lua", "SpecSkins.lua", "FactionSkins.lua", "PvPSkins.lua", "ProfSkins.lua", "Core.lua", "Feats.lua", "Engine.lua", "Jackpot.lua", "Options.lua", "Welcome.lua" }) do
+for _, file in ipairs({ "Skins.lua", "StyleSkins.lua", "ClassSkins.lua", "SpecSkins.lua", "FactionSkins.lua", "PvPSkins.lua", "ProfSkins.lua", "LootSkins.lua", "Core.lua", "Feats.lua", "Engine.lua", "Jackpot.lua", "Options.lua", "Welcome.lua" }) do
   local chunk, err = loadfile(ADDON_DIR .. "/" .. file)
   if not chunk then error(err) end
   chunk("SkinDeep", ns)
@@ -271,7 +283,7 @@ for _, id in ipairs(ns.SkinOrder) do
 end
 local nPvP = 0
 for _, id in ipairs(ns.SkinOrder) do if ns.Skins[id].group == "pvp" then nPvP = nPvP + 1; if not ns.Feats.FeatForSkin(id) then unpaired[#unpaired + 1] = id end end end
-check(#ns.SkinOrder == 91 and nClass == 37 and nFaction == 11 and nPvP == 15, "91 skins: 37 class (9 + 28 spec), 11 faction, 15 PvP, 12 profession (" .. #ns.SkinOrder .. ", " .. nClass .. ", " .. nFaction .. ", " .. nPvP .. ")")
+check(#ns.SkinOrder == 96 and nClass == 37 and nFaction == 11 and nPvP == 15, "96 skins: 37 class (9 + 28 spec), 11 faction, 15 PvP, 12 profession, 5 loot (" .. #ns.SkinOrder .. ", " .. nClass .. ", " .. nFaction .. ", " .. nPvP .. ")")
 local styleUnpaired = {}
 for _, id in ipairs(ns.SkinOrder) do local sk = ns.Skins[id]; if not sk.group and id ~= "classic" and not ns.Feats.FeatForSkin(id) then styleUnpaired[#styleUnpaired + 1] = id end end
 check(#styleUnpaired == 0, "every style skin but Classic+ has a feat" .. (#styleUnpaired > 0 and (": missing " .. table.concat(styleUnpaired, ", ")) or ""))
@@ -553,7 +565,7 @@ for i = 1, 250 do
 end
 check(SkinDeepDB.counters.undead == 250, "Undead kills are counted (250)")
 check(not F.IsDone(F.ByID.scourge), "a feat whose skin is not released does not complete")
-check(#F.Visible() == 112, "unreleased feats are not listed (112 of 114 shown while two skins are held back)")
+check(#F.Visible() == 117, "unreleased feats are not listed (117 of 119 shown while two skins are held back)")
 local alive = { name = "Defias Pillager", ctype = "Humanoid" }
 units.nameplate2 = alive
 fire("UNIT_COMBAT", "nameplate2", "WOUND", "", 30, 1)
@@ -823,6 +835,37 @@ do
   check(F.SkinTier("motherlode") == 3, "with everything unlocked, profession skins show their Artisan tier")
   profList[1] = { "Blacksmithing", 0, 164 }
   ns.SetSkin("auto")
+end
+
+print("== loot and sets")
+do
+  local F = ns.Feats
+  SkinDeepDB.unlockMode = "collector"
+  SkinDeepDB.counters.lootBest, SkinDeepDB.setsWorn = nil, {}
+  for _, id in ipairs({ "freshfind", "rarefind", "epichaul", "legendary", "fullset" }) do SkinDeepDB.feats[id] = nil end
+  fire("CHAT_MSG_LOOT", "You receive loot: |cnIQ1:|Hitem:2318::|h[Light Leather]|h|r.")
+  check(not F.IsUnlocked("freshfind"), "a common item unlocks nothing")
+  fire("CHAT_MSG_LOOT", "Wes receives loot: |cnIQ4:|Hitem:1::|h[Party Epic]|h|r.")
+  check(not F.IsUnlocked("epichaul"), "a party member's loot doesn't count")
+  fire("CHAT_MSG_LOOT", "You receive loot: |cnIQ2:|Hitem:1234::|h[Green Boots]|h|rx2.")
+  check(F.IsUnlocked("freshfind") and not F.IsUnlocked("rarefind"), "looting a green (Forever quality code, a stack) unlocks Fresh Find only")
+  fire("CHAT_MSG_LOOT", "You receive loot: |cffa335ee|Hitem:1235::|h[Purple Sword]|h|r.")
+  check(F.IsUnlocked("rarefind") and F.IsUnlocked("epichaul") and not F.IsUnlocked("legendary"),
+    "an epic (classic color) unlocks Rare Find and Epic Haul, not Legendary")
+  check(F.LinkQuality("|cffff8000|Hitem:19019::|h[Thunderfury]|h|r") == 5, "orange reads as Legendary")
+  check(SkinDeepDB.counters.lootBest == 4, "best loot quality is remembered (Epic)")
+  gear[1] = { "|cff0070dd|Hitem:16866::|h[Helm of Might]|h|r", { "Battlegear of Might (7/8)" } }
+  fire("PLAYER_EQUIPMENT_CHANGED", 1)
+  run(1)
+  check(not F.IsUnlocked("fullset"), "7 of 8 set pieces is not a full set")
+  gear[1][2] = { "Battlegear of Might (8/8)", "(3) Set: +20 Armor." }
+  fire("PLAYER_EQUIPMENT_CHANGED", 1)
+  fire("PLAYER_EQUIPMENT_CHANGED", 2)
+  run(1)
+  check(F.IsUnlocked("fullset") and SkinDeepDB.setsWorn["Battlegear of Might"], "wearing 8 / 8 unlocks Full Set")
+  check(pcall(SlashCmdList.SKINDEEP, "loot"), "/skindeep loot reports without errors")
+  gear[1] = nil
+  SkinDeepDB.unlockMode = "all"
 end
 
 print("== spec variants")

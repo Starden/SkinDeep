@@ -20,11 +20,11 @@ local Feats = ns.Feats
 
 -- Skins and feats are shown one group at a time. The Feats tab adds a Specs
 -- group (spec variants live inside Classes on the Skins tab).
--- Tab widths fit five tabs beside the preview stage.
-local GROUPS = { { "style", "Styles", 38 }, { "class", "Classes", 42 }, { "faction", "Factions", 46 }, { "pvp", "PvP", 30 },
-                 { "prof", "Trades", 42 } }
+-- Tab widths fit six tabs beside the preview stage.
+local GROUPS = { { "style", "Styles", 36 }, { "class", "Class", 34 }, { "faction", "Faction", 40 }, { "pvp", "PvP", 26 },
+                 { "prof", "Trades", 38 }, { "loot", "Loot", 30 } }
 local FEAT_GROUPS = { { "style", "Styles" }, { "class", "Classes" }, { "spec", "Specs" }, { "faction", "Factions" }, { "pvp", "PvP" },
-                      { "prof", "Trades" } }
+                      { "prof", "Trades" }, { "loot", "Loot" } }
 local CLASS_ORDER = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
 local LIST_ROW, LIST_TOP = 24, -70
 local listGroup, featGroup = "style", "style"
@@ -395,7 +395,7 @@ local function buildSkins(page)
         -- Right side: the class it belongs to, or "Locked".
         b.right = b:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
         b.right:SetPoint("RIGHT", -8, 0)
-        b.rightText = skin.spec or skin.prof or (skin.class and Feats.ClassName(skin.class))
+        b.rightText = skin.spec or skin.prof or skin.listNote or (skin.class and Feats.ClassName(skin.class))
             or (skin.rank and ("%s · R%d"):format(skin.faction, skin.rank)) or skin.faction
         b:SetScript("OnClick", function()
             -- A class skin folds open its spec variants.
@@ -879,6 +879,22 @@ SlashCmdList.SKINDEEP = function(msg)
         local variant = ns.SpecVariantID()
         ns.Print(("skin in use: %s."):format(ns.Skins[ns.ResolvedSkinID()].name)
             .. (variant and not Feats.IsUnlocked(variant) and (" (" .. ns.Skins[variant].name .. " once you earn it)") or ""))
+    elseif cmd == "loot" or cmd == "sets" then
+        -- What SkinDeep reads for the loot and set skins.
+        local NAMES = { [0] = "Poor", "Common", "Uncommon", "Rare", "Epic", "Legendary" }
+        local best = ns.db.counters.lootBest
+        ns.Print(("best loot so far: %s."):format(best and NAMES[best] or "nothing tracked yet (loot something)"))
+        local any = false
+        for name, info in pairs(Feats.WornSets()) do
+            any = true
+            ns.Print(("wearing %s: %d / %d pieces%s"):format(name, info.have, info.total,
+                info.have >= info.total and " (complete)." or "."))
+        end
+        if not any then ns.Print("no item set pieces equipped.") end
+        local worn = {}
+        for name in pairs(ns.db.setsWorn) do worn[#worn + 1] = name end
+        table.sort(worn)
+        if #worn > 0 then ns.Print("complete sets worn so far: " .. table.concat(worn, ", ") .. ".") end
     elseif cmd == "rank" or cmd == "honor" then
         -- What SkinDeep reads for the PvP rank skins, raw values included.
         local rank, info = Feats.PvPRank()

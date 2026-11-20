@@ -147,6 +147,20 @@ for _, id in ipairs(ns.SkinOrder) do
     end
 end
 
+-- Loot skins (LootSkins.lua): loot an item of that quality or better
+-- (2 Uncommon, 3 Rare, 4 Epic, 5 Legendary), or wear a whole item set.
+local LOOT_FEATS = {
+    { id = "freshfind", loot = 2, text = "Loot an Uncommon (green) item" },
+    { id = "rarefind", loot = 3, text = "Loot a Rare (blue) item or better" },
+    { id = "epichaul", loot = 4, text = "Loot an Epic (purple) item or better" },
+    { id = "legendary", loot = 5, text = "Loot a Legendary (orange) item" },
+    { id = "fullset", set = true, text = "Wear every piece of an item set" },
+}
+for _, f in ipairs(LOOT_FEATS) do
+    f.skin = f.id
+    LIST[#LIST + 1] = f
+end
+
 -- Profession skins (ProfSkins.lua): three tiers each. The first unlocks the
 -- skin; Expert and Artisan upgrade it (ns.TierSkin). Skill counts from any
 -- character, the best ever seen per profession.
@@ -216,6 +230,7 @@ function Feats.InitDB(d)
     d.classLevels = d.classLevels or {}
     d.bosses = d.bosses or {}
     d.specPoints = d.specPoints or {}   -- best talent points seen per class and tree ("WARRIOR:1")
+    d.setsWorn = d.setsWorn or {}       -- complete item sets worn, by name
     d.profSkill = d.profSkill or {}     -- best skill seen per profession (skill line id)
     d.feats = d.feats or {}
     d.hkChars = d.hkChars or {}
@@ -266,6 +281,8 @@ end
 
 local function liveDone(f)
     if bossDone(f) then return true end
+    if f.loot then return (db().counters.lootBest or 0) >= f.loot end
+    if f.set then return next(db().setsWorn) ~= nil end
     if not f.counter and not f.classLevel and not f.spec and not f.skillLine then return false end
     local cur, goal = Feats.Progress(f)
     return cur >= goal
@@ -628,6 +645,135 @@ function Feats.TalentReport()
 end
 
 ---------------------------------------------------------------------------
+-- Loot and item sets
+---------------------------------------------------------------------------
+-- "You receive loot: %s." as a pattern (any client language).
+local function lootPattern(fmt)
+    if type(fmt) ~= "string" then return nil end
+    local p = fmt:gsub("([%(%)%.%[%]%*%+%-%?%^%$])", "%%%1")
+    p = p:gsub("%%s", "(.+)"):gsub("%%d", "%%d+")
+    return "^" .. p
+end
+local lootPatterns
+
+local HEX_QUALITY = { ["9d9d9d"] = 0, ["ffffff"] = 1, ["1eff00"] = 2, ["0070dd"] = 3, ["a335ee"] = 4, ["ff8000"] = 5, ["e6cc80"] = 6 }
+
+-- An item's quality from its chat text: Forever's quality code (|cnIQ4:),
+-- the classic color, or the item itself.
+function Feats.LinkQuality(text)
+    local iq = text:match("|cnIQ(%d+):")
+    if iq then return tonumber(iq) end
+    local hex = text:match("|c%x%x(%x%x%x%x%x%x)")
+    if hex and HEX_QUALITY[hex:lower()] then return HEX_QUALITY[hex:lower()] end
+    local itemID = tonumber(text:match("|Hitem:(%d+)") or "")
+    local get = C_Item and C_Item.GetItemQualityByID
+    if itemID and type(get) == "function" then
+        local ok, q = pcall(get, itemID)
+        q = ok and ns.Plain(q, "number")
+        if q then return q end
+    end
+end
+
+-- Your own loot only ("You receive loot", not a party member's).
+function Feats.OnLootMessage(msg)
+    msg = ns.Plain(msg, "string")
+    if not msg or not db() then return end
+    if not lootPatterns then
+        lootPatterns = {}
+        for _, key in ipairs({ "LOOT_ITEM_SELF_MULTIPLE", "LOOT_ITEM_SELF" }) do
+            local p = lootPattern(rawget(_G, key))
+            if p then lootPatterns[#lootPatterns + 1] = p end
+        end
+        if #lootPatterns == 0 then lootPatterns[1] = "^You receive loot: (.+)" end
+    end
+    for _, p in ipairs(lootPatterns) do
+        local item = msg:match(p)
+        if item then
+            local q = Feats.LinkQuality(item)
+            if q then
+                raise("lootBest", min(q, 5))
+                Feats.Check(LOOT_FEATS)
+            end
+            return q
+        end
+    end
+end
+
+-- The complete item sets you're wearing: the "Set Name (8/8)" line on any
+-- equipped piece's tooltip.
+local SET_LINE = "^(.-) %((%d+)/(%d+)%)$"
+local scanTip
+local function tooltipLines(slot)
+    local TI = C_TooltipInfo
+    if TI and type(TI.GetInventoryItem) == "function" then
+        local ok, data = pcall(TI.GetInventoryItem, "player", slot)
+        local lines = ok and readable(data) and readable(data.lines)
+        if lines then
+            local out = {}
+            for _, line in ipairs(lines) do
+                local t = readable(line) and ns.Plain(line.leftText, "string")
+                if t then out[#out + 1] = t end
+            end
+            return out
+        end
+    end
+    -- Classic-style: read a hidden tooltip.
+    if not scanTip then
+        local ok, tip = pcall(CreateFrame, "GameTooltip", "SkinDeepScanTip", nil, "GameTooltipTemplate")
+        if not ok or not tip then return {} end
+        scanTip = tip
+    end
+    scanTip:SetOwner(WorldFrame, "ANCHOR_NONE")
+    scanTip:ClearLines()
+    if not pcall(scanTip.SetInventoryItem, scanTip, "player", slot) then return {} end
+    local out = {}
+    for i = 1, scanTip:NumLines() or 0 do
+        local fs = rawget(_G, "SkinDeepScanTipTextLeft" .. i)
+        local t = fs and ns.Plain(fs:GetText(), "string")
+        if t then out[#out + 1] = t end
+    end
+    return out
+end
+
+function Feats.WornSets()
+    local sets = {}
+    local getLink = rawget(_G, "GetInventoryItemLink")
+    for slot = 1, 19 do
+        local link = getLink and ns.Plain(call(getLink, "player", slot), "string")
+        if link then
+            for _, line in ipairs(tooltipLines(slot)) do
+                local name, have, total = line:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):match(SET_LINE)
+                if name and tonumber(total) and tonumber(total) >= 2 then
+                    sets[name] = { have = tonumber(have), total = tonumber(total) }
+                    break
+                end
+            end
+        end
+    end
+    return sets
+end
+
+local function scanSets()
+    local d = db()
+    if not d then return end
+    local changed = false
+    for name, info in pairs(Feats.WornSets()) do
+        if info.have >= info.total and not d.setsWorn[name] then
+            d.setsWorn[name], changed = true, true
+        end
+    end
+    if changed then Feats.Check({ BY_ID.fullset }) end
+end
+Feats.ScanSets = scanSets
+local setScanPending
+local function scanSetsSoon()
+    if setScanPending then return end
+    setScanPending = true
+    local function go() setScanPending = false; scanSets() end
+    if C_Timer then C_Timer.After(0.5, go) else go() end
+end
+
+---------------------------------------------------------------------------
 -- Professions
 ---------------------------------------------------------------------------
 local function global(name)
@@ -862,7 +1008,7 @@ end
 
 local lastForm
 local events = CreateFrame("Frame")
-for _, e in ipairs({ "UPDATE_SHAPESHIFT_FORM", "SKILL_LINES_CHANGED", "CHAT_MSG_SKILL", "CHAT_MSG_COMBAT_HONOR_GAIN", "PLAYER_PVP_KILLS_CHANGED", "PLAYER_TALENT_UPDATE",
+for _, e in ipairs({ "CHAT_MSG_LOOT", "PLAYER_EQUIPMENT_CHANGED", "UPDATE_SHAPESHIFT_FORM", "SKILL_LINES_CHANGED", "CHAT_MSG_SKILL", "CHAT_MSG_COMBAT_HONOR_GAIN", "PLAYER_PVP_KILLS_CHANGED", "PLAYER_TALENT_UPDATE",
                      "CHARACTER_POINTS_CHANGED", "PLAYER_SPECIALIZATION_CHANGED", "ACTIVE_TALENT_GROUP_CHANGED",
                      "TRAIT_CONFIG_UPDATED",
                      "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "UNIT_COMBAT", "UNIT_HEALTH", "PLAYER_TARGET_CHANGED",
@@ -907,6 +1053,10 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d, e)
         or event == "PLAYER_SPECIALIZATION_CHANGED" or event == "ACTIVE_TALENT_GROUP_CHANGED" then
         scanTalents()
         if ns.OnSettingsChanged then ns.OnSettingsChanged() end  -- Auto may now pick another variant
+    elseif event == "CHAT_MSG_LOOT" then
+        Feats.OnLootMessage(a)
+    elseif event == "PLAYER_EQUIPMENT_CHANGED" then
+        scanSetsSoon()
     elseif event == "SKILL_LINES_CHANGED" then
         scanProfessions()
     elseif event == "CHAT_MSG_SKILL" then
@@ -934,6 +1084,7 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d, e)
         hkSync(0)
         scanTalents()
         scanProfessions()
+        scanSetsSoon()
         -- Talent data can arrive a moment after loading in.
         if C_Timer then C_Timer.After(3, function() scanTalents(); if ns.OnSettingsChanged then ns.OnSettingsChanged() end end) end
     end

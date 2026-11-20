@@ -57,6 +57,11 @@ Blastcap (Engineering), Wildroot (Herbalism), Stitchwork (Leatherworking),
 Motherlode (Mining), Keen Edge (Skinning), Bolt of Cloth (Tailoring), Sizzle
 (Cooking), Lucky Bobber (Fishing) and Field Dressing (First Aid).
 
+**Loot skins**: Fresh Find, Rare Find, Epic Haul and Legendary unlock when
+you loot an item of that quality (Uncommon, Rare, Epic, Legendary; a better
+item counts for the lower ones too). Full Set unlocks when you wear every
+piece of an item set. `/skindeep loot` shows what SkinDeep reads.
+
 | Faction skins | |
 |---|---|
 | **Crimson Oath** (Scarlet Crusade) | Numbers march up over the crusade's sigil; crits burn with holy fire. Earn it: slay 100 Scarlet Crusade or defeat Whitemane. |

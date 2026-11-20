@@ -561,6 +561,36 @@ const TEXTURES = {
     };
     return Math.max(stem, leaf(0.3, 0.15, 1), leaf(-0.28, -0.25, -1), leaf(0.1, 0.78, 1) * 0.9);
   }],
+  // --- Loot and set skins (original designs) -------------------------------
+  // Cut gem: a kite shape with facet lines, the table lighter.
+  gem: [64, 64, (u, v) => {
+    const top = v > 0.3;
+    const inside = top ? (Math.abs(u) < 0.8 - (v - 0.3) * 1.0 && v < 0.82) : (Math.abs(u) < 0.8 * (v + 0.95) / 1.25 && v > -0.95);
+    if (!inside) return 0;
+    const facet = Math.abs(v - 0.3) < 0.035 || Math.abs(u) < 0.03 || Math.abs(Math.abs(u) - (v + 0.95) * 0.32) < 0.03;
+    return [1, facet ? 1 : (top ? 0.85 : 0.6 + 0.25 * (u > 0 ? 1 : 0))];
+  }],
+  // Three motes spaced round a circle (spun as a whole: an orbiting aura).
+  orbit: [64, 64, (u, v) => {
+    let al = 0;
+    for (let i = 0; i < 3; i++) {
+      const a = i / 3 * Math.PI * 2;
+      al = Math.max(al, 1 - smooth(0.06, 0.13, Math.hypot(u - Math.cos(a) * 0.78, v - Math.sin(a) * 0.78)));
+    }
+    return al;
+  }],
+  // Eight armor-piece pips round a ring.
+  setring: [128, 128, (u, v) => {
+    let al = 0;
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * Math.PI * 2 + Math.PI / 8;
+      const x = u - Math.cos(a) * 0.8, y = v - Math.sin(a) * 0.8;
+      const rx = x * Math.cos(a) + y * Math.sin(a), ry = -x * Math.sin(a) + y * Math.cos(a);
+      al = Math.max(al, (Math.abs(rx) < 0.1 && Math.abs(ry) < 0.1) ? 1 : 0);
+    }
+    const ring = (1 - smooth(0.015, 0.035, Math.abs(Math.hypot(u, v) - 0.8))) * 0.6;
+    return Math.max(al, ring);
+  }],
   // Four-point twinkle.
   twinkle: [64, 64, (u, v) => {
     const r = Math.hypot(u, v);
