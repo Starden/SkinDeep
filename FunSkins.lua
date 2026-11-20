@@ -102,6 +102,10 @@ add("graveyard", {
     ring = { size = 60, color = { 0.65, 1, 0.85 }, grow = 1.6, alpha = 0.7 },
     particles = { tex = "puff", count = 0, critCount = 8, size = { 12, 20 }, speed = { 20, 50 }, dir = { 70, 110 },
                   gravity = 10, life = { 0.8, 1.3 }, color = { 0.6, 1, 0.82 }, sway = true },
+    critReplacesDecor = true,
+    critDecor = { tex = "tombstone", size = { 40, 54 }, y = -24, color = { 0.55, 0.6, 0.68 }, alpha = 0.95, blend = "BLEND", snap = 0.4, snapTime = 0.15 },
+    particles2 = { tex = "skull", count = 0, critCount = 1, size = { 16, 20 }, speed = { 30, 40 }, dir = { 85, 95 },
+                   gravity = 0, life = { 0.9, 1.1 }, color = { 0.65, 1, 0.85 }, drag = 0, shrink = 0 },
 })
 
 add("hogger", {
@@ -169,6 +173,7 @@ add("sakura", {
                   gravity = -18, life = { 0.9, 1.6 }, color = { 1, 0.72, 0.85 }, altColor = { 1, 0.9, 0.95 },
                   blend = "BLEND", spin = 4, sway = true, drag = 1.4, shrink = 0.15 },
     ring = { size = 56, color = { 1, 0.8, 0.9 }, grow = 1.6, alpha = 0.6 },
+    critDecor = { tex = "bloom", size = 90, color = { 1, 0.72, 0.85 }, alpha = 0.7, spin = 0.6, blend = "BLEND", snap = 0.4, snapTime = 0.2 },
 })
 
 add("mechastrike", {

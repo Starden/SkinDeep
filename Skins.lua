@@ -52,6 +52,9 @@ add("classic", {
     motion = "rise", motionArgs = { speed = 55 },
     dur = 1.0, critDur = 1.3, critScale = 1.6, pop = 0.35,
     world = {},
+    ring = { size = 56, color = { 1, 1, 1 }, grow = 1.4, alpha = 0.5 },
+    particles = { tex = "spark", count = 0, critCount = 6, size = { 3, 5 }, speed = { 40, 100 }, dir = { 30, 150 },
+                  gravity = -200, life = { 0.3, 0.6 }, color = { 1, 1, 0.9 } },
 })
 
 add("ember", {
@@ -66,6 +69,8 @@ add("ember", {
     particles = { tex = "spark", count = 3, critCount = 10, size = { 4, 9 }, speed = { 20, 70 }, dir = { 60, 120 },
                   gravity = 60, life = { 0.5, 1.1 }, color = { 1, 0.5, 0.1 } },
     world = { WorldTextScale = 1.15, WorldTextRampDuration = 1.2, floatingCombatTextCombatDamageDirectionalScale = 0 },
+    critDecor2 = { tex = "flame", size = { 44, 74 }, y = 16, color = { 1, 0.55, 0.12 }, alpha = 0.85, snap = 0.3, snapTime = 0.12 },
+    ring = { size = 64, color = { 1, 0.6, 0.2 }, grow = 1.6, alpha = 0.8 },
 })
 
 add("frost", {
@@ -82,6 +87,8 @@ add("frost", {
     particles = { tex = "shard", count = 0, critCount = 8, size = { 8, 14 }, speed = { 90, 160 }, dir = { 0, 360 },
                   gravity = -220, life = { 0.4, 0.8 }, color = { 0.7, 0.95, 1 }, spin = 6 },
     world = { WorldTextScale = 1.0, WorldTextRampDuration = 0.6, WorldTextGravity = 1.2 },
+    critDecor = { tex = "snowflake", size = 100, color = { 0.5, 0.78, 1 }, alpha = 0.5, spin = 1.2, snap = 0.3, snapTime = 0.12 },
+    critDecor2 = { tex = "burst", size = 130, color = { 0.55, 0.85, 1 }, alpha = 0.4, spin = 0.5 },
 })
 
 add("arcane", {
@@ -102,6 +109,9 @@ add("arcane", {
     particles = { tex = "twinkle", count = 2, critCount = 7, size = { 8, 16 }, speed = { 15, 45 }, dir = { 0, 360 },
                   gravity = 0, life = { 0.6, 1.2 }, color = { 1, 0.6, 1 } },
     world = { floatingCombatTextCombatDamageDirectionalScale = 2 },
+    ring = { size = 70, color = { 0.8, 0.5, 1 }, grow = 1.6, alpha = 0.8 },
+    particles2 = { tex = "twinkle", count = 0, critCount = 6, size = { 10, 16 }, speed = { 60, 120 }, dir = { 0, 360 },
+                   gravity = 0, life = { 0.4, 0.7 }, color = { 1, 0.8, 1 } },
 })
 
 add("comic", {
@@ -119,6 +129,10 @@ add("comic", {
     critDecor = { tex = "burst", size = 150, color = { 1, 0.25, 0.1 }, alpha = 1, spin = 0.6, blend = "BLEND" },
     ring = { size = 120, color = { 1, 1, 1 }, grow = 0.8, alpha = 0.8 },
     world = { WorldTextScale = 1.3 },
+    critTitle = { text = "POW!", y = 46, size = 18, font = F.skurri, pop = 1.6,
+                  colors = { { 1, 0.9, 0.2 }, { 1, 1, 1 }, { 1, 0.3, 0.1 } }, shadowColor = { 0.4, 0.05, 0 } },
+    particles = { tex = "star", count = 0, critCount = 8, size = { 8, 14 }, speed = { 80, 160 }, dir = { 0, 360 },
+                  gravity = -100, life = { 0.4, 0.8 }, color = { 1, 0.9, 0.2 }, altColor = { 1, 0.35, 0.1 } },
 })
 
 add("blood", {
@@ -133,6 +147,9 @@ add("blood", {
     particles = { tex = "glow", count = 1, critCount = 6, size = { 5, 9 }, speed = { 40, 110 }, dir = { 200, 340 },
                   gravity = -400, life = { 0.5, 0.9 }, color = { 0.6, 0, 0.02 }, blend = "BLEND" },
     world = { WorldTextScale = 1.1, WorldTextGravity = 2 },
+    critDecor2 = { tex = "splat", size = 70, x = 26, y = -16, color = { 0.4, 0, 0.02 }, alpha = 0.8, blend = "BLEND", randomRot = true, delay = 0.08 },
+    particles2 = { tex = "drop", count = 0, critCount = 6, size = { 5, 8 }, aspect = 0.6, speed = { 20, 60 }, dir = { 250, 290 },
+                   gravity = -260, life = { 0.5, 0.9 }, color = { 0.5, 0, 0.03 }, blend = "BLEND", drag = 0, shrink = 0 },
 })
 
 add("arcade", {
@@ -147,6 +164,9 @@ add("arcade", {
     particles = { tex = "pixel", count = 2, critCount = 12, size = { 4, 6 }, speed = { 60, 140 }, dir = { 0, 360 },
                   gravity = -200, life = { 0.4, 0.8 }, color = { 1, 1, 0.3 }, blend = "BLEND", randomColor = true },
     world = { WorldTextScale = 0.9 },
+    critTitle = { text = "HIGH SCORE!", y = 44, size = 13, font = F.block, pop = 1.3, cycleFor = 9, period = 0.07,
+                  colors = { { 1, 0.2, 0.6 }, { 0.2, 1, 1 }, { 1, 1, 0.2 }, { 0.4, 1, 0.3 } }, shadowColor = { 0, 0, 0 } },
+    ring = { size = 60, color = { 0.2, 1, 1 }, grow = 1.4, alpha = 0.7 },
 })
 
 add("gilded", {
@@ -181,6 +201,8 @@ add("blade", {
     particles = { tex = "spark", count = 0, critCount = 5, size = { 3, 6 }, speed = { 80, 160 }, dir = { -15, 15 },
                   gravity = 0, life = { 0.2, 0.45 }, color = { 0.8, 0.9, 1 }, mirror = true },
     world = { floatingCombatTextCombatDamageDirectionalScale = 2, WorldTextRampDuration = 0.7 },
+    critDecor2 = { tex = "slash", size = { 160, 40 }, color = { 1, 1, 1 }, alpha = 0.8, rot = -0.45, grow = 0.3, delay = 0.06 },
+    ring = { size = 50, color = { 0.7, 0.85, 1 }, grow = 1.8, alpha = 0.6 },
 })
 
 -- Damage-type palettes for the "Skin palette" color scheme: { physical, spell }.

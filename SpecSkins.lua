@@ -53,6 +53,7 @@ variant("warrior_fury", "warrior", "Fury", 2, {
     critDecor = { tex = "burst", size = 120, color = { 1, 0.3, 0.1 }, alpha = 0.75, spin = 2 },
     particles = { tex = "flame", count = 0, critCount = 6, size = { 8, 12 }, aspect = 0.5, speed = { 50, 120 }, dir = { 0, 360 },
                   gravity = 0, life = { 0.3, 0.5 }, color = { 1, 0.35, 0.1 }, orient = true },
+    ring = { size = 64, color = { 1, 0.4, 0.15 }, grow = 1.8, alpha = 0.85 },
 })
 variant("warrior_prot", "warrior", "Protection", 3, {
     name = "Shield Wall", tagline = "Protection: numbers bounce off a steel shield; crits ring out in a shockwave.",
@@ -137,6 +138,8 @@ variant("hunter_sv", "hunter", "Survival", 3, {
     critDecor = { tex = "spikes", size = 96, color = { 0.36, 0.34, 0.32 }, alpha = 0.95, blend = "BLEND", snap = 2, snapTime = 0.08 },
     particles = { tex = "puff", count = 0, critCount = 5, size = { 14, 22 }, speed = { 20, 50 }, dir = { 0, 360 },
                   gravity = 5, life = { 0.6, 1.0 }, color = { 0.45, 0.85, 0.25 }, blend = "BLEND" },
+    particles2 = { tex = "drop", count = 0, critCount = 6, size = { 5, 8 }, aspect = 0.6, speed = { 40, 90 }, dir = { 30, 150 },
+                   gravity = -250, life = { 0.5, 0.8 }, color = { 0.45, 0.85, 0.25 }, blend = "BLEND" },
 })
 
 ---------------------------------------------------------------------------
@@ -273,7 +276,9 @@ variant("mage_frost", "mage", "Frost", 3, {
     physColor = { 0.9, 0.98, 1 }, spellColor = { 0.45, 0.8, 1 },
     layers = { { x = 1, y = 1, color = { 0.15, 0.35, 0.7, 0.6 } }, { x = -1, y = -1, color = { 0.15, 0.35, 0.7, 0.6 } } },
     motion = "slam", motionArgs = { from = 2.2, time = 0.14, drift = 18 }, shake = 3,
-    critDecor = false, critDecor2 = false,
+    -- The spike itself: a tall ice shard striking from above.
+    critDecor = { tex = "shard", size = { 26, 72 }, y = 50, color = { 0.72, 0.93, 1 }, alpha = 0.95, snap = 1.8, snapTime = 0.1 },
+    critDecor2 = { tex = "snowflake", size = 70, color = { 0.8, 0.95, 1 }, alpha = 0.55, spin = 1.2 },
     ring = { size = 60, color = { 0.7, 0.92, 1 }, grow = 2, alpha = 0.9 },
     particles = { tex = "shard", count = 0, critCount = 9, size = { 10, 16 }, speed = { 90, 160 }, dir = { 0, 360 },
                   gravity = -220, life = { 0.4, 0.8 }, color = { 0.75, 0.95, 1 }, spin = 6 },
@@ -287,7 +292,9 @@ variant("warlock_aff", "warlock", "Affliction", 1, {
     physColor = { 0.8, 0.75, 0.9 }, spellColor = { 0.55, 0.3, 0.85 },
     layers = { { x = 2, y = -2, color = { 0.15, 0.02, 0.25, 1 } } },
     motion = "drip", motionArgs = { hold = 0.25, speed = 20, accel = 60 }, flicker = false,
-    decor = false, critDecor2 = false, ring = false,
+    decor = false,
+    critDecor2 = { tex = "puff", size = 92, y = 8, color = { 0.45, 0.75, 0.3 }, alpha = 0.55, blend = "BLEND", grow = 0.8, spin = 0.3 },
+    ring = { size = 56, color = { 0.6, 0.9, 0.4 }, grow = 1.5, alpha = 0.7 },
     critDecor = { tex = "skull", size = 44, y = 28, color = { 0.75, 0.65, 0.95 }, alpha = 0.9, blend = "BLEND", snap = 1.4, snapTime = 0.1 },
     particles = { tex = "puff", count = 1, critCount = 5, size = { 12, 20 }, speed = { 5, 20 }, dir = { 60, 120 },
                   gravity = 15, life = { 0.7, 1.2 }, color = { 0.3, 0.12, 0.4 }, blend = "BLEND" },

@@ -70,4 +70,16 @@ const logo = 'data:image/png;base64,' + fs.readFileSync(path.join(root, 'docs', 
 const show = fs.readFileSync(path.join(__dirname, 'showcase.html'), 'utf8')
   .replace('<script src="data.js"></script>', () => '<script>window.GALLERY = ' + JSON.stringify({ skins: data.skins, textures, fonts, logo }) + ';</script>');
 fs.writeFileSync(path.join(outDir, 'showcase.html'), show);
+// Before/after: the snapshot in gallery/before.html (copy index.html there
+// before changing skins) beside the current skins.
+const beforeFile = path.join(outDir, 'before.html');
+if (fs.existsSync(beforeFile)) {
+  const old = fs.readFileSync(beforeFile, 'utf8');
+  const m = old.match(/window\.GALLERY = ([\s\S]*?);<\/script>/);
+  if (m) {
+    const cmp = fs.readFileSync(path.join(__dirname, 'compare.html'), 'utf8')
+      .replace('<script src="data.js"></script>', () => '<script>window.GALLERY = ' + JSON.stringify({ skins: data.skins, textures, fonts }) + '; window.BEFORE = ' + m[1] + ';</script>');
+    fs.writeFileSync(path.join(outDir, 'compare.html'), cmp);
+  }
+}
 console.log(`gallery: ${data.skins.length} skins -> ${path.join(outDir, 'index.html')}`);
