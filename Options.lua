@@ -897,8 +897,7 @@ SlashCmdList.SKINDEEP = function(msg)
             .. (variant and not Feats.IsUnlocked(variant) and (" (" .. ns.Skins[variant].name .. " once you earn it)") or ""))
     elseif cmd == "peek" then
         -- Another SkinDeep user's skin: /skindeep peek [name] (default: target).
-        local name = rest ~= "" and rest or (UnitExists("target") and ns.SafeBool(UnitIsPlayer, "target") and UnitName("target"))
-        name = name and (name:match("^([^%-]+)") or name)
+        local name = rest ~= "" and rest or (UnitExists("target") and ns.SafeBool(UnitIsPlayer, "target") and ns.Share.FullName("target"))
         if not name then
             ns.Print("peek: target a player, or type /skindeep peek Name.")
         elseif not ns.db.shareSkins then

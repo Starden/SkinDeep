@@ -1,5 +1,17 @@
 # SkinDeep
 
+## 1.2.1
+
+- **Skin sharing fix**: hovering players no longer fills chat with "No
+  player named ... is currently playing". SkinDeep now asks players by their
+  full name (first name and surname), only asks your own faction, asks the
+  same player at most every few minutes, and hides the game's not-found
+  line for its own requests.
+- `/skindeep peek` takes a full name (Haze-Grimm) when two SkinDeep users
+  share a first name.
+- Echo hits (Rampage, Stormstrike) land a little further from the first hit,
+  so they no longer overlap on crits.
+
 ## 1.2.0
 
 Collect your skins.
