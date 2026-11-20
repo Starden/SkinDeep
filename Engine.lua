@@ -14,9 +14,10 @@ local TEX = "Interface\\AddOns\\SkinDeep\\Media\\Textures\\"
 local MAX_POPS, MAX_LAYERS, MAX_PARTS = 40, 5, 24
 local FADE_IN = 0.05
 local POP_TIME = 0.12
+local FLASH_TIME = 0.12   -- a crit's number flashes toward white as it lands
 
 local random, sin, cos, floor, min, max, rad = math.random, math.sin, math.cos, math.floor, math.min, math.max, math.rad
-local pi, atan2 = math.pi, math.atan2 or math.atan
+local pi, atan2, exp = math.pi, math.atan2 or math.atan, math.exp
 local tremove, tinsert = table.remove, table.insert
 
 local WHITE = { 1, 1, 1 }
@@ -407,6 +408,10 @@ local function spawnParticles(p, pd, crit, color, first)
         local size = rr(pd.size or { 4, 8 })
         local aspect = pd.aspect or (pd.tex == "shard" and 0.5) or 1
         tex:SetSize(size * aspect, size)
+        part.w, part.h = size * aspect, size
+        -- Sparks slow as they fly (drag) and shrink as they fade.
+        part.drag = pd.inward and 0 or (pd.drag or 0.9)
+        part.shrink = pd.shrink or 0.35
         local angle = rad(rr(pd.dir or { 0, 360 }))
         part.t, part.life = 0, rr(pd.life or { 0.4, 0.8 })
         if pd.inward then
@@ -446,7 +451,7 @@ function Engine.Spawn(e)
     p.dur = (crit and skin.critDur or skin.dur) or 1.1
     p.fade = skin.fade or 0.35
     p.fadeIn = skin.fadeIn or FADE_IN          -- a slow fade-in (numbers out of shadow)
-    p.alphaMul = e.echo and 0.75 or 1
+    p.alphaMul = e.echo and 0.85 or 1
     p.pop = skin.pop or 0.3
     p.base = (db.scale or 1) * (inc and 0.8 or 1) * (crit and (skin.critScale or 1.5) or 1)
     p.shake = crit and skin.shake or nil
@@ -459,6 +464,7 @@ function Engine.Spawn(e)
     -- Crit color flashing is part of a skin's own palette only.
     p.cycle = crit and (db.colorScheme or "skin") == "skin" and skin.critCycle or nil
     p.cyclePeriod = skin.cyclePeriod or 0.08
+    p.flash = crit and not skin.ownText and not skin.noFlash and e.kind ~= "word" or nil
 
     -- Where: anchor + origin. Origins jitter a little and stack per anchor.
     p.anchor = e.anchor or UIParent
@@ -468,7 +474,8 @@ function Engine.Spawn(e)
     p.oy = laneOffset(p.anchor, skin.laneStep)
     if e.echo then
         -- An echo sits just beside the hit it repeats.
-        p.ox, p.oy = (e.echoX or 0) + 14, (e.echoY or 0) - 10
+        p.ox, p.oy = (e.echoX or 0) + 30 * p.dir, (e.echoY or 0) - 20
+        p.base = p.base * 0.8
     end
     p:SetFrameStrata(e.strata or "LOW")
 
@@ -589,13 +596,13 @@ end
 -- to 1 over snapTime: >1 slams in, <1 springs open), unwind (extra rotation
 -- that eases away with the snap), flicker (random alpha and jitter, like
 -- crackling lightning).
-local function animateTexture(tex, d, t, life, rotation)
+local function animateTexture(tex, d, t, life, rotation, steady)
     if not d then return end
     local delay = d.delay or 0
     if t < delay then tex:SetAlpha(0); return end
     t, life = t - delay, max(0.05, life - delay)
     local k = min(1, t / life)
-    local a = (d.alpha or 1) * min(1, t / FADE_IN) * (1 - k)
+    local a = (d.alpha or 1) * min(1, t / FADE_IN) * (steady and 1 or (1 - k) * (1 - k * 0.4))
     local rot = rotation + (d.spin or 0) * t
     if d.flicker then
         a = a * (0.2 + 0.8 * random())
@@ -626,10 +633,17 @@ function Engine.Step(p, dt)
 
     -- Scale: settle from the "pop" size during the first moments.
     local s = p.base * (p.ms or 1)
-    if p.pop > 0 and t < POP_TIME then
-        local k = 1 - t / POP_TIME
-        s = s * (1 + p.pop * k * k)
+    if p.pop > 0 then
+        if p.crit and not p.skin.noSpring then
+            -- Damped spring: big, a little under, settled by ~0.35s.
+            if t < 0.4 then s = s * (1 + p.pop * 1.15 * exp(-t * 13) * cos(t * 24)) end
+        elseif t < POP_TIME then
+            local k = 1 - t / POP_TIME
+            s = s * (1 + p.pop * k * k)
+        end
     end
+    local fadeStart = p.dur * (1 - p.fade)
+    if t > fadeStart then s = s * (1 - 0.12 * (t - fadeStart) / (p.dur - fadeStart)) end
     -- War drum: a few hard pulses in a row on crits.
     if p.drum then
         local gap = p.drum.gap or 0.13
@@ -660,9 +674,11 @@ function Engine.Step(p, dt)
     end
 
     -- Alpha: quick fade in, fade out over the last part.
-    local fadeStart = p.dur * (1 - p.fade)
     local alpha = min(1, t / p.fadeIn) * p.alphaMul
-    if t > fadeStart then alpha = alpha * (1 - (t - fadeStart) / (p.dur - fadeStart)) end
+    if t > fadeStart then
+        local k = (t - fadeStart) / (p.dur - fadeStart)
+        alpha = alpha * (1 - k * k * (3 - 2 * k))
+    end
     if p.flicker then alpha = alpha * (0.78 + 0.22 * sin(t * 37 + p.phase) * sin(t * 13)) end
     if p.blink and t > p.dur * 0.65 and floor(t * 18) % 2 == 0 then alpha = alpha * 0.25 end
     p:SetAlpha(max(0, alpha))
@@ -670,6 +686,16 @@ function Engine.Step(p, dt)
     if p.cycle then
         local c = p.cycle[floor(t / p.cyclePeriod) % #p.cycle + 1]
         p.text:SetTextColor(c[1], c[2], c[3], 1)
+    elseif p.flash then
+        local k = 1 - t / FLASH_TIME
+        local c = p.color
+        if k > 0 then
+            local w = 0.75 * k * k
+            p.text:SetTextColor(c[1] + (1 - c[1]) * w, c[2] + (1 - c[2]) * w, c[3] + (1 - c[3]) * w, 1)
+        else
+            p.text:SetTextColor(c[1], c[2], c[3], 1)
+            p.flash = nil
+        end
     end
 
     -- Position (+ crit shake).
@@ -682,7 +708,7 @@ function Engine.Step(p, dt)
     p:SetPoint("CENTER", p.anchor, p.anchorPoint, p.ax + x, p.ay + y)
 
     -- Decor follows the number; bursts and rings live for half its time.
-    animateTexture(p.decor, p.decorDef, t, p.dur, p.decorRot or 0)
+    animateTexture(p.decor, p.decorDef, t, p.dur, p.decorRot or 0, true)
     animateTexture(p.burst, p.burstDef, t, p.dur * 0.55, p.burstRot or 0)
     animateTexture(p.burst2, p.burst2Def, t, p.dur * 0.55, p.burst2Rot or 0)
     animateTexture(p.ring, p.ringDef, t, p.dur * 0.45, 0)
@@ -695,11 +721,19 @@ function Engine.Step(p, dt)
                 part.alive = false
                 part.tex:Hide()
             else
+                if part.drag > 0 then
+                    local damp = exp(-part.drag * dt)
+                    part.vx, part.vy = part.vx * damp, part.vy * damp
+                end
                 part.vy = part.vy + part.gravity * dt
                 part.x = part.x + part.vx * dt
                 part.y = part.y + part.vy * dt
                 local k = part.t / part.life
-                part.tex:SetAlpha((1 - k) * min(1, part.t / 0.04))
+                part.tex:SetAlpha((1 - k * k) * min(1, part.t / 0.04))
+                if part.shrink > 0 then
+                    local g = 1 - part.shrink * k
+                    part.tex:SetSize(max(0.1, part.w * g), max(0.1, part.h * g))
+                end
                 if part.tex.SetRotation then
                     if part.orient then
                         part.tex:SetRotation(atan2(part.vy, part.vx) - pi / 2)

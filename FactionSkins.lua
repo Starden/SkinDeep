@@ -181,8 +181,11 @@ add("swarm", {
     layers = { { x = 2, y = -2, color = { 0.3, 0.2, 0.05, 1 } } },
     motion = "zap", motionArgs = { speed = 34, step = 0.05, jolt = 3 },
     dur = 1.2, critDur = 1.5, critScale = 1.5, pop = 0.2,
-    particles = { tex = "bug", count = 3, critCount = 14, size = { 7, 12 }, speed = { 40, 120 }, dir = { 0, 360 },
-                  gravity = 0, life = { 0.5, 1.1 }, color = { 0.75, 0.6, 0.25 }, blend = "BLEND", orient = true },
+    critDecor = { tex = "puff", size = 110, color = { 0.62, 0.48, 0.22 }, alpha = 0.6, blend = "BLEND", grow = 0.8, spin = 0.4 },
+    ring = { size = 70, color = { 0.95, 0.8, 0.45 }, grow = 1.6, alpha = 0.7 },
+    particles = { tex = "bug", count = 3, critCount = 16, size = { 9, 15 }, speed = { 50, 130 }, dir = { 0, 360 },
+                  gravity = 0, life = { 0.6, 1.2 }, color = { 0.55, 0.42, 0.18 }, altColor = { 0.3, 0.24, 0.12 },
+                  blend = "BLEND", orient = true, drag = 0.3, shrink = 0 },
 })
 
 add("tidecaller", {

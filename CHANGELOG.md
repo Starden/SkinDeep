@@ -67,6 +67,16 @@ Collect your skins.
   light on crits), Legendary (a pillar of light, rays and a LEGENDARY banner)
   and Full Set (wear every piece of an item set: crits snap the set pieces
   together and call SET BONUS). `/skindeep loot` shows what SkinDeep reads.
+- **Polish pass on every skin**:
+  - Crits land with a springy punch and flash bright as they hit; numbers
+    hold full strength longer, then shrink a touch as they fade.
+  - Sparks and debris slow as they fly and shrink as they fade.
+  - Effects behind a number stay steady and fade out with it.
+  - Echo hits (Rampage, Stormstrike) land clearly beside the first.
+  - Easier-to-read numbers on Arcane Sigil, Arcane Surge, Fel Pact,
+    Gearworks, Hallow's End, Stormcall and Thunderhead; a stronger crack
+    for Bloodrage; Rank 14 skins that frame the number instead of burying
+    it; and fuller crits for Silithid Swarm and Fresh Find.
 - **PvP skin**: Shift-click a skin to use it automatically in battlegrounds and
   against players (`/skindeep pvp <name|off>`).
 - **Unlock popups** with the achievement fanfare (both can be turned off).

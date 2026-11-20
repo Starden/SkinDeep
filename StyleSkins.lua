@@ -38,10 +38,10 @@ add("gearworks", {
     layers = { { x = 2, y = -2, color = { 0.25, 0.2, 0.1, 1 } } },
     motion = "hop", motionArgs = { step = 0.08, px = 5 },
     dur = 1.1, critDur = 1.4, critScale = 1.5, pop = 0.2,
-    decor = { tex = "gear", size = 44, color = { 0.6, 0.52, 0.35 }, alpha = 0.35, spin = 2, blend = "BLEND" },
+    decor = { tex = "gear", size = 44, color = { 0.42, 0.35, 0.22 }, alpha = 0.4, spin = 2, blend = "BLEND" },
     critReplacesDecor = true,
-    critDecor = { tex = "gear", size = 74, color = { 0.7, 0.6, 0.38 }, alpha = 0.85, spin = 4, blend = "BLEND" },
-    critDecor2 = { tex = "gear", size = 36, x = 30, y = 18, color = { 0.78, 0.65, 0.38 }, alpha = 0.85, spin = -6, blend = "BLEND" },
+    critDecor = { tex = "gear", size = 78, color = { 0.42, 0.35, 0.22 }, alpha = 0.9, spin = 4, blend = "BLEND" },
+    critDecor2 = { tex = "gear", size = 38, x = 34, y = 20, color = { 0.55, 0.45, 0.27 }, alpha = 0.9, spin = -6, blend = "BLEND" },
     particles = { tex = "puff", count = 0, critCount = 4, size = { 16, 24 }, speed = { 20, 50 }, dir = { 60, 120 },
                   gravity = 10, life = { 0.5, 0.9 }, color = { 0.85, 0.85, 0.85 }, blend = "BLEND" },
 })
@@ -62,12 +62,12 @@ add("murloc", {
 add("hallows", {
     name = "Hallow's End", tagline = "Seasonal (October): flickering numbers with bats on the wing; crits light a jack-o'-lantern.",
     font = F.skurri, size = 30, outline = "THICKOUTLINE",
-    color = { 1, 0.55, 0.1 }, physColor = { 0.95, 0.88, 0.7 }, spellColor = { 1, 0.55, 0.1 },  -- candlelight / pumpkin
+    color = { 1, 0.55, 0.1 }, physColor = { 1, 0.95, 0.8 }, spellColor = { 1, 0.62, 0.15 },  -- candlelight / pumpkin
     flicker = true,
     layers = { { x = 2, y = -2, color = { 0.2, 0.05, 0.25, 1 } } },
     motion = "rise", motionArgs = { speed = 34, sway = 4, freq = 8 },
     dur = 1.25, critDur = 1.55, critScale = 1.5, pop = 0.3,
-    critDecor = { tex = "pumpkin", size = 70, color = { 1, 0.55, 0.08 }, alpha = 0.95, blend = "BLEND", snap = 0.2, snapTime = 0.12 },
+    critDecor = { tex = "pumpkin", size = 76, y = -4, color = { 0.8, 0.36, 0.04 }, alpha = 0.9, blend = "BLEND", snap = 0.2, snapTime = 0.12 },
     particles = { tex = "bat", count = 1, critCount = 6, size = { 9, 13 }, aspect = 2, speed = { 50, 110 }, dir = { 30, 150 },
                   gravity = 0, life = { 0.6, 1.1 }, color = { 0.25, 0.1, 0.3 }, blend = "BLEND" },
 })

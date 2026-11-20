@@ -145,7 +145,7 @@ prof("wildroot", 182, "Herbalism", {
     particles = { tex = "leaf", count = 0, critCount = 4, size = { 8, 12 }, speed = { 20, 50 }, dir = { 30, 150 },
                   gravity = -40, life = { 0.6, 1.0 }, color = LEAF, blend = "BLEND", spin = 3 },
 }, {
-    critDecor = { tex = "sprout", size = 70, y = -18, color = LEAF, alpha = 0.9, blend = "BLEND", snap = 0.2, snapTime = 0.25 },
+    critDecor = { tex = "sprout", size = 92, y = -22, color = LEAF, alpha = 0.9, blend = "BLEND", snap = 0.2, snapTime = 0.25 },
     particles2 = { tex = "glow", count = 0, critCount = 10, size = { 3, 5 }, speed = { 15, 45 }, dir = { 0, 360 },
                    gravity = 8, life = { 0.9, 1.6 }, color = POLLEN },
 }, {
@@ -222,16 +222,16 @@ prof("keenedge", 393, "Skinning", {
     layers = { { x = 2, y = -2, color = { 0.22, 0.1, 0.06, 1 } } },
     motion = "dash", motionArgs = { arrive = true, dist = 50, time = 0.15, rise = 22 },
     dur = 1.1, critDur = 1.4, critScale = 1.5, pop = 0.15,
-    decor = { tex = "arc", size = 70, y = -6, color = BLADE, alpha = 0.7 },
+    decor = { tex = "arc", size = 70, y = 2, rot = -0.7, color = BLADE, alpha = 0.7 },
     particles = { tex = "puff", count = 0, critCount = 4, size = { 6, 10 }, speed = { 15, 50 }, dir = { 200, 340 },
                   gravity = -60, life = { 0.8, 1.3 }, color = FUR, blend = "BLEND" },
 }, {
     critReplacesDecor = true,
-    critDecor = { tex = "arc", size = 130, color = BLADE, alpha = 0.95, snap = 0.6, snapTime = 0.1 },
+    critDecor = { tex = "arc", size = 120, y = 6, rot = -0.7, color = BLADE, alpha = 0.95, snap = 0.6, snapTime = 0.1 },
     particles = { tex = "puff", count = 0, critCount = 8, size = { 6, 11 }, speed = { 15, 60 }, dir = { 200, 340 },
                   gravity = -60, life = { 0.8, 1.4 }, color = FUR, altColor = { 0.78, 0.65, 0.48 }, blend = "BLEND" },
 }, {
-    critDecor2 = { tex = "arc", size = 110, color = { 0.85, 0.3, 0.25 }, alpha = 0.8, rot = 3.14, delay = 0.06, snap = 0.6, snapTime = 0.1 },
+    critDecor2 = { tex = "arc", size = 104, y = -6, color = { 0.85, 0.3, 0.25 }, alpha = 0.8, rot = 2.44, delay = 0.06, snap = 0.6, snapTime = 0.1 },
     particles = { tex = "puff", count = 1, critCount = 12, size = { 6, 12 }, speed = { 15, 70 }, dir = { 190, 350 },
                   gravity = -60, life = { 0.8, 1.4 }, color = FUR, altColor = { 0.78, 0.65, 0.48 }, blend = "BLEND" },
     critTitle = title("ARTISAN SKINNER", { BLADE, { 0.95, 0.85, 0.7 }, { 0.85, 0.45, 0.3 } }, { 0.22, 0.1, 0.06 }),
@@ -276,7 +276,7 @@ prof("sizzle", 185, "Cooking", {
     particles = { tex = "puff", count = 1, critCount = 2, size = { 10, 16 }, speed = { 15, 30 }, dir = { 80, 100 },
                   gravity = 10, life = { 0.6, 1.0 }, color = STEAM, blend = "BLEND", sway = true },
 }, {
-    critDecor = { tex = "splat", size = 70, color = GREASE, alpha = 0.6, blend = "BLEND", snap = 0.4, snapTime = 0.08 },
+    critDecor = { tex = "puff", size = 92, y = 8, color = STEAM, alpha = 0.45, blend = "BLEND", grow = 0.9, spin = 0.3 },
     particles2 = { tex = "drop", count = 0, critCount = 10, size = { 4, 7 }, speed = { 70, 150 }, dir = { 20, 160 },
                    gravity = -420, life = { 0.4, 0.8 }, color = GREASE },
 }, {
@@ -308,14 +308,14 @@ prof("luckybobber", 356, "Fishing", {
     particles = { tex = "drop", count = 0, critCount = 10, size = { 4, 7 }, speed = { 60, 140 }, dir = { 50, 130 },
                   gravity = -350, life = { 0.4, 0.9 }, color = SPRAY },
     particles2 = { tex = "fish", count = 0, critCount = 1, size = { 30, 30 }, aspect = 0.5, speed = { 120, 140 }, dir = { 100, 115 },
-                   gravity = -300, life = { 0.8, 0.9 }, color = { 0.62, 0.84, 0.78 }, blend = "BLEND", orient = true },
+                   gravity = -300, life = { 0.8, 0.9 }, color = { 0.62, 0.84, 0.78 }, blend = "BLEND", orient = true, drag = 0, shrink = 0 },
 }, {
     decor = { tex = "bobber", size = 15, x = 28, y = -10, color = { 1, 0.3, 0.25 }, alpha = 1, blend = "BLEND" },
     critDecor2 = { tex = "ripple", size = { 150, 52 }, y = -14, color = { 1, 1, 1 }, alpha = 0.6, grow = 1.4, delay = 0.12 },
     particles = { tex = "drop", count = 0, critCount = 14, size = { 4, 8 }, speed = { 60, 160 }, dir = { 45, 135 },
                   gravity = -350, life = { 0.4, 0.9 }, color = SPRAY },
     particles2 = { tex = "fish", count = 0, critCount = 1, size = { 34, 34 }, aspect = 0.5, speed = { 130, 150 }, dir = { 100, 115 },
-                   gravity = -300, life = { 0.85, 0.95 }, color = FISHGOLD, orient = true },
+                   gravity = -300, life = { 0.85, 0.95 }, color = FISHGOLD, orient = true, drag = 0, shrink = 0 },
     critTitle = title("ARTISAN ANGLER", { FISHGOLD, { 1, 1, 1 }, WATER }, { 0.03, 0.12, 0.25 }),
 })
 
@@ -338,7 +338,7 @@ prof("fielddressing", 129, "First Aid", {
     particles = { tex = "cross", count = 0, critCount = 5, size = { 8, 12 }, speed = { 30, 70 }, dir = { 40, 140 },
                   gravity = -60, life = { 0.6, 1.0 }, color = RED, blend = "BLEND" },
 }, {
-    critDecor2 = { tex = "cross", size = 46, y = 30, color = RED, alpha = 0.9, blend = "BLEND", snap = 1.6, snapTime = 0.1 },
+    critDecor2 = { tex = "cross", size = 30, y = 30, color = RED, alpha = 0.95, blend = "BLEND", snap = 1.6, snapTime = 0.1 },
     particles = { tex = "cross", count = 0, critCount = 8, size = { 8, 13 }, speed = { 30, 80 }, dir = { 30, 150 },
                   gravity = -60, life = { 0.6, 1.1 }, color = RED, blend = "BLEND" },
     critTitle = title("ARTISAN MEDIC", { { 1, 1, 1 }, LINEN, { 1, 0.55, 0.55 } }, { 0.25, 0.04, 0.04 }),
