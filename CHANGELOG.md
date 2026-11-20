@@ -1,5 +1,30 @@
 # SkinDeep
 
+## 1.5.0
+
+- **No more look-alikes**: skins that differed only by a shade or one more
+  ray now each have an idea of their own.
+  - **Venom**: numbers sink and drip poison over a toxic splash.
+  - **Seraph**: wings open behind the number and flap as feathers fall.
+  - **Thunderhead**: a storm cloud gathers, then lightning strikes and rain
+    falls.
+  - **Bullseye**: a scope closes in and an arrow thuds in beside the number.
+  - **Lifebloom**: vines grow up either side and burst into flower.
+  - **Rare Find**: a sapphire turns above the number as a glint sweeps
+    across it.
+- **PvP ranks**, each built around the Alliance or Horde crest:
+  - Alliance: the crest stamps down (Sergeant), a banner unrolls
+    (Knight-Lieutenant), swords cross with a clang (Lieutenant Commander),
+    and a roar rolls out (Lion's Pride).
+  - Horde: claws carve the crest (Sergeant), war paint swipes across (Blood
+    Guard), three drum beats end in lightning (Blood & Thunder), spears cross
+    (Champion), and a wall of fire rises (Warlord).
+- **The crit ring is now rare**, kept for skins where a shockwave is the
+  point, like Kaboom!, Shield Wall and Bass Drop. Skins that leaned on it
+  get a finisher of their own: chain lightning for Stormcall, a second claw
+  rake for Pack Leader, closing jaws for Trapper, thorns for Ironbark, a
+  spill of coins for Gilded Hoard, and more.
+
 ## 1.4.0
 
 - **Quality pass on every skin**, measured with a new audit (tools/audit.js):
