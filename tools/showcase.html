@@ -51,7 +51,7 @@ function drawItems(ctx, cx, cy, items, sc) {
       if (img) {
         ctx.rotate(-rot);
         ctx.globalCompositeOperation = mode === 1 ? 'source-over' : 'lighter';
-        ctx.drawImage(img, -ew * sc / 2, -eh * sc / 2, ew * sc, eh * sc);
+        const tc = e[15]; if (Array.isArray(tc)) ctx.drawImage(img, tc[0] * img.width, tc[2] * img.height, Math.max(0.01, (tc[1] - tc[0]) * img.width), Math.max(0.01, (tc[3] - tc[2]) * img.height), -ew * sc / 2, -eh * sc / 2, ew * sc, eh * sc); else ctx.drawImage(img, -ew * sc / 2, -eh * sc / 2, ew * sc, eh * sc);
       }
     } else {
       const f = G.fonts[mode];

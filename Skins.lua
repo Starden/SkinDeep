@@ -13,11 +13,16 @@ local _, ns = ...
 --   motion, motionArgs   path the number takes (see Engine.lua MOTIONS)
 --   dur, critDur         seconds on screen; fade = share of that spent fading out
 --   critScale, pop       crit size multiplier; pop = how much bigger it starts before settling
---   shake                crit screen-shake in pixels
+--   shake, shakeAt       crit screen-shake in pixels; shakeAt delays it to an impact (seconds)
 --   decor, critDecor     textures behind the number: { tex, size, color, alpha, spin, grow, blend, rot }
---   ring                 crit shockwave ring: { size, color, grow, alpha }
+--   ring                 crit shockwave ring: { size, color, grow, alpha }. Kept for skins whose
+--                          crit is a shockwave or pulse; others finish their own way.
+--   critPieces           a crit's choreography: a list of textures, each with its own path and
+--                          timing (from/x/y, rot, pivot, reveal, wobble, turn, hold...; see
+--                          animatePiece in Engine.lua)
 --   particles            { tex, count, critCount, size = {min,max}, speed = {min,max}, dir = {deg,deg},
---                          gravity (px/s^2, + is up), life = {min,max}, color, blend, spin }
+--                          gravity (px/s^2, + is up), life = {min,max}, color, blend, spin,
+--                          origin = {x,y}, spread = {w,h}, delay = s or {min,max}, sway }
 --   format, critFormat   text around the number ("%s" is the number)
 --   world                engine CVars for Blizzard's own floating numbers (used when they are visible)
 
@@ -52,7 +57,6 @@ add("classic", {
     motion = "rise", motionArgs = { speed = 55 },
     dur = 1.0, critDur = 1.3, critScale = 1.6, pop = 0.35,
     world = {},
-    ring = { size = 56, color = { 1, 1, 1 }, grow = 1.4, alpha = 0.5 },
     particles = { tex = "spark", count = 0, critCount = 6, size = { 3, 5 }, speed = { 40, 100 }, dir = { 30, 150 },
                   gravity = -200, life = { 0.3, 0.6 }, color = { 1, 1, 0.9 } },
 })
@@ -70,7 +74,6 @@ add("ember", {
                   gravity = 60, life = { 0.5, 1.1 }, color = { 1, 0.5, 0.1 } },
     world = { WorldTextScale = 1.15, WorldTextRampDuration = 1.2, floatingCombatTextCombatDamageDirectionalScale = 0 },
     critDecor2 = { tex = "flame", size = { 44, 74 }, y = 16, color = { 1, 0.55, 0.12 }, alpha = 0.85, snap = 0.3, snapTime = 0.12 },
-    ring = { size = 64, color = { 1, 0.6, 0.2 }, grow = 1.6, alpha = 0.8 },
 })
 
 add("frost", {
@@ -83,7 +86,6 @@ add("frost", {
     },
     motion = "slam", motionArgs = { from = 2.2, time = 0.14, drift = 18 },
     dur = 1.0, critDur = 1.35, critScale = 1.5, pop = 0, shake = 4,
-    ring = { size = 140, color = { 0.6, 0.9, 1 }, grow = 1.2, alpha = 0.9 },
     particles = { tex = "shard", count = 0, critCount = 8, size = { 8, 14 }, speed = { 90, 160 }, dir = { 0, 360 },
                   gravity = -220, life = { 0.4, 0.8 }, color = { 0.7, 0.95, 1 }, spin = 6 },
     world = { WorldTextScale = 1.0, WorldTextRampDuration = 0.6, WorldTextGravity = 1.2 },
@@ -109,7 +111,6 @@ add("arcane", {
     particles = { tex = "twinkle", count = 2, critCount = 7, size = { 8, 16 }, speed = { 15, 45 }, dir = { 0, 360 },
                   gravity = 0, life = { 0.6, 1.2 }, color = { 1, 0.6, 1 } },
     world = { floatingCombatTextCombatDamageDirectionalScale = 2 },
-    ring = { size = 70, color = { 0.8, 0.5, 1 }, grow = 1.6, alpha = 0.8 },
     particles2 = { tex = "twinkle", count = 0, critCount = 6, size = { 10, 16 }, speed = { 60, 120 }, dir = { 0, 360 },
                    gravity = 0, life = { 0.4, 0.7 }, color = { 1, 0.8, 1 } },
 })
@@ -166,7 +167,6 @@ add("arcade", {
     world = { WorldTextScale = 0.9 },
     critTitle = { text = "HIGH SCORE!", y = 44, size = 13, font = F.block, pop = 1.3, cycleFor = 9, period = 0.07,
                   colors = { { 1, 0.2, 0.6 }, { 0.2, 1, 1 }, { 1, 1, 0.2 }, { 0.4, 1, 0.3 } }, shadowColor = { 0, 0, 0 } },
-    ring = { size = 60, color = { 0.2, 1, 1 }, grow = 1.4, alpha = 0.7 },
 })
 
 add("gilded", {
@@ -181,7 +181,9 @@ add("gilded", {
     motion = "toss", motionArgs = { vx = { 50, 110 }, vy = 150, gravity = 380 },
     dur = 1.1, critDur = 1.4, critScale = 1.55, pop = 0.4,
     critDecor = { tex = "glow", size = 110, color = { 1, 0.8, 0.2 }, alpha = 0.8, grow = 0.3 },
-    ring = { size = 110, color = { 1, 0.85, 0.3 }, grow = 0.9, alpha = 0.7 },
+    -- Crits: a shower of coins spills out of the number.
+    particles2 = { tex = "coin", count = 0, critCount = 9, size = { 9, 13 }, speed = { 70, 150 }, dir = { 40, 140 },
+                   gravity = -420, life = { 0.6, 1.0 }, spin = 6, color = { 1, 0.82, 0.3 }, blend = "BLEND" },
     particles = { tex = "twinkle", count = 1, critCount = 6, size = { 8, 14 }, speed = { 20, 60 }, dir = { 0, 360 },
                   gravity = 0, life = { 0.5, 1.0 }, color = { 1, 0.9, 0.4 } },
     world = { WorldTextGravity = 1.5, floatingCombatTextCombatDamageDirectionalScale = 1.5 },
@@ -202,7 +204,6 @@ add("blade", {
                   gravity = 0, life = { 0.2, 0.45 }, color = { 0.8, 0.9, 1 }, mirror = true },
     world = { floatingCombatTextCombatDamageDirectionalScale = 2, WorldTextRampDuration = 0.7 },
     critDecor2 = { tex = "slash", size = { 160, 40 }, color = { 1, 1, 1 }, alpha = 0.8, rot = -0.45, grow = 0.3, delay = 0.06 },
-    ring = { size = 50, color = { 0.7, 0.85, 1 }, grow = 1.8, alpha = 0.6 },
 })
 
 -- Damage-type palettes for the "Skin palette" color scheme: { physical, spell }.

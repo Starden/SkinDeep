@@ -73,6 +73,10 @@ function Widget:SetTextColor(r, g, b, a) num(r, "r"); num(g, "g"); num(b, "b"); 
 function Widget:SetVertexColor(r, g, b, a) num(r, "r"); num(g, "g"); num(b, "b") end
 function Widget:SetColorTexture(r, g, b, a) num(r, "r"); num(g, "g"); num(b, "b") end
 function Widget:SetRotation(r) num(r, "SetRotation") end
+function Widget:SetTexCoord(l, r, t, b)
+  num(l, "texcoord"); num(r, "texcoord"); num(t, "texcoord"); num(b, "texcoord")
+  for _, v in ipairs({ l, r, t, b }) do if v < -0.001 or v > 1.001 then error("texcoord out of range " .. v, 2) end end
+end
 missingTextures = {}
 function Widget:SetTexture(p) if type(p) ~= "string" then error("SetTexture", 2) end; if missingTextures[p] then return false end; self.tex = p; return true end
 local BLENDS = { ADD = true, BLEND = true, MOD = true, ALPHAKEY = true, DISABLE = true }

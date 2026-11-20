@@ -34,8 +34,11 @@ lua.lua_getglobal(L, to_luastring('CAPTURE_JSON'));
 const data = JSON.parse(lua.lua_tojsstring(L, -1));
 
 // Textures: TGA (uncompressed 32-bit, bottom-up) to base64 RGBA, top-down.
+// The game's faction crests aren't on disk: the skins' own fallbacks stand in.
+const STAND_IN = { 'alliance-logo': 'Media\\Textures\\shield.tga', 'horde-logo': 'Media\\Textures\\spikes.tga' };
 const textures = data.textures.map(p => {
-  const m = p.match(/Media\\Textures\\(.+)\.tga$/i);
+  const key = Object.keys(STAND_IN).find(k => p.toLowerCase().endsWith(k));
+  const m = (key ? STAND_IN[key] : p).match(/Media\\Textures\\(.+)\.tga$/i);
   if (!m) return { path: p, missing: true };
   const buf = fs.readFileSync(path.join(root, 'Media', 'Textures', m[1] + '.tga'));
   const w = buf.readUInt16LE(12), h = buf.readUInt16LE(14);

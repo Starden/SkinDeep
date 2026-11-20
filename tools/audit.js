@@ -30,7 +30,7 @@ for _, id in ipairs(ns.SkinOrder) do
     tostring(s.critDecor ~= nil), tostring(s.critDecor2 ~= nil), tostring(s.ring ~= nil), tostring(s.critTitle ~= nil),
     tostring(p.critCount or p.count or 0), tostring(p2.critCount or 0), tostring(s.shake or 0), tostring(s.drum ~= nil),
     tostring(s.critCycle ~= nil), tostring(s.critScale or 1.5), tostring(s.dur or 1.1), tostring(s.critDur or s.dur or 1.1),
-    tostring(s.ownText == true),
+    tostring(s.ownText == true), tostring(#(s.critPieces or {})),
   }, "\\t")
 end
 AUDIT = table.concat(rows, "\\n")
@@ -55,11 +55,12 @@ const rows = lua.lua_tojsstring(L, -1).split('\n').map(line => {
     physLum: +c[6], spellLum: +c[7], decor: b(c[8]), hitParts: +c[9],
     critDecor: b(c[10]), critDecor2: b(c[11]), ring: b(c[12]), title: b(c[13]),
     critParts: +c[14], critParts2: +c[15], shake: +c[16], drum: b(c[17]), cycle: b(c[18]),
-    critScale: +c[19], dur: +c[20], critDur: +c[21], ownText: b(c[22]),
+    critScale: +c[19], dur: +c[20], critDur: +c[21], ownText: b(c[22]), pieces: +c[23],
   };
-  // Crit: layered effects. Hit: something of its own.
+  // Crit: layered effects (each choreographed piece counts). Hit: something of its own.
   r.crit = (r.critDecor ? 2 : 0) + (r.critDecor2 ? 2 : 0) + (r.ring ? 1 : 0) + (r.title ? 2 : 0)
-    + Math.min(2, r.critParts / 6) + (r.critParts2 > 0 ? 1 : 0) + (r.shake > 0 ? 0.5 : 0) + (r.drum ? 0.5 : 0) + (r.cycle ? 1 : 0);
+    + Math.min(2, r.critParts / 6) + (r.critParts2 > 0 ? 1 : 0) + (r.shake > 0 ? 0.5 : 0) + (r.drum ? 0.5 : 0) + (r.cycle ? 1 : 0)
+    + Math.min(4, r.pieces * 1.5);   // choreographed pieces (critPieces)
   r.hit = (r.decor ? 1 : 0) + (r.hitParts > 0 ? 1 : 0);
   r.readable = r.darkLayer || r.outline === 'THICKOUTLINE';
   r.flags = [];

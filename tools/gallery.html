@@ -39,6 +39,7 @@ const critOnly = params.get('crit') === '1';
 const CRIT_FRAMES = [0, 1, 3, 6, 11, 18];
 let light = params.get('bg') === 'light';
 const onlyId = params.get('id');
+const onlyIds = params.get('ids') ? params.get('ids').split(',') : null;
 const STRIP_FRAMES = [0, 1, 2, 4, 7, 11, 17, 25];
 
 // Fonts.
@@ -86,7 +87,7 @@ function drawFrame(ctx, w, h, items, sc) {
       if (img) {
         ctx.rotate(-rot);
         ctx.globalCompositeOperation = mode === 1 ? 'source-over' : 'lighter';
-        ctx.drawImage(img, -ew * sc / 2, -eh * sc / 2, ew * sc, eh * sc);
+        const tc = e[15]; if (Array.isArray(tc)) ctx.drawImage(img, tc[0] * img.width, tc[2] * img.height, Math.max(0.01, (tc[1] - tc[0]) * img.width), Math.max(0.01, (tc[3] - tc[2]) * img.height), -ew * sc / 2, -eh * sc / 2, ew * sc, eh * sc); else ctx.drawImage(img, -ew * sc / 2, -eh * sc / 2, ew * sc, eh * sc);
       }
     } else {
       const f = G.fonts[mode];
@@ -118,7 +119,8 @@ function build() {
   bar();
   const grid = document.getElementById('grid'); grid.innerHTML = ''; grid.className = strip ? 'strip' : '';
   anims = [];
-  for (const s of G.skins) {
+  const list = onlyIds ? onlyIds.map(id => G.skins.find(s => s.id === id)).filter(Boolean) : G.skins;
+  for (const s of list) {
     if (onlyId && s.id !== onlyId) continue;
     if (group !== 'all' && s.group !== group) continue;
     const card = document.createElement('div'); card.className = 'card';

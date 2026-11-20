@@ -749,6 +749,98 @@ const TEXTURES = {
     const cross = Math.exp(-Math.abs(u) * 14) * (1 - Math.abs(v)) + Math.exp(-Math.abs(v) * 14) * (1 - Math.abs(u));
     return cross + (1 - smooth(0, 0.25, r));
   }],
+  // --- Pieces for the 1.5 redesigns (original designs) ---------------------
+  // Storm cloud: overlapping puffs, darker underneath.
+  cloud: [128, 64, (u, v) => {
+    const X = u * 2, Y = v;
+    let al = 0;
+    for (const [bx, by, br] of [[-1.15, -0.2, 0.62], [-0.45, 0.2, 0.78], [0.4, 0.15, 0.72], [1.15, -0.2, 0.58], [0, -0.32, 0.62]]) {
+      al = Math.max(al, 1 - smooth(br * 0.82, br, Math.hypot(X - bx, Y - by)));
+    }
+    return [al, 0.5 + 0.5 * clamp((Y + 0.8) / 1.6)];
+  }],
+  // Arrow pointing right: head, shaft, fletching.
+  arrow: [128, 32, (u, v) => {
+    const X = u * 4, Y = Math.abs(v);
+    if (X > 2.35 && X < 3.95 && Y < (3.95 - X) / 1.6 * 0.85) return [1, 1];
+    if (X > -3.3 && X <= 2.4 && Y < 0.13) return [1, 0.72];
+    const s = X + 3.9 - (Y - 0.1) * 0.9;
+    if (Y > 0.1 && Y < 0.8 && s > 0 && s < 1.1) return [1, 0.92];
+    return 0;
+  }],
+  // A soft glint band (swept across a number).
+  glint: [64, 128, (u, v) => {
+    const ends = 1 - smooth(0.55, 1, Math.abs(v));
+    return (0.55 * Math.exp(-Math.pow(u / 0.32, 2)) + Math.exp(-Math.pow(u / 0.08, 2))) * ends;
+  }],
+  // War banner: cloth with a swallowtail, a lighter trim and soft folds.
+  banner: [64, 128, (u, v) => {
+    const bottom = -0.97 + 0.38 * (1 - Math.abs(u) / 0.82);
+    if (Math.abs(u) > 0.82 || v < bottom || v > 0.97) return 0;
+    const edge = Math.min(0.82 - Math.abs(u), v - bottom, 0.97 - v);
+    const trim = edge < 0.09;
+    return [1, trim ? 1 : 0.55 * (0.85 + 0.15 * Math.sin(u * 7))];
+  }],
+  // Longsword, tip up: blade with a fuller, crossguard, grip, pommel.
+  sword: [32, 128, (u, v) => {
+    const X = u, Y = v * 4;
+    const half = 0.26 * Math.min(1, (3.95 - Y) / 0.7);
+    if (Y > -1.45 && Y < 3.95 && Math.abs(X) < half) return [1, Math.abs(X) < 0.05 ? 0.7 : 1];
+    if (Math.abs(Y + 1.6) < 0.15 && Math.abs(X) < 0.9) return [1, 0.82];
+    if (Math.abs(X) < 0.13 && Y < -1.6 && Y > -3.3) return [1, 0.45];
+    if (Math.hypot(X, Y + 3.5) < 0.26) return [1, 0.82];
+    return 0;
+  }],
+  // Spear, head up: leaf-shaped head, tassel, long shaft.
+  spear: [32, 128, (u, v) => {
+    const X = Math.abs(u), Y = v * 4;
+    if (Y > 2.3 && Y < 3.95) { const q = (Y - 2.3) / 1.65; if (X < 0.5 * Math.pow(Math.sin(Math.PI * q), 0.7) * (1 - 0.45 * q) + 0.06) return [1, 1]; }
+    if (Y > 1.55 && Y < 2.3 && X < 0.32 * (2.3 - Y) / 0.75 + 0.05 && Math.sin(u * 40) > -0.4) return [1, 0.62];
+    if (X < 0.09 && Y > -4 && Y <= 2.35) return [1, 0.5];
+    return 0;
+  }],
+  // A stroke of war paint: thick, ragged, dry at the tail.
+  brush: [128, 32, (u, v) => {
+    const X = u * 4;
+    const half = 0.78 * smooth(-4, -3.1, X) * (1 - 0.55 * smooth(1.5, 4, X)) + 0.06 * Math.sin(X * 6.3);
+    if (Math.abs(v) > half) return 0;
+    const dry = 1 - smooth(2.2, 3.9, X) * (0.5 + 0.5 * Math.sin(v * 38));
+    return [clamp(dry), 0.75 + 0.25 * Math.sin(v * 31 + X)];
+  }],
+  // A wing spreading left from its shoulder (right, low): five long feathers.
+  wingleft: [64, 64, (u, v) => {
+    let al = 0, lum = 0.9;
+    for (let j = 0; j < 5; j++) {
+      const th = Math.PI - 0.05 - j * 0.26, L = 1.7 - j * 0.12, sx = 0.85, sy = -0.3;
+      const dx = Math.cos(th), dy = Math.sin(th), px = u - sx, py = v - sy;
+      const along = px * dx + py * dy, across = -px * dy + py * dx;
+      const f = Math.pow((along - L / 2) / (L / 2), 2) + Math.pow(across / 0.17, 2);
+      const a = 1 - smooth(0.5, 1, f);
+      if (a > al) { al = a; lum = (j % 2 ? 0.75 : 0.9) * (0.65 + 0.35 * clamp(along / L)); }
+    }
+    return [al, lum];
+  }],
+  wingright: [64, 64, (u, v) => TEXTURES.wingleft[2](-u, v)],
+  // A curling vine growing up from the bottom right, with two leaves.
+  vineleft: [64, 128, (() => {
+    const pts = [];
+    for (let s = 0; s <= 0.82; s += 0.02) pts.push([0.55 - 0.95 * s + 0.22 * Math.sin(s * 6), -1.95 + 3.3 * s]);
+    const [ex, ey] = pts[pts.length - 1];
+    for (let q = 0; q <= 1.6; q += 0.05) pts.push([ex - 0.22 + Math.cos(q * 4) * 0.22 * (1 - q / 2), ey + Math.sin(q * 4) * 0.22 * (1 - q / 2)]);
+    const leaf = (X, Y, cx, cy, rot) => {
+      const rx = (X - cx) * Math.cos(rot) + (Y - cy) * Math.sin(rot), ry = -(X - cx) * Math.sin(rot) + (Y - cy) * Math.cos(rot);
+      return 1 - smooth(0.85, 1, Math.hypot(rx / 0.3, ry / 0.12));
+    };
+    return (u, v) => {
+      const X = u, Y = v * 2;
+      let d = 9;
+      for (let i = 0; i < pts.length - 1; i++) d = Math.min(d, segDist(X, Y, pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]));
+      const stem = 1 - smooth(0.06, 0.1, d);
+      const lv = Math.max(leaf(X, Y, 0.55, -0.85, 0.5), leaf(X, Y, -0.55, 0.15, -0.5));
+      return [Math.max(stem, lv), lv > stem ? 1 : 0.7];
+    };
+  })()],
+  vineright: [64, 128, (u, v) => TEXTURES.vineleft[2](-u, v)],
 };
 
 const outDir = process.argv[2] || path.join(__dirname, '..', 'Media', 'Textures');

@@ -26,23 +26,33 @@ add("freshfind", {
     decor = { tex = "twinkle", size = 14, x = -16, y = 8, color = UNCOMMON_LT, alpha = 0.9, flicker = true },
     critReplacesDecor = true,
     critDecor = { tex = "twinkle", size = 64, color = UNCOMMON_LT, alpha = 1, spin = 1.5, snap = 0.2, snapTime = 0.12 },
-    ring = { size = 52, color = UNCOMMON, grow = 1.6, alpha = 0.8 },
     particles = { tex = "twinkle", count = 0, critCount = 12, size = { 10, 16 }, speed = { 40, 110 }, dir = { 0, 360 },
                   gravity = 0, life = { 0.5, 0.9 }, color = UNCOMMON, altColor = UNCOMMON_LT },
 })
 
 add("rarefind", {
     group = "loot", listNote = "Rare",
-    name = "Rare Find", tagline = "Loot: sapphire numbers cut like gems; crits flash a faceted gem that bursts into shards.",
+    name = "Rare Find", tagline = "Loot: sapphire numbers cut like gems; crits turn a faceted sapphire over them while a glint sweeps across.",
     font = F.morpheus, size = 23, outline = "OUTLINE",
     color = RARE, physColor = RARE_PHYS, spellColor = RARE,
     layers = { { x = 2, y = -2, color = { 0.02, 0.08, 0.25, 1 } }, { x = -1, y = 1, color = { 0.8, 0.9, 1, 0.35 } } },
-    motion = "rise", motionArgs = { speed = 34 },
+    motion = "rise", motionArgs = { speed = 26 },
     dur = 1.2, critDur = 1.5, critScale = 1.5, pop = 0.25,
-    critDecor = { tex = "gem", size = 56, color = RARE, alpha = 0.9, blend = "BLEND", snap = 0.3, snapTime = 0.12 },
-    ring = { size = 56, color = RARE_LT, grow = 1.6, alpha = 0.8 },
-    particles = { tex = "gem", count = 0, critCount = 10, size = { 7, 11 }, speed = { 50, 130 }, dir = { 0, 360 },
-                  gravity = -120, life = { 0.5, 0.9 }, color = RARE, altColor = RARE_LT, blend = "BLEND", spin = 8 },
+    decor = { tex = "gem", size = 12, x = 20, y = 10, color = RARE_LT, alpha = 0.8, blend = "BLEND" },
+    critReplacesDecor = true,
+    -- The stone turns to show its facets; a glint runs over the number;
+    -- stars wink at its corners.
+    critPieces = {
+        { tex = "gem", size = 44, y = 34, from = { 0, 26 }, move = 0.2, snap = 0.3, snapTime = 0.15, turn = 5,
+          hold = true, color = RARE, alpha = 0.95, blend = "BLEND" },
+        { tex = "glint", size = { 22, 64 }, x = 70, rot = -0.4, from = { -70, 0 }, ease = "linear", delay = 0.22,
+          move = 0.32, life = 0.55, front = true, color = { 0.85, 0.93, 1 }, alpha = 0.6 },
+        { tex = "twinkle", size = 18, x = -42, y = 12, delay = 0.3, life = 0.35, snap = 0.1, snapTime = 0.1, color = RARE_LT },
+        { tex = "twinkle", size = 14, x = 44, y = -10, delay = 0.42, life = 0.35, snap = 0.1, snapTime = 0.1, color = RARE_LT },
+    },
+    particles = { tex = "gem", count = 0, critCount = 5, size = { 6, 9 }, speed = { 30, 70 }, dir = { 200, 340 },
+                  gravity = -160, life = { 0.5, 0.8 }, origin = { 0, 30 }, delay = 0.12, color = RARE, altColor = RARE_LT,
+                  blend = "BLEND", spin = 6 },
 })
 
 add("epichaul", {
@@ -56,7 +66,6 @@ add("epichaul", {
     decor = { tex = "orbit", size = 56, color = EPIC, alpha = 0.7, spin = 4 },
     critReplacesDecor = true,
     critDecor = { tex = "beam", size = { 56, 170 }, y = 70, color = EPIC, alpha = 0.8, snap = 0.2, snapTime = 0.12 },
-    ring = { size = 60, color = EPIC_LT, grow = 1.6, alpha = 0.8 },
     critDecor2 = { tex = "beam", size = { 14, 170 }, y = 70, color = EPIC_LT, alpha = 0.9, snap = 0.2, snapTime = 0.12 },
     particles = { tex = "star", count = 0, critCount = 12, size = { 7, 12 }, speed = { 40, 110 }, dir = { 0, 360 },
                   gravity = 0, life = { 0.6, 1.1 }, color = EPIC_LT, altColor = EPIC, spin = 4 },
@@ -92,7 +101,6 @@ add("fullset", {
     decor = { tex = "setring", size = 66, color = SETGOLD, alpha = 0.55, spin = 1.2 },
     critReplacesDecor = true,
     critDecor = { tex = "setring", size = 96, color = SETGOLD, alpha = 1, snap = 1.8, snapTime = 0.22, unwind = 3 },
-    ring = { size = 70, color = { 1, 0.93, 0.65 }, grow = 1.6, alpha = 0.9 },
     critTitle = { text = "SET BONUS", y = 50, size = 16, font = F.morpheus, pop = 1.4,
                   colors = { SETGREEN, { 1, 1, 1 }, SETGOLD }, shadowColor = { 0.03, 0.16, 0.02 } },
     particles = { tex = "twinkle", count = 0, critCount = 10, size = { 8, 13 }, speed = { 40, 100 }, dir = { 0, 360 },
