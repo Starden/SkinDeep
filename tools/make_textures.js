@@ -472,6 +472,95 @@ const TEXTURES = {
     const rim = r > 0.74 ? 1 : 0;
     return [disc, rim ? 0.55 : 0.6 + 0.3 * grain];
   }],
+  // --- Profession skins (original designs) ---------------------------------
+  // Round-bottomed flask with a neck; liquid shaded lighter below the line.
+  flask: [64, 64, (u, v) => {
+    const bulb = 1 - smooth(0.52, 0.58, Math.hypot(u, v + 0.3));
+    const neck = (Math.abs(u) < 0.16 && v > 0 && v < 0.78) ? 1 : 0;
+    const lip = (Math.abs(u) < 0.26 && v > 0.7 && v < 0.84) ? 1 : 0;
+    const al = Math.max(bulb, neck, lip);
+    return [al, v < -0.25 ? 1 : 0.55];
+  }],
+  // Anvil: flat face, horn to the left, waist and foot.
+  anvil: [64, 32, (u, v) => {
+    const face = (u > -0.55 && u < 0.85 && v > 0.25 && v < 0.75) ? 1 : 0;
+    const horn = (u <= -0.55 && u > -0.98 && v > 0.25 + (-0.55 - u) * 0.7 && v < 0.75) ? 1 : 0;
+    const waist = (Math.abs(u - 0.15) < 0.28 && v > -0.4 && v <= 0.25) ? 1 : 0;
+    const foot = (Math.abs(u - 0.15) < 0.6 && v > -0.85 && v <= -0.4) ? 1 : 0;
+    return [Math.max(face, horn, waist, foot), v > 0.6 ? 1 : 0.7];
+  }],
+  // Dashed stitching around a rounded patch.
+  stitch: [128, 64, (u, v) => {
+    const d = roundBox(u, v, 0.86, 0.72, 0.18);
+    const line = 1 - smooth(0.02, 0.045, Math.abs(d));
+    const along = Math.abs(u) / 0.86 > Math.abs(v) / 0.72 ? v * 3.4 : u * 3.4;
+    const dash = Math.sin(along * Math.PI * 2) > -0.2 ? 1 : 0;
+    return line * dash;
+  }],
+  // A curved knife stroke, thick in the middle and tapered to points.
+  arc: [128, 128, (u, v) => {
+    const [r, a] = polar(u, v + 0.6);
+    const t = (a - 0.35) / (Math.PI - 0.7);
+    if (t < 0 || t > 1) return 0;
+    const w = 0.07 * Math.sin(t * Math.PI);
+    return 1 - smooth(w * 0.6, w + 0.01, Math.abs(r - 1.05));
+  }],
+  // Flat elliptical ripple ring.
+  ripple: [128, 64, (u, v) => {
+    const r = Math.hypot(u, v);
+    return 1 - smooth(0.035, 0.08, Math.abs(r - 0.82));
+  }],
+  // Fishing bobber: a ball (darker top half) with a short quill.
+  bobber: [32, 32, (u, v) => {
+    const ball = 1 - smooth(0.5, 0.6, Math.hypot(u, v + 0.15));
+    const quill = (Math.abs(u) < 0.08 && v > 0.3 && v < 0.9) ? 1 : 0;
+    return [Math.max(ball, quill), quill ? 0.8 : (v > -0.15 ? 0.45 : 1)];
+  }],
+  // Leaping fish silhouette with a forked tail, head up (particles fly it
+  // head first along their path).
+  fish: [32, 64, (x, y) => {
+    const u = -y, v = x;
+    const body = 1 - smooth(0.9, 1.0, Math.hypot((u + 0.15) / 0.62, v / 0.5));
+    const tx = u - 0.5;
+    const tail = (tx > 0 && tx < 0.45 && Math.abs(v) < tx * 1.6 && Math.abs(v) > tx * 0.5) ? 1 : 0;
+    const eye = Math.hypot(u + 0.55, v - 0.1) < 0.07 ? 0.3 : 1;
+    return [Math.max(body, tail), eye];
+  }],
+  // Plain plus sign.
+  cross: [32, 32, (u, v) => {
+    const bar = (a, b) => (Math.abs(a) < 0.24 && Math.abs(b) < 0.78) ? 1 : 0;
+    return Math.max(bar(u, v), bar(v, u));
+  }],
+  // Bandage strip: soft edges, stitched border, faint weave.
+  bandage: [128, 32, (u, v) => {
+    const band = (1 - smooth(0.9, 0.98, Math.abs(u))) * (1 - smooth(0.62, 0.72, Math.abs(v)));
+    const edge = Math.abs(Math.abs(v) - 0.5) < 0.06 && Math.sin(u * 40) > 0 ? 0.7 : 1;
+    const weave = 0.9 + 0.1 * Math.sin(u * 90) * Math.sin(v * 30);
+    return [band, edge * weave];
+  }],
+  // A ribbon of cloth: a wavy band with a light fold line.
+  ribbon: [128, 32, (u, v) => {
+    const mid = Math.sin(u * Math.PI * 1.5) * 0.35;
+    const d = Math.abs(v - mid);
+    const band = (1 - smooth(0.32, 0.4, d)) * (1 - smooth(0.88, 0.98, Math.abs(u)));
+    return [band, 0.7 + 0.3 * Math.cos(u * Math.PI * 1.5)];
+  }],
+  // Wavy thread.
+  thread: [128, 32, (u, v) => {
+    const y = Math.sin(u * Math.PI * 3) * 0.55;
+    return (1 - smooth(0.05, 0.11, Math.abs(v - y))) * (1 - smooth(0.9, 0.99, Math.abs(u)));
+  }],
+  // A curling stem with two leaves, growing up from the bottom.
+  sprout: [64, 64, (u, v) => {
+    const sx = 0.18 * Math.sin((v + 1) * 2.2);
+    const stem = (v < 0.75) ? 1 - smooth(0.04, 0.08, Math.abs(u - sx)) : 0;
+    const leaf = (cx, cy, dir) => {
+      const x = (u - cx) * dir, y = v - cy;
+      const rx = x * Math.cos(0.5) + y * Math.sin(0.5), ry = -x * Math.sin(0.5) + y * Math.cos(0.5);
+      return 1 - smooth(0.9, 1.0, Math.hypot(rx / 0.32, ry / 0.13));
+    };
+    return Math.max(stem, leaf(0.3, 0.15, 1), leaf(-0.28, -0.25, -1), leaf(0.1, 0.78, 1) * 0.9);
+  }],
   // Four-point twinkle.
   twinkle: [64, 64, (u, v) => {
     const r = Math.hypot(u, v);

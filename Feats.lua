@@ -147,6 +147,28 @@ for _, id in ipairs(ns.SkinOrder) do
     end
 end
 
+-- Profession skins (ProfSkins.lua): three tiers each. The first unlocks the
+-- skin; Expert and Artisan upgrade it (ns.TierSkin). Skill counts from any
+-- character, the best ever seen per profession.
+local PROF_TIERS = { { 150, "Journeyman" }, { 225, "Expert" }, { 300, "Artisan" } }
+local TIER_SUFFIX = { "", "_expert", "_artisan" }
+Feats.PROF_TIERS = PROF_TIERS
+local PROF_FEATS, PROF_BY_NAME = {}, {}
+for _, id in ipairs(ns.SkinOrder) do
+    local s = ns.Skins[id]
+    if s.skillLine then
+        PROF_BY_NAME[s.prof] = s.skillLine
+        for t, tier in ipairs(PROF_TIERS) do
+            local f = { id = id .. TIER_SUFFIX[t], skin = id, skillLine = s.skillLine, prof = s.prof,
+                        tier = t, tierName = tier[2], goal = tier[1],
+                        text = t == 1 and ("Reach %d %s"):format(tier[1], s.prof)
+                            or ("Reach %d %s (%s)"):format(tier[1], s.prof, tier[2]) }
+            LIST[#LIST + 1] = f
+            PROF_FEATS[#PROF_FEATS + 1] = f
+        end
+    end
+end
+
 Feats.ALL = LIST
 
 -- A feat is part of the game once the skin it unlocks is.
@@ -165,7 +187,7 @@ end
 local BY_ID, BY_SKIN, BY_COUNTER, BY_BOSS = {}, {}, {}, {}
 for _, f in ipairs(LIST) do
     BY_ID[f.id] = f
-    BY_SKIN[f.skin] = f
+    BY_SKIN[f.skin] = BY_SKIN[f.skin] or f   -- a tiered skin unlocks with its first tier
     if f.counter then
         BY_COUNTER[f.counter] = BY_COUNTER[f.counter] or {}
         tinsert(BY_COUNTER[f.counter], f)
@@ -194,6 +216,7 @@ function Feats.InitDB(d)
     d.classLevels = d.classLevels or {}
     d.bosses = d.bosses or {}
     d.specPoints = d.specPoints or {}   -- best talent points seen per class and tree ("WARRIOR:1")
+    d.profSkill = d.profSkill or {}     -- best skill seen per profession (skill line id)
     d.feats = d.feats or {}
     d.hkChars = d.hkChars or {}
 end
@@ -214,13 +237,16 @@ function Feats.Progress(f)
     if f.spec then
         return min(f.goal, d.specPoints[f.class .. ":" .. f.tree] or 0), f.goal
     end
+    if f.skillLine then
+        return min(f.goal, d.profSkill[f.skillLine] or 0), f.goal
+    end
     return 0, 1
 end
 
 -- short: the compact form for the Feats tab's right-hand column.
 function Feats.ProgressText(f, short)
     if Feats.IsDone(f) then return "Complete" end
-    if not f.counter and not f.classLevel and not f.spec then return "Not yet" end
+    if not f.counter and not f.classLevel and not f.spec and not f.skillLine then return "Not yet" end
     local cur, goal = Feats.Progress(f)
     if f.money then return ("%d / %d gold"):format(floor(cur / GOLD), floor(goal / GOLD)) end
     if f.spec then return ("%d / %d points"):format(cur, goal) end
@@ -240,7 +266,7 @@ end
 
 local function liveDone(f)
     if bossDone(f) then return true end
-    if not f.counter and not f.classLevel and not f.spec then return false end
+    if not f.counter and not f.classLevel and not f.spec and not f.skillLine then return false end
     local cur, goal = Feats.Progress(f)
     return cur >= goal
 end
@@ -260,6 +286,40 @@ end
 
 function Feats.FeatForSkin(skinId)
     return BY_SKIN[skinId]
+end
+
+local TIERS_OF = {}
+for _, f in ipairs(PROF_FEATS) do
+    TIERS_OF[f.skin] = TIERS_OF[f.skin] or {}
+    TIERS_OF[f.skin][f.tier] = f
+end
+Feats.TiersOf = TIERS_OF
+
+-- A tiered skin's tier: the highest earned (all three with everything
+-- unlocked), at least 1 so a locked skin previews as Journeyman.
+function Feats.SkinTier(skinId)
+    local tiers = TIERS_OF[skinId]
+    if not tiers then return nil end
+    local d = db()
+    if not d or d.unlockMode ~= "collector" then return #PROF_TIERS end
+    local best = 1
+    for t, f in ipairs(tiers) do if Feats.IsDone(f) then best = t end end
+    return best
+end
+
+-- One line for the window: the tier in use and what the next one takes.
+function Feats.TierLine(skinId)
+    local tiers = TIERS_OF[skinId]
+    if not tiers then return nil end
+    local tier = Feats.SkinTier(skinId)
+    local f = tiers[tier]
+    if not Feats.IsUnlocked(skinId) then
+        return ("|cffffd84aLocked.|r Earn it: %s  |cff999999(%s)|r"):format(tiers[1].text, Feats.ProgressText(tiers[1]))
+    end
+    local nxt = tiers[tier + 1]
+    if not nxt then return ("|cffffd84a%s|r: fully upgraded."):format(f.tierName) end
+    local cur = Feats.Progress(nxt)
+    return ("|cffffd84a%s|r. %s at %d %s  |cff999999(%d / %d)|r"):format(f.tierName, nxt.tierName, nxt.goal, nxt.prof, cur, nxt.goal)
 end
 
 -- Counts of skins the player could use right now / all there are.
@@ -282,8 +342,15 @@ local function complete(f, quiet)
     local collector = db().unlockMode == "collector"
     local title = collector and "Skin unlocked" or "Feat complete"
     local name = skin.name
+    if f.tier and f.tier > 1 then
+        if collector then title = "Skin upgraded" end
+        name = ("%s · %s"):format(skin.name, f.tierName)
+        skin = ns.TierSkin and ns.TierSkin(skin) or skin
+    end
     if Feats.OnComplete then Feats.OnComplete(f, title, name, f.text, skin) end
-    if collector then
+    if collector and f.tier and f.tier > 1 then
+        ns.Print(("|cffffd84aSkin upgraded:|r %s (%s)."):format(name, f.text))
+    elseif collector then
         ns.Print(("|cffffd84aSkin unlocked:|r %s (%s). /skindeep to equip it."):format(name, f.text))
     else
         ns.Print(("|cffffd84aFeat complete:|r %s (%s)."):format(name, f.text))
@@ -560,6 +627,62 @@ function Feats.TalentReport()
     return livePoints, cls, liveSource
 end
 
+---------------------------------------------------------------------------
+-- Professions
+---------------------------------------------------------------------------
+local function global(name)
+    local v = rawget(_G, name)
+    return type(v) == "function" and v or nil
+end
+
+-- Records each profession's skill (the best ever seen, so dropping a
+-- profession never takes a tier back).
+local function scanProfessions()
+    local d = db()
+    local changed = false
+    local function record(skillLine, rank)
+        if skillLine and rank and (d.profSkill[skillLine] or 0) < rank then
+            d.profSkill[skillLine], changed = rank, true
+        end
+    end
+    local getProfs, getInfo = global("GetProfessions"), global("GetProfessionInfo")
+    local found = false
+    if getProfs and getInfo then
+        local r = { pcall(getProfs) }
+        if r[1] then
+            for i = 2, 6 do
+                local slot = ns.Plain(r[i], "number")
+                if slot then
+                    local ok, name, _, rank, _, _, _, skillLine = pcall(getInfo, slot)
+                    if ok then
+                        name = ns.Plain(name, "string")
+                        skillLine = ns.Plain(skillLine, "number")
+                        if not skillLine or skillLine == 0 then skillLine = name and PROF_BY_NAME[name] end
+                        record(skillLine, ns.Plain(rank, "number"))
+                        found = true
+                    end
+                end
+            end
+        end
+    end
+    -- Classic-style skill list, matched by English name.
+    local numLines, lineInfo = global("GetNumSkillLines"), global("GetSkillLineInfo")
+    if not found and numLines and lineInfo then
+        local ok, n = pcall(numLines)
+        n = ok and ns.Plain(n, "number") or 0
+        for i = 1, n do
+            local ok2, name, isHeader, _, rank = pcall(lineInfo, i)
+            name = ok2 and ns.Plain(name, "string")
+            if name and not isHeader and PROF_BY_NAME[name] then record(PROF_BY_NAME[name], ns.Plain(rank, "number")) end
+        end
+    end
+    if changed then
+        Feats.Check(PROF_FEATS)
+        if ns.OnSettingsChanged then ns.OnSettingsChanged() end   -- a skin may have grown a tier
+    end
+end
+Feats.ScanProfessions = scanProfessions
+
 function Feats.OnCombat(unit, action, flags, amount, school)
     if not db() then return end
     local u = ns.Plain(unit, "string")
@@ -739,7 +862,7 @@ end
 
 local lastForm
 local events = CreateFrame("Frame")
-for _, e in ipairs({ "UPDATE_SHAPESHIFT_FORM", "CHAT_MSG_COMBAT_HONOR_GAIN", "PLAYER_PVP_KILLS_CHANGED", "PLAYER_TALENT_UPDATE",
+for _, e in ipairs({ "UPDATE_SHAPESHIFT_FORM", "SKILL_LINES_CHANGED", "CHAT_MSG_SKILL", "CHAT_MSG_COMBAT_HONOR_GAIN", "PLAYER_PVP_KILLS_CHANGED", "PLAYER_TALENT_UPDATE",
                      "CHARACTER_POINTS_CHANGED", "PLAYER_SPECIALIZATION_CHANGED", "ACTIVE_TALENT_GROUP_CHANGED",
                      "TRAIT_CONFIG_UPDATED",
                      "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "UNIT_COMBAT", "UNIT_HEALTH", "PLAYER_TARGET_CHANGED",
@@ -784,6 +907,12 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d, e)
         or event == "PLAYER_SPECIALIZATION_CHANGED" or event == "ACTIVE_TALENT_GROUP_CHANGED" then
         scanTalents()
         if ns.OnSettingsChanged then ns.OnSettingsChanged() end  -- Auto may now pick another variant
+    elseif event == "SKILL_LINES_CHANGED" then
+        scanProfessions()
+    elseif event == "CHAT_MSG_SKILL" then
+        -- "Your skill in Skinning has increased to 144." arrives before the
+        -- skill list updates.
+        if C_Timer then C_Timer.After(0.3, scanProfessions) else scanProfessions() end
     elseif event == "UPDATE_SHAPESHIFT_FORM" then
         local form = Feats.PlayerForm()
         if form ~= lastForm then
@@ -796,6 +925,7 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d, e)
         pvpRank()
         hkSync(0)
         scanTalents()
+        scanProfessions()
         level()
     elseif event == "PLAYER_ENTERING_WORLD" then
         lastMoney = nil
@@ -803,6 +933,7 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d, e)
         pvpRank()
         hkSync(0)
         scanTalents()
+        scanProfessions()
         -- Talent data can arrive a moment after loading in.
         if C_Timer then C_Timer.After(3, function() scanTalents(); if ns.OnSettingsChanged then ns.OnSettingsChanged() end end) end
     end

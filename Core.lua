@@ -171,7 +171,31 @@ function ns.SpecVariantID()
 end
 
 function ns.CurrentSkin()
-    return ns.Skins[ns.ResolvedSkinID()] or ns.Skins.classic
+    return ns.TierSkin(ns.Skins[ns.ResolvedSkinID()] or ns.Skins.classic)
+end
+
+-- Profession skins grow with their tier (Journeyman, Expert, Artisan): the
+-- skin plus each earned tier's changes (false clears a field), cached.
+function ns.TierSkin(skin)
+    if not (skin and skin.tiers) then return skin end
+    local tier = (ns.Feats and ns.Feats.SkinTier(skin.id)) or 3
+    if tier <= 1 then return skin end
+    skin.tierCache = skin.tierCache or {}
+    local s = skin.tierCache[tier]
+    if not s then
+        s = {}
+        for k, v in pairs(skin) do
+            if k ~= "tiers" and k ~= "tierCache" then s[k] = v end
+        end
+        for t = 2, tier do
+            for k, v in pairs(skin.tiers[t] or {}) do
+                if v == false then s[k] = nil else s[k] = v end
+            end
+        end
+        s.tier = tier
+        skin.tierCache[tier] = s
+    end
+    return s
 end
 
 function ns.IsValidSkin(id)

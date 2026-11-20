@@ -67,6 +67,13 @@ MOTIONS.rise = {
     end,
 }
 
+-- Rises while bobbing up and down (a float on the water).
+MOTIONS.bob = {
+    update = function(p, t, dt, a)
+        p.my = (a.speed or 24) * t + (a.amp or 4) * sin(t * (a.freq or 8) + p.phase)
+    end,
+}
+
 MOTIONS.toss = {
     init = function(p, a) p.vx = p.dir * rr(a.vx or { 50, 100 }); p.vy = rr(a.vy or 150) end,
     update = function(p, t, dt, a)
@@ -427,7 +434,7 @@ end
 function Engine.Spawn(e)
     local db = ns.db
     if not db then return end
-    local skin = (e.skin and ns.Skins[e.skin]) or ns.CurrentSkin()
+    local skin = (e.skin and ns.TierSkin(ns.Skins[e.skin])) or ns.CurrentSkin()
     if #active >= MAX_POPS then release(1) end
     local p = tremove(free) or newPop()
 

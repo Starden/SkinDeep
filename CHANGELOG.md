@@ -52,6 +52,16 @@ Collect your skins.
   and Ironbark, and Auto uses Ironbark in Bear Form. On the Skins tab, click a
   class to fold out its specs. `/skindeep talents` shows the points SkinDeep
   reads.
+- **12 profession skins** that grow with your skill: Philter (Alchemy),
+  Anvilstrike (Blacksmithing), Runethread (Enchanting), Blastcap
+  (Engineering), Wildroot (Herbalism), Stitchwork (Leatherworking),
+  Motherlode (Mining), Keen Edge (Skinning), Bolt of Cloth (Tailoring),
+  Sizzle (Cooking), Lucky Bobber (Fishing) and Field Dressing (First Aid).
+  Reaching **150** skill unlocks the skin (Journeyman), **225** upgrades it
+  to Expert (its signature crit) and **300** to Artisan (effects on every
+  hit, bigger crits and an Artisan title). Skill counts from any character.
+  They have their own **Trades** tab; on the Feats tab, step through the
+  tiers.
 - **PvP skin**: Shift-click a skin to use it automatically in battlegrounds and
   against players (`/skindeep pvp <name|off>`).
 - **Unlock popups** with the achievement fanfare (both can be turned off).

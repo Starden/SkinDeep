@@ -18,6 +18,7 @@ ClassSkins.lua
 SpecSkins.lua
 FactionSkins.lua
 PvPSkins.lua
+ProfSkins.lua
 Core.lua
 Feats.lua
 Engine.lua

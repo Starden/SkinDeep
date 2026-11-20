@@ -20,13 +20,17 @@ local Feats = ns.Feats
 
 -- Skins and feats are shown one group at a time. The Feats tab adds a Specs
 -- group (spec variants live inside Classes on the Skins tab).
-local GROUPS = { { "style", "Styles" }, { "class", "Classes" }, { "faction", "Factions" }, { "pvp", "PvP" } }
-local FEAT_GROUPS = { { "style", "Styles" }, { "class", "Classes" }, { "spec", "Specs" }, { "faction", "Factions" }, { "pvp", "PvP" } }
+-- Tab widths fit five tabs beside the preview stage.
+local GROUPS = { { "style", "Styles", 38 }, { "class", "Classes", 42 }, { "faction", "Factions", 46 }, { "pvp", "PvP", 30 },
+                 { "prof", "Trades", 42 } }
+local FEAT_GROUPS = { { "style", "Styles" }, { "class", "Classes" }, { "spec", "Specs" }, { "faction", "Factions" }, { "pvp", "PvP" },
+                      { "prof", "Trades" } }
 local CLASS_ORDER = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
 local LIST_ROW, LIST_TOP = 24, -70
 local listGroup, featGroup = "style", "style"
 local expandedClass        -- the class whose spec variants are folded open
 local featSpecClass        -- the class shown in the Feats tab's Specs group
+local featProfTier = 1     -- the tier shown in the Feats tab's Trades group
 local skinGroupTabs, featGroupTabs = {}, {}
 local specCycler
 
@@ -96,12 +100,18 @@ local function layoutFeats()
     for _, r in ipairs(featRows) do
         local on = r.group == featGroup and Feats.Available(r.feat)
             and (featGroup ~= "spec" or r.feat.class == featSpecClass)
+            and (featGroup ~= "prof" or r.feat.tier == featProfTier)
         r:SetShown(on)
         if on then shown[#shown + 1] = r end
     end
     if specCycler then
-        specCycler:SetShown(featGroup == "spec")
-        specCycler.label:SetText(Feats.ClassName(featSpecClass or "WARRIOR"))
+        specCycler:SetShown(featGroup == "spec" or featGroup == "prof")
+        if featGroup == "prof" then
+            local t = Feats.PROF_TIERS[featProfTier]
+            specCycler.label:SetText(("%s (%d)"):format(t[2], t[1]))
+        else
+            specCycler.label:SetText(Feats.ClassName(featSpecClass or "WARRIOR"))
+        end
     end
     local perCol = math.ceil(#shown / 2)
     for i, r in ipairs(shown) do
@@ -165,10 +175,11 @@ local function refreshSkins()
     end
     if previewId then
         nameText:SetText(shown.name .. "  |cff8c8577(preview)|r")
-        tagText:SetText(lockLine(previewId))
+        tagText:SetText(Feats.TierLine(previewId) or lockLine(previewId))
     else
         nameText:SetText(db.skin == ns.AUTO and ("Auto: " .. shown.name) or shown.name)
-        tagText:SetText(shown.tagline or "")
+        local tier = Feats.TierLine(shown.id)
+        tagText:SetText((shown.tagline or "") .. (tier and ("\n" .. tier) or ""))
     end
     sizeLabel:SetFormattedText("Size  %d%%", floor(db.scale * 100 + 0.5))
     speedLabel:SetFormattedText("Speed  %d%%", floor(db.speed * 100 + 0.5))
@@ -339,8 +350,9 @@ local function buildSkins(page)
             layoutSkins()
         end)
         t.group = g[1]
+        t:SetSize(g[3], 20)
         t:SetPoint("TOPLEFT", x, -44)
-        x = x + 51
+        x = x + g[3] + 2
         skinGroupTabs[#skinGroupTabs + 1] = t
     end
     local mine = ns.Skins[ns.ClassSkinID() or ""]
@@ -383,7 +395,7 @@ local function buildSkins(page)
         -- Right side: the class it belongs to, or "Locked".
         b.right = b:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
         b.right:SetPoint("RIGHT", -8, 0)
-        b.rightText = skin.spec or (skin.class and Feats.ClassName(skin.class))
+        b.rightText = skin.spec or skin.prof or (skin.class and Feats.ClassName(skin.class))
             or (skin.rank and ("%s · R%d"):format(skin.faction, skin.rank)) or skin.faction
         b:SetScript("OnClick", function()
             -- A class skin folds open its spec variants.
@@ -622,11 +634,16 @@ local function buildFeats(page)
         featGroupTabs[#featGroupTabs + 1] = t
     end
 
-    -- Specs: ‹ Class › steps through the classes.
+    -- Specs: ‹ Class › steps through the classes; Trades: through the tiers.
     specCycler = CreateFrame("Frame", nil, page)
     specCycler:SetSize(170, 20)
     specCycler:SetPoint("TOPLEFT", x + 12, -106)
     local function step(dir)
+        if featGroup == "prof" then
+            featProfTier = (featProfTier - 1 + dir) % #Feats.PROF_TIERS + 1
+            layoutFeats()
+            return
+        end
         local i = 1
         for k, c in ipairs(CLASS_ORDER) do if c == featSpecClass then i = k end end
         featSpecClass = CLASS_ORDER[(i - 1 + dir) % #CLASS_ORDER + 1]

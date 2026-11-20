@@ -50,6 +50,13 @@ Combat earns both Shred and Ironbark; Auto uses Ironbark in Bear Form). On the
 Skins tab, click a class to fold out its specs. `/skindeep talents` shows the
 points SkinDeep reads.
 
+**Profession skins** grow with your skill: reach 150 in a profession to
+unlock its skin (Journeyman), 225 to upgrade it to Expert and 300 to Artisan.
+Philter (Alchemy), Anvilstrike (Blacksmithing), Runethread (Enchanting),
+Blastcap (Engineering), Wildroot (Herbalism), Stitchwork (Leatherworking),
+Motherlode (Mining), Keen Edge (Skinning), Bolt of Cloth (Tailoring), Sizzle
+(Cooking), Lucky Bobber (Fishing) and Field Dressing (First Aid).
+
 | Faction skins | |
 |---|---|
 | **Crimson Oath** (Scarlet Crusade) | Numbers march up over the crusade's sigil; crits burn with holy fire. Earn it: slay 100 Scarlet Crusade or defeat Whitemane. |

@@ -179,6 +179,13 @@ C_Traits = {
   end,
 }
 function GetShapeshiftFormID() return shapeForm end
+-- Professions: slots 1-2 primary (Forever: 3 First Aid, 4 Fishing, 5 Cooking).
+profList = { { "Blacksmithing", 0, 164 }, { "Mining", 0, 186 } }
+function GetProfessions() return profList[1] and 1 or nil, profList[2] and 2 or nil, nil, nil, nil end
+function GetProfessionInfo(i)
+  local p = profList[i]
+  if p then return p[1], 0, p[2], 300, 0, 0, p[3] end
+end
 function AbbreviateLargeNumbers(v) if issecretvalue(v) then return v end return tostring(v) end
 function HideUIPanel() end
 function UnitClass(u) return playerClassFile:sub(1, 1) .. playerClassFile:sub(2):lower(), playerClassFile, 8 end
@@ -237,7 +244,7 @@ end
 
 -- Load the addon like the client: each file gets (addonName, ns).
 local ns = {}
-for _, file in ipairs({ "Skins.lua", "StyleSkins.lua", "ClassSkins.lua", "SpecSkins.lua", "FactionSkins.lua", "PvPSkins.lua", "Core.lua", "Feats.lua", "Engine.lua", "Jackpot.lua", "Options.lua", "Welcome.lua" }) do
+for _, file in ipairs({ "Skins.lua", "StyleSkins.lua", "ClassSkins.lua", "SpecSkins.lua", "FactionSkins.lua", "PvPSkins.lua", "ProfSkins.lua", "Core.lua", "Feats.lua", "Engine.lua", "Jackpot.lua", "Options.lua", "Welcome.lua" }) do
   local chunk, err = loadfile(ADDON_DIR .. "/" .. file)
   if not chunk then error(err) end
   chunk("SkinDeep", ns)
@@ -264,7 +271,7 @@ for _, id in ipairs(ns.SkinOrder) do
 end
 local nPvP = 0
 for _, id in ipairs(ns.SkinOrder) do if ns.Skins[id].group == "pvp" then nPvP = nPvP + 1; if not ns.Feats.FeatForSkin(id) then unpaired[#unpaired + 1] = id end end end
-check(#ns.SkinOrder == 79 and nClass == 37 and nFaction == 11 and nPvP == 15, "79 skins: 37 class (9 + 28 spec), 11 faction, 15 PvP (" .. #ns.SkinOrder .. ", " .. nClass .. ", " .. nFaction .. ", " .. nPvP .. ")")
+check(#ns.SkinOrder == 91 and nClass == 37 and nFaction == 11 and nPvP == 15, "91 skins: 37 class (9 + 28 spec), 11 faction, 15 PvP, 12 profession (" .. #ns.SkinOrder .. ", " .. nClass .. ", " .. nFaction .. ", " .. nPvP .. ")")
 local styleUnpaired = {}
 for _, id in ipairs(ns.SkinOrder) do local sk = ns.Skins[id]; if not sk.group and id ~= "classic" and not ns.Feats.FeatForSkin(id) then styleUnpaired[#styleUnpaired + 1] = id end end
 check(#styleUnpaired == 0, "every style skin but Classic+ has a feat" .. (#styleUnpaired > 0 and (": missing " .. table.concat(styleUnpaired, ", ")) or ""))
@@ -546,7 +553,7 @@ for i = 1, 250 do
 end
 check(SkinDeepDB.counters.undead == 250, "Undead kills are counted (250)")
 check(not F.IsDone(F.ByID.scourge), "a feat whose skin is not released does not complete")
-check(#F.Visible() == 76, "unreleased feats are not listed (76 of 78 shown while two skins are held back)")
+check(#F.Visible() == 112, "unreleased feats are not listed (112 of 114 shown while two skins are held back)")
 local alive = { name = "Defias Pillager", ctype = "Humanoid" }
 units.nameplate2 = alive
 fire("UNIT_COMBAT", "nameplate2", "WOUND", "", 30, 1)
@@ -756,6 +763,65 @@ do
   check(seen["Interface\\AddOns\\SkinDeep\\Media\\Textures\\shield.tga"], "if the client lacks the crest, SkinDeep's shield stands in")
   missingTextures[A] = nil
   run(3)
+  ns.SetSkin("auto")
+end
+
+print("== profession tiers")
+do
+  local F = ns.Feats
+  local nProf, nTiers = 0, 0
+  for _, id in ipairs(ns.SkinOrder) do
+    local sk = ns.Skins[id]
+    if sk.skillLine then
+      nProf = nProf + 1
+      if F.TiersOf[id] and #F.TiersOf[id] == 3 then nTiers = nTiers + 1 end
+    end
+  end
+  check(nProf == 12 and nTiers == 12, "12 profession skins, each with three tier feats")
+  SkinDeepDB.unlockMode = "collector"
+  profList[1][2], profList[2][2] = 149, 40
+  fire("SKILL_LINES_CHANGED")
+  check(not F.IsUnlocked("anvilstrike") and F.ProgressText(F.ByID.anvilstrike, true) == "149 / 150",
+    "149 Blacksmithing: Anvilstrike still locked (149 / 150)")
+  check(ns.TierSkin(ns.Skins.anvilstrike) == ns.Skins.anvilstrike, "a locked tiered skin previews as Journeyman")
+  profList[1][2] = 150
+  fire("SKILL_LINES_CHANGED")
+  check(F.IsUnlocked("anvilstrike") and F.SkinTier("anvilstrike") == 1, "150 unlocks Anvilstrike at Journeyman")
+  check(not ns.TierSkin(ns.Skins.anvilstrike).ring, "Journeyman has no anvil ring")
+  ns.SetSkin("anvilstrike")
+  profList[1][2] = 225
+  fire("CHAT_MSG_SKILL", "Your skill in Blacksmithing has increased to 225.")
+  check(F.SkinTier("anvilstrike") == 1, "the skill message waits for the skill list to update")
+  run(0.5)
+  check(F.SkinTier("anvilstrike") == 2 and ns.CurrentSkin().ring ~= nil, "225: Expert adds the anvil ring")
+  local saw = false
+  for _, m in ipairs(chatLog) do if m:find("Skin upgraded:", 1, true) and m:find("Anvilstrike · Expert", 1, true) then saw = true end end
+  check(saw, "the upgrade is announced (Skin upgraded: Anvilstrike · Expert)")
+  check(F.TierLine("anvilstrike"):find("Artisan at 300 Blacksmithing", 1, true) ~= nil, "the window names the next tier")
+  profList[1][2] = 300
+  fire("SKILL_LINES_CHANGED")
+  local cur = ns.CurrentSkin()
+  check(F.SkinTier("anvilstrike") == 3 and cur.critTitle and cur.critTitle.text == "ARTISAN SMITH" and cur.ring,
+    "300: Artisan keeps Expert's ring and adds the crit title")
+  check(cur.name == "Anvilstrike" and cur.tier == 3, "the tiered skin keeps its name")
+  fire("UNIT_COMBAT", "target", "WOUND", "CRITICAL", 4321, 1)
+  run(0.1)
+  local title = false
+  for _, w in ipairs(frames) do if w.kind == "FontString" and w.text == "ARTISAN SMITH" and w.shown then title = true end end
+  check(title, "an Artisan crit shows ARTISAN SMITH")
+  run(3)
+  profList[1] = nil
+  fire("SKILL_LINES_CHANGED")
+  check(F.SkinTier("anvilstrike") == 3, "dropping the profession never takes a tier back")
+  check(not F.IsUnlocked("motherlode") and SkinDeepDB.profSkill[186] == 40, "Mining is tracked too (40, still locked)")
+  ns.OpenWindow("feats")
+  run(0.3)
+  ns.OpenWindow("skins")
+  run(0.3)
+  _G.SkinDeepConfig:Hide()
+  SkinDeepDB.unlockMode = "all"
+  check(F.SkinTier("motherlode") == 3, "with everything unlocked, profession skins show their Artisan tier")
+  profList[1] = { "Blacksmithing", 0, 164 }
   ns.SetSkin("auto")
 end
 
