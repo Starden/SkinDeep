@@ -133,6 +133,18 @@ pvpRank = 0
 Constants = { CurrencyConsts = { CURRENCY_ID_RENOWN_PVP_RANK = 3001 } }
 C_CurrencyInfo = { GetCurrencyInfo = function(id) if id == 3001 then return { name = "PvP Rank", quantity = pvpRank, maxQuantity = 14, totalEarned = pvpRank } end end }
 function UnitFactionGroup(u) return playerFactionName end
+-- Addon messages and tooltips (skin sharing).
+units.player = { name = "Shocka", player = true }
+sentAddon, addonPrefixes, tooltipLines, tooltipUnit = {}, {}, {}, nil
+C_ChatInfo = {
+  RegisterAddonMessagePrefix = function(p) addonPrefixes[p] = true; return true end,
+  SendAddonMessage = function(prefix, text, channel, target) sentAddon[#sentAddon + 1] = { prefix, text, channel, target }; return true end,
+}
+function IsInRaid() return false end
+function IsInGuild() return false end
+function UnitExists(u) return units[u] ~= nil end
+function GameTooltip:GetUnit() local u = tooltipUnit; return u and units[u] and units[u].name, u end
+function GameTooltip:AddLine(t) tooltipLines[#tooltipLines + 1] = t end
 function IsInInstance() return inInstanceKind ~= "none", inInstanceKind end
 function GetInstanceInfo() return instanceName end
 function GetBattlefieldArenaFaction() return arenaFaction end
@@ -256,7 +268,7 @@ end
 
 -- Load the addon like the client: each file gets (addonName, ns).
 local ns = {}
-for _, file in ipairs({ "Skins.lua", "StyleSkins.lua", "ClassSkins.lua", "SpecSkins.lua", "FactionSkins.lua", "PvPSkins.lua", "ProfSkins.lua", "LootSkins.lua", "Core.lua", "Feats.lua", "Engine.lua", "Jackpot.lua", "Options.lua", "Welcome.lua" }) do
+for _, file in ipairs({ "Skins.lua", "StyleSkins.lua", "ClassSkins.lua", "SpecSkins.lua", "FactionSkins.lua", "PvPSkins.lua", "ProfSkins.lua", "LootSkins.lua", "Core.lua", "Feats.lua", "Engine.lua", "Jackpot.lua", "Options.lua", "Welcome.lua", "Share.lua" }) do
   local chunk, err = loadfile(ADDON_DIR .. "/" .. file)
   if not chunk then error(err) end
   chunk("SkinDeep", ns)
@@ -866,6 +878,91 @@ do
   check(pcall(SlashCmdList.SKINDEEP, "loot"), "/skindeep loot reports without errors")
   gear[1] = nil
   SkinDeepDB.unlockMode = "all"
+end
+
+print("== skin sharing")
+do
+  local S = ns.Share
+  local function lastSent() return sentAddon[#sentAddon] or {} end
+  check(addonPrefixes.SkinDeep, "the SkinDeep addon-message prefix is registered at login")
+  SkinDeepDB.skin, SkinDeepDB.pvpSkin = "ember", nil
+  inGroup = true
+  local n = #sentAddon
+  fire("GROUP_ROSTER_UPDATE")
+  run(3)
+  check(#sentAddon > n and lastSent()[3] == "PARTY" and lastSent()[2]:find("^S1|ember|", 1) ~= nil,
+    "joining a group tells the party your skin (" .. tostring(lastSent()[2]) .. ")")
+  -- Someone else's skin arrives.
+  fire("CHAT_MSG_ADDON", "SkinDeep", "S1|anvilstrike|3|grandmarshal|0", "PARTY", "Wes-Forever")
+  local id, tier = S.SkinOf("Wes")
+  check(id == "anvilstrike" and tier == 3, "a party member's skin is remembered (Anvilstrike, Artisan)")
+  check(S.SkinOf("Wes", true) == "grandmarshal", "and their PvP skin")
+  fire("CHAT_MSG_ADDON", "SkinDeep", "S1|notaskin|0||0", "PARTY", "Ghost")
+  check(S.SkinOf("Ghost") == nil, "a skin this version doesn't have is ignored")
+  fire("CHAT_MSG_ADDON", "OtherAddon", "S1|ember|0||0", "PARTY", "Bob")
+  check(S.SkinOf("Bob") == nil, "other addons' messages are ignored")
+  -- Asked directly, it answers by whisper.
+  fire("CHAT_MSG_ADDON", "SkinDeep", "Q1", "WHISPER", "Kel")
+  check(lastSent()[2]:find("^S1|ember|") and lastSent()[3] == "WHISPER" and lastSent()[4] == "Kel", "a skin request is answered by whisper")
+  -- Tooltip line.
+  units.mouseover = { name = "Wes", player = true }
+  tooltipUnit, tooltipLines = "mouseover", {}
+  GameTooltip.scripts.OnTooltipSetUnit(GameTooltip)
+  check(tooltipLines[1] == "SkinDeep: Anvilstrike · Artisan", "their tooltip shows their skin (" .. tostring(tooltipLines[1]) .. ")")
+  units.mouseover = { name = "Nia", player = true }
+  tooltipLines = {}
+  n = #sentAddon
+  GameTooltip.scripts.OnTooltipSetUnit(GameTooltip)
+  check(#tooltipLines == 0 and lastSent()[2] == "Q1" and lastSent()[4] == "Nia", "an unknown player is asked quietly (no line yet)")
+  GameTooltip.scripts.OnTooltipSetUnit(GameTooltip)
+  check(#sentAddon == n + 1, "and only asked once a minute")
+  units.mouseover = { name = "Gnoll", player = false }
+  tooltipLines = {}
+  GameTooltip.scripts.OnTooltipSetUnit(GameTooltip)
+  check(#tooltipLines == 0, "no line on monsters")
+  units.mouseover, tooltipUnit = nil, nil
+  -- Peek.
+  check(pcall(SlashCmdList.SKINDEEP, "peek Wes"), "/skindeep peek Wes previews their skin")
+  run(0.5)
+  _G.SkinDeepConfig:Hide()
+  -- Duels: the hits you take show in the opponent's skin.
+  local spawned = {}
+  local realSpawn = ns.Engine.Spawn
+  ns.Engine.Spawn = function(e) spawned[#spawned + 1] = e; return realSpawn(e) end
+  SkinDeepDB.incoming = true
+  fire("UNIT_COMBAT", "player", "WOUND", "", 120, 1)
+  check(spawned[#spawned].skin == nil, "outside a duel, hits you take use your own skin")
+  fire("DUEL_REQUESTED", "Wes-Forever")
+  check(lastSent()[2] == "Q1" and lastSent()[4] == "Wes", "a duel request swaps skins with the opponent")
+  fire("UNIT_COMBAT", "player", "WOUND", "CRITICAL", 300, 1)
+  check(spawned[#spawned].skin == "grandmarshal", "in a duel, their hits on you show in their PvP skin")
+  fire("UNIT_COMBAT", "player", "HEAL", "", 50, 2)
+  check(spawned[#spawned].skin ~= "grandmarshal", "heals on you keep your own skin")
+  fire("DUEL_FINISHED")
+  run(2)
+  fire("UNIT_COMBAT", "player", "WOUND", "", 120, 1)
+  check(spawned[#spawned].skin == nil, "after the duel, your own skin again")
+  ns.Engine.Spawn = realSpawn
+  run(3)
+  -- In combat inside an instance, messages wait for the fight to end.
+  inCombat, inInstanceKind = true, "party"
+  n = #sentAddon
+  SkinDeepDB.skin = "frost"
+  ns.OnSettingsChanged()
+  run(3)
+  check(#sentAddon == n, "in combat in an instance, nothing is sent")
+  inCombat = false
+  fire("PLAYER_REGEN_ENABLED")
+  check(#sentAddon > n and lastSent()[2]:find("^S1|frost|"), "after the fight, the new skin goes out")
+  inInstanceKind = "none"
+  -- Off: nothing sent, nothing shown.
+  SkinDeepDB.shareSkins = false
+  n = #sentAddon
+  fire("CHAT_MSG_ADDON", "SkinDeep", "Q1", "WHISPER", "Kel2")
+  check(#sentAddon == n, "with sharing off, requests go unanswered")
+  SkinDeepDB.shareSkins = true
+  SkinDeepDB.skin, SkinDeepDB.incoming = "auto", false
+  inGroup = false
 end
 
 print("== spec variants")

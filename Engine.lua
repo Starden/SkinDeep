@@ -439,7 +439,7 @@ end
 function Engine.Spawn(e)
     local db = ns.db
     if not db then return end
-    local skin = (e.skin and ns.TierSkin(ns.Skins[e.skin])) or ns.CurrentSkin()
+    local skin = (e.skin and ns.TierSkin(ns.Skins[e.skin], e.tier)) or ns.CurrentSkin()
     if #active >= MAX_POPS then release(1) end
     local p = tremove(free) or newPop()
 

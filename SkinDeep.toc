@@ -26,3 +26,4 @@ Engine.lua
 Jackpot.lua
 Options.lua
 Welcome.lua
+Share.lua

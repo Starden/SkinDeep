@@ -44,6 +44,7 @@ local DEFAULTS = {
     sounds = true,          -- skin sound effects (Jackpot's reels and payout)
     toasts = true,          -- popup when a feat completes / a skin unlocks
     toastSound = true,      -- its fanfare
+    shareSkins = true,      -- tell other SkinDeep users your skin; show theirs (tooltips, duels)
     -- unlockMode: nil until the first-run window is answered, then
     -- "collector" (earn skins through feats) or "all"
     worldFont = true,       -- give Blizzard's numbers the skin's font (next login)
@@ -176,9 +177,10 @@ end
 
 -- Profession skins grow with their tier (Journeyman, Expert, Artisan): the
 -- skin plus each earned tier's changes (false clears a field), cached.
-function ns.TierSkin(skin)
+-- tier: someone else's tier for their skin (else your own).
+function ns.TierSkin(skin, tier)
     if not (skin and skin.tiers) then return skin end
-    local tier = (ns.Feats and ns.Feats.SkinTier(skin.id)) or 3
+    tier = (tier and tier > 0 and tier) or (ns.Feats and ns.Feats.SkinTier(skin.id)) or 3
     if tier <= 1 then return skin end
     skin.tierCache = skin.tierCache or {}
     local s = skin.tierCache[tier]
@@ -381,6 +383,11 @@ function ns.HandleCombat(unit, action, flags, amount, school)
     end
     e.anchor, e.point, e.ax, e.ay = ns.Engine.AnchorFor(u, side)
     e.skin = ns.PvPSkinFor(u, side)
+    -- In a duel, the hits you take show in your opponent's skin.
+    if side == "inc" and e.kind ~= "heal" and ns.Share then
+        local id, tier = ns.Share.IncomingSkin()
+        if id then e.skin, e.tier = id, tier end
+    end
     ns.Engine.Spawn(e)
 end
 
@@ -398,12 +405,12 @@ local TEST = {
 }
 
 -- anchorFrame: where to show them (nil = the target's plate or the out anchor).
-function ns.Test(anchorFrame, skinID, strata)
+function ns.Test(anchorFrame, skinID, strata, tier)
     for i, hit in ipairs(TEST) do
         C_Timer.After((i - 1) * 0.22, function()
             if anchorFrame and not ns.PreviewVisible(anchorFrame) then return end
             local e ={ side = "out", kind = hit.kind, amount = hit.amount, crit = hit.crit,
-                        school = hit.school or 1, skin = skinID, strata = strata,
+                        school = hit.school or 1, skin = skinID, strata = strata, tier = tier,
                         preview = anchorFrame ~= nil }
             if hit.word then e.word = wordFor(hit.word) end
             if anchorFrame then

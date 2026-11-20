@@ -77,6 +77,12 @@ Collect your skins.
     Gearworks, Hallow's End, Stormcall and Thunderhead; a stronger crack
     for Bloodrage; Rank 14 skins that frame the number instead of burying
     it; and fuller crits for Silithid Swarm and Fresh Find.
+- **Skin sharing**: SkinDeep users see each other's skins. Hover a player
+  to see theirs on the tooltip ("SkinDeep: Grand Marshal"), and
+  `/skindeep peek` (your target, or a name) plays it in the preview, even
+  a skin you haven't unlocked. In a **duel** with another SkinDeep user, the
+  hits you take show in your opponent's skin, and yours show in your skin on
+  their screen. Turn it off with Share skins with players.
 - **PvP skin**: Shift-click a skin to use it automatically in battlegrounds and
   against players (`/skindeep pvp <name|off>`).
 - **Unlock popups** with the achievement fanfare (both can be turned off).
@@ -85,7 +91,7 @@ Collect your skins.
   progress, and can still be previewed.
 - Progress and unlocks are shared by all your characters.
 - New commands: `/skindeep feats`, `/skindeep welcome`, `/skindeep pvp`,
-  `/skindeep rank`, `/skindeep talents`, `/skindeep loot`.
+  `/skindeep rank`, `/skindeep talents`, `/skindeep loot`, `/skindeep peek`.
 
 ## 1.1.0
 

@@ -62,6 +62,12 @@ you loot an item of that quality (Uncommon, Rare, Epic, Legendary; a better
 item counts for the lower ones too). Full Set unlocks when you wear every
 piece of an item set. `/skindeep loot` shows what SkinDeep reads.
 
+**Skin sharing**: SkinDeep users see each other's skins on their tooltips, and
+`/skindeep peek` previews your target's skin. In a duel between two SkinDeep
+users, the hits you take show in your opponent's skin. (The game doesn't say
+who dealt a hit, so a duel, where only your opponent hits you, is the one place
+another player's skin can show on your numbers.)
+
 | Faction skins | |
 |---|---|
 | **Crimson Oath** (Scarlet Crusade) | Numbers march up over the crusade's sigil; crits burn with holy fire. Earn it: slay 100 Scarlet Crusade or defeat Whitemane. |
@@ -127,7 +133,8 @@ Physical and spell damage always read apart, like Blizzard's white and yellow:
 
 Slash commands: `/skindeep test`, `/skindeep feats`, `/skindeep list`,
 `/skindeep skin <name>`, `/skindeep welcome`, `/skindeep on`, `/skindeep off`,
-`/skindeep restore`, `/skindeep unlock`.
+`/skindeep restore`, `/skindeep unlock`, `/skindeep peek [name]`, `/skindeep pvp`,
+`/skindeep rank`, `/skindeep talents`, `/skindeep loot`.
 
 ## Good to know
 

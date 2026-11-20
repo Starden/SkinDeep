@@ -13,6 +13,7 @@ local W, H = 660, 620
 local window, previewBox, skinsPage, featsPage
 local previewClock = 0
 local previewId        -- a locked skin being previewed (not equipped)
+local previewTier, previewWho   -- /skindeep peek: their tier and name
 local skinButtons, checks, modeButtons, colorButtons, unlockButtons, featRows, tabs = {}, {}, {}, {}, {}, {}, {}
 local sizeLabel, speedLabel, nameText, tagText, noteText, unlockButton, countText
 
@@ -174,8 +175,13 @@ local function refreshSkins()
         if db.colorScheme == "school" and not sw.physical then sw:SetText("Spells by school") else sw:SetText(sw.label) end
     end
     if previewId then
-        nameText:SetText(shown.name .. "  |cff8c8577(preview)|r")
-        tagText:SetText(Feats.TierLine(previewId) or lockLine(previewId))
+        if previewWho then
+            nameText:SetText(("%s's skin: %s"):format(previewWho, ns.Share.Describe(previewId, previewTier) or shown.name))
+            tagText:SetText(shown.tagline or "")
+        else
+            nameText:SetText(shown.name .. "  |cff8c8577(preview)|r")
+            tagText:SetText(Feats.TierLine(previewId) or lockLine(previewId))
+        end
     else
         nameText:SetText(db.skin == ns.AUTO and ("Auto: " .. shown.name) or shown.name)
         local tier = Feats.TierLine(shown.id)
@@ -255,7 +261,7 @@ end
 local function playPreview()
     if not (window and window:IsShown() and skinsPage:IsShown()) then return end
     previewClock = 0
-    ns.Test(previewBox, previewId or ns.db.skin, "TOOLTIP")
+    ns.Test(previewBox, previewId or ns.db.skin, "TOOLTIP", previewId and previewTier or nil)
 end
 
 ---------------------------------------------------------------------------
@@ -417,6 +423,7 @@ local function buildSkins(page)
                 refresh()
                 return
             end
+            previewTier, previewWho = nil, nil
             if isLocked(id) then
                 previewId = id      -- look, but don't equip
             else
@@ -541,6 +548,7 @@ local function buildSkins(page)
         { "worldFont", "Skin font on Blizzard's numbers", "Gives Blizzard's own floating numbers the skin's font. Takes effect at your next login." },
         { "worldMotion", "Skin motion on Blizzard's numbers", "Tunes the engine's number motion (size, gravity, spread) to the skin while Blizzard's numbers are showing." },
         { "sounds", "Skin sounds", "Sound effects for skins that have them: Jackpot's reel clicks and coin payout. The preview stays silent." },
+        { "shareSkins", "Share skins with players", "Tells other SkinDeep users which skin you use, and shows theirs: on their tooltip, with /skindeep peek, and on the hits you take in a duel with them." },
     }
     for i, t in ipairs(toggles) do
         local c = checkbox(page, t[2], t[1], t[3])
@@ -551,10 +559,10 @@ local function buildSkins(page)
     -- Size / speed.
     local sizeMinus
     sizeMinus, sizeLabel = stepper(page, "scale", 0.5, 2.5, 0.1)
-    sizeMinus:SetPoint("TOPLEFT", stage, "BOTTOMLEFT", 0, -254)
+    sizeMinus:SetPoint("TOPLEFT", stage, "BOTTOMLEFT", 0, -278)
     local speedMinus
     speedMinus, speedLabel = stepper(page, "speed", 0.5, 2.0, 0.1)
-    speedMinus:SetPoint("TOPLEFT", stage, "BOTTOMLEFT", 210, -254)
+    speedMinus:SetPoint("TOPLEFT", stage, "BOTTOMLEFT", 210, -278)
 
     -- Actions.
     local test = button(page, "Test in world", 120, 24, function() ns.Test() end)
@@ -780,7 +788,7 @@ local function build()
         if previewClock >= (shown.previewLoop or 2.6) then playPreview() end
     end)
     window:SetScript("OnHide", function()
-        previewId = nil
+        previewId, previewTier, previewWho = nil, nil, nil
         if ns.Engine.unlocked then ns.Engine.SetUnlocked(false) end
     end)
     selectTab("skins")
@@ -796,6 +804,14 @@ function ns.OpenWindow(tab)
     if not window then build() end
     window:Show()
     selectTab(tab or "skins")
+end
+
+-- Plays another player's skin in the preview (at their tier).
+function ns.PreviewSkin(id, tier, who)
+    ns.OpenWindow("skins")
+    previewId, previewTier, previewWho = id, tier, who
+    refresh()
+    playPreview()
 end
 
 function ns.PreviewVisible(frame)
@@ -879,6 +895,23 @@ SlashCmdList.SKINDEEP = function(msg)
         local variant = ns.SpecVariantID()
         ns.Print(("skin in use: %s."):format(ns.Skins[ns.ResolvedSkinID()].name)
             .. (variant and not Feats.IsUnlocked(variant) and (" (" .. ns.Skins[variant].name .. " once you earn it)") or ""))
+    elseif cmd == "peek" then
+        -- Another SkinDeep user's skin: /skindeep peek [name] (default: target).
+        local name = rest ~= "" and rest or (UnitExists("target") and ns.SafeBool(UnitIsPlayer, "target") and UnitName("target"))
+        name = name and (name:match("^([^%-]+)") or name)
+        if not name then
+            ns.Print("peek: target a player, or type /skindeep peek Name.")
+        elseif not ns.db.shareSkins then
+            ns.Print("skin sharing is off. Tick Share skins with players to see theirs.")
+        else
+            local id, tier = ns.Share.SkinOf(name)
+            if id then
+                ns.PreviewSkin(id, tier, name)
+            else
+                ns.Share.Ask(name)
+                ns.Print(("asked %s for their skin. If they use SkinDeep, peek again in a moment."):format(name))
+            end
+        end
     elseif cmd == "loot" or cmd == "sets" then
         -- What SkinDeep reads for the loot and set skins.
         local NAMES = { [0] = "Poor", "Common", "Uncommon", "Rare", "Epic", "Legendary" }
