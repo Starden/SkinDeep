@@ -474,7 +474,7 @@ function Engine.Spawn(e)
     p.oy = laneOffset(p.anchor, skin.laneStep)
     if e.echo then
         -- An echo sits just beside the hit it repeats.
-        p.ox, p.oy = (e.echoX or 0) + 30 * p.dir, (e.echoY or 0) - 20
+        p.ox, p.oy = (e.echoX or 0) + 44 * p.dir, (e.echoY or 0) - 26
         p.base = p.base * 0.8
     end
     p:SetFrameStrata(e.strata or "LOW")

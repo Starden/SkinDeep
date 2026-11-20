@@ -65,4 +65,9 @@ fs.mkdirSync(outDir, { recursive: true });
 const page = fs.readFileSync(path.join(__dirname, 'gallery.html'), 'utf8')
   .replace('<script src="data.js"></script>', () => '<script>window.GALLERY = ' + JSON.stringify({ skins: data.skins, textures, fonts }) + ';</script>');
 fs.writeFileSync(path.join(outDir, 'index.html'), page);
+// The showcase (CurseForge gallery images), with the logo inline.
+const logo = 'data:image/png;base64,' + fs.readFileSync(path.join(root, 'docs', 'logo.png')).toString('base64');
+const show = fs.readFileSync(path.join(__dirname, 'showcase.html'), 'utf8')
+  .replace('<script src="data.js"></script>', () => '<script>window.GALLERY = ' + JSON.stringify({ skins: data.skins, textures, fonts, logo }) + ';</script>');
+fs.writeFileSync(path.join(outDir, 'showcase.html'), show);
 console.log(`gallery: ${data.skins.length} skins -> ${path.join(outDir, 'index.html')}`);

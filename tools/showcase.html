@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SkinDeep showcase</title>
+<script src="data.js"></script>
+<style>
+  body { margin: 0; background: #0e1013; color: #ddd; font: 13px system-ui, sans-serif; }
+  #log { padding: 8px 12px; }
+  canvas { display: block; margin: 0 auto 12px; max-width: 100%; height: auto; }
+</style>
+</head>
+<body>
+<div id="log">Rendering…</div>
+<div id="out"></div>
+<script>
+// Showcase images (1600x900) for the CurseForge gallery, drawn from the
+// captured frames; ?save=1 sends each PNG to tools/serve.js.
+const G = window.GALLERY;
+const W = 1600, H = 900;
+const byId = Object.fromEntries(G.skins.map(s => [s.id, s]));
+
+// Same texture tinting and frame drawing as the gallery.
+const tint = new Map();
+function tinted(ti, r, g, b) {
+  const key = ti + ':' + r + ',' + g + ',' + b;
+  if (tint.has(key)) return tint.get(key);
+  const t = G.textures[ti];
+  if (!t || t.missing) { tint.set(key, null); return null; }
+  if (!t.bytes) t.bytes = Uint8Array.from(atob(t.rgba), c => c.charCodeAt(0));
+  const c = document.createElement('canvas'); c.width = t.w; c.height = t.h;
+  const cx = c.getContext('2d'); const img = cx.createImageData(t.w, t.h);
+  for (let i = 0; i < t.bytes.length; i += 4) {
+    const l = t.bytes[i] / 255;
+    img.data[i] = l * r * 255; img.data[i + 1] = l * g * 255; img.data[i + 2] = l * b * 255; img.data[i + 3] = t.bytes[i + 3];
+  }
+  cx.putImageData(img, 0, 0); tint.set(key, c); return c;
+}
+function fontCss(path) {
+  const f = G.fonts.find(x => x.path === path);
+  return f ? f.css : 'Georgia, serif';
+}
+function drawItems(ctx, cx, cy, items, sc) {
+  for (const e of items || []) {
+    const [kind, x, y, ew, eh, a, rot, r, g, b, ref, mode, size, flags] = e;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1, a));
+    ctx.translate(cx + x * sc, cy - y * sc);
+    if (kind === 0) {
+      const img = tinted(ref, r, g, b);
+      if (img) {
+        ctx.rotate(-rot);
+        ctx.globalCompositeOperation = mode === 1 ? 'source-over' : 'lighter';
+        ctx.drawImage(img, -ew * sc / 2, -eh * sc / 2, ew * sc, eh * sc);
+      }
+    } else {
+      const f = G.fonts[mode];
+      ctx.font = `${size * sc}px ${f ? f.css : 'Georgia'}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+      if (flags) { ctx.lineWidth = (flags === 2 ? 3.4 : 2.2) * sc; ctx.strokeStyle = 'rgba(0,0,0,0.95)'; ctx.strokeText(ref, 0, 0); }
+      ctx.fillStyle = `rgb(${r * 255},${g * 255},${b * 255})`;
+      ctx.fillText(ref, 0, 0);
+    }
+    ctx.restore();
+  }
+}
+// The crit frame with the most going on (early frames win ties).
+function bestFrame(skin, kind = 'crit') {
+  const frames = skin[kind];
+  let best = 2, score = -1;
+  for (let i = 1; i < frames.length - 4; i++) {
+    let s = 0;
+    for (const e of frames[i]) {
+      s += e[0] === 0 ? e[5] * Math.min(e[3] * e[4], 30000) : 4000 * e[5];
+      if (e[0] === 1 && String(e[10]).includes("2391") && e[5] > 0.8) s += 60000;   // the real number is showing
+    }
+    s *= 1 - Math.min(i, 12) * 0.03 - Math.max(0, i - 12) * 0.005;
+    if (s > score) { score = s; best = i; }
+  }
+  return frames[best];
+}
+
+// Where a frame's visible content sits (at scale 1): x0, y0, x1, y1.
+const measurer = document.createElement("canvas").getContext("2d");
+function bounds(items) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const e of items || []) {
+    if (e[5] < 0.3) continue;
+    let w, h;
+    if (e[0] === 0) {
+      const m = Math.abs(e[6]) > 0.05 ? Math.max(e[3], e[4]) : 0; w = m || e[3]; h = m || e[4]; w *= 0.85; h *= 0.85;
+      if (h > w * 2.5) h *= 0.45;   // light beams may run off the tile
+    } else {
+      const f = G.fonts[e[11]];
+      measurer.font = `${e[12]}px ${f ? f.css : "Georgia"}`;
+      w = measurer.measureText(String(e[10])).width + 8; h = e[12];
+    }
+    x0 = Math.min(x0, e[1] - w / 2); x1 = Math.max(x1, e[1] + w / 2);
+    y0 = Math.min(y0, e[2] - h / 2); y1 = Math.max(y1, e[2] + h / 2);
+  }
+  return x0 === Infinity ? [-40, -20, 40, 20] : [x0, y0, x1, y1];
+}
+// Draws a frame scaled to fill (x, y, w, h), centered.
+function fitDraw(ctx, items, x, y, w, h, maxScale) {
+  const [x0, y0, x1, y1] = bounds(items);
+  const sc = Math.min(maxScale || 1.4, w / Math.max(1, x1 - x0), h / Math.max(1, y1 - y0));
+  const cx = x + w / 2 - ((x0 + x1) / 2) * sc, cy = y + h / 2 + ((y0 + y1) / 2) * sc;
+  drawItems(ctx, cx, cy, items, sc);
+}
+
+// Backdrops: a dusky field with a soft glow behind each tile.
+function backdrop(ctx) {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#1b2029'); g.addColorStop(0.55, '#141920'); g.addColorStop(1, '#0d1013');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const v = ctx.createRadialGradient(W / 2, H * 0.45, 100, W / 2, H * 0.5, W * 0.75);
+  v.addColorStop(0, 'rgba(255,220,160,0.05)'); v.addColorStop(1, 'rgba(0,0,0,0.45)');
+  ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
+}
+function tileBg(ctx, x, y, w, h) {
+  ctx.save();
+  const g = ctx.createRadialGradient(x + w / 2, y + h * 0.45, 10, x + w / 2, y + h * 0.5, Math.max(w, h) * 0.7);
+  g.addColorStop(0, 'rgba(60,70,84,0.55)'); g.addColorStop(1, 'rgba(20,24,30,0.0)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, 14); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.restore();
+}
+function label(ctx, text, x, y, size, font, color, align = 'center') {
+  ctx.save();
+  ctx.font = `${size}px ${font}`; ctx.textAlign = align; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  ctx.lineWidth = Math.max(3, size / 6); ctx.strokeStyle = 'rgba(0,0,0,0.9)'; ctx.strokeText(text, x, y);
+  ctx.fillStyle = color; ctx.fillText(text, x, y);
+  ctx.restore();
+}
+function rgb(c) { return `rgb(${c[0] * 255},${c[1] * 255},${c[2] * 255})`; }
+function header(ctx, title, sub) {
+  label(ctx, title, 70, 74, 52, '"sd-SkinDeepBlockttf", Georgia, serif', '#ffd27a', 'left');
+  if (sub) { ctx.save(); ctx.font = '24px Georgia, serif'; ctx.fillStyle = '#b9b2a6'; ctx.textBaseline = 'middle'; ctx.fillText(sub, 72, 124); ctx.restore(); }
+  if (logo.complete) ctx.drawImage(logo, W - 150, 26, 110, 110);
+}
+// A grid of skins, each at its best crit frame with its name below.
+function grid(ctx, ids, cols, top, opts = {}) {
+  const rows = Math.ceil(ids.length / cols);
+  const gap = 18, left = 60, right = 60, bottom = 40;
+  const w = (W - left - right - gap * (cols - 1)) / cols;
+  const h = (H - top - bottom - gap * (rows - 1)) / rows;
+  ids.forEach((id, i) => {
+    const s = byId[id]; if (!s) return;
+    const col = i % cols, row = Math.floor(i / cols);
+    const x = left + col * (w + gap), y = top + row * (h + gap);
+    tileBg(ctx, x, y, w, h);
+    ctx.save(); ctx.beginPath(); ctx.roundRect(x, y, w, h - 74, 14); ctx.clip();
+    fitDraw(ctx, bestFrame(s), x + 12, y + 10, w - 24, h - 82, opts.maxScale);
+    ctx.restore();
+    const ns = opts.nameSize || 26;
+    label(ctx, s.name, x + w / 2, y + h - 30 - ns * 0.62, ns, fontCss(s.font), rgb(s.color));
+    ctx.save(); ctx.font = '16px system-ui, sans-serif'; ctx.fillStyle = '#9d978c'; ctx.textAlign = 'center';
+    ctx.fillText(s.note || '', x + w / 2, y + h - 16); ctx.restore();
+  });
+}
+
+const logo = new Image();
+logo.src = G.logo || '';
+
+const IMAGES = [
+  { name: '01-skindeep', draw(ctx) {
+      backdrop(ctx);
+      if (logo.complete) ctx.drawImage(logo, 60, 30, 200, 200);
+      label(ctx, 'SkinDeep', 290, 100, 84, '"sd-SkinDeepBlockttf", Georgia, serif', '#ffd27a', 'left');
+      label(ctx, '96 animated damage skins for WoW: Forever', 292, 178, 34, 'Georgia, serif', '#efe6d6', 'left');
+      grid(ctx, ['grandmarshal', 'highwarlord', 'jackpot', 'legendary', 'comic', 'anvilstrike', 'fullset', 'mage_fire'], 4, 262, { nameSize: 24 });
+  } },
+  { name: '02-classes', draw(ctx) {
+      backdrop(ctx); header(ctx, 'A skin for every class', 'Auto: my class picks yours. Crits shown.');
+      grid(ctx, ['warrior', 'paladin', 'hunter', 'rogue', 'priest', 'shaman', 'mage', 'warlock', 'druid'], 3, 160, { scale: 0.85 });
+  } },
+  { name: '03-specs', draw(ctx) {
+      backdrop(ctx); header(ctx, '28 spec skins', 'Spend 20 talent points in a tree to earn its twist on your class skin.');
+      grid(ctx, ['warrior_arms', 'warrior_fury', 'paladin_ret', 'hunter_mm', 'rogue_assa', 'rogue_sub', 'priest_holy', 'shaman_ele', 'mage_fire', 'warlock_destro', 'druid_balance', 'druid_feral'], 4, 160, { scale: 0.85 });
+  } },
+  { name: '04-factions', draw(ctx) {
+      backdrop(ctx); header(ctx, 'Factions', 'Slay their foes or defeat their boss to earn the skin.');
+      grid(ctx, ['scarlet', 'scourge', 'defias', 'darkiron', 'brood', 'argent', 'broadside', 'hexbound', 'oldgod', 'swarm', 'tidecaller'], 4, 160, { scale: 0.85 });
+  } },
+  { name: '05-pvp', draw(ctx) {
+      backdrop(ctx); header(ctx, 'PvP', 'Rank ladders up to Grand Marshal and High Warlord, battlegrounds, duels and honorable kills.');
+      grid(ctx, ['grandmarshal', 'highwarlord'], 2, 160, { scale: 1.25, nameSize: 34, cy: 0.52 });
+  } },
+  { name: '06-pvp-ladder', draw(ctx) {
+      backdrop(ctx); header(ctx, 'Climb the ranks', 'Every PvP skin, from Knight and Stone Guard to the battleground banners.');
+      grid(ctx, ['knight', 'ltcommander', 'stoneguard', 'champion', 'flagrunner', 'fivebanners', 'wintersiege', 'duelist', 'tally', 'headhunter', 'warmonger'], 4, 160, { scale: 0.8 });
+  } },
+  { name: '07-trades', draw(ctx) {
+      backdrop(ctx); header(ctx, 'Trades', 'Profession skins grow at 150, 225 and 300 skill. Artisan shown.');
+      grid(ctx, ['philter', 'anvilstrike', 'runethread', 'blastcap', 'wildroot', 'stitchwork', 'motherlode', 'keenedge', 'boltofcloth', 'sizzle', 'luckybobber', 'fielddressing'], 4, 160, { scale: 0.8 });
+  } },
+  { name: '08-loot', draw(ctx) {
+      backdrop(ctx); header(ctx, 'Loot', 'Loot a green, blue, purple or orange item, or wear a whole set.');
+      grid(ctx, ['freshfind', 'rarefind', 'epichaul', 'legendary', 'fullset', 'jackpot'], 3, 160, { scale: 1.0 });
+  } },
+  { name: '09-styles', draw(ctx) {
+      backdrop(ctx); header(ctx, 'Styles', 'Plus seasonal skins for Hallow’s End, Winter Veil and Heartthrob.');
+      grid(ctx, ['ember', 'frost', 'arcane', 'comic', 'blood', 'arcade', 'gilded', 'blade', 'starfall', 'gearworks', 'hallows', 'winterveil'], 4, 160, { scale: 0.85 });
+  } },
+  { name: '10-anatomy-of-a-crit', draw(ctx) {
+      backdrop(ctx); header(ctx, 'Every crit is a moment', 'Grand Marshal, frame by frame.');
+      const s = byId.grandmarshal, picks = [0, 1, 2, 4, 7, 12];
+      const cols = 3, gap = 16, top = 168;
+      const w = (W - 120 - gap * (cols - 1)) / cols, h = (H - top - 40 - gap) / 2;
+      // One scale for every frame, fitted to the busiest.
+      let fit = 2;
+      for (const fi of picks) { const [x0, y0, x1, y1] = bounds(s.crit[fi]); fit = Math.min(fit, (w - 30) / (x1 - x0), (h - 60) / (y1 - y0)); }
+      picks.forEach((fi, i) => {
+        const x = 60 + (i % cols) * (w + gap), y = top + Math.floor(i / cols) * (h + gap);
+        tileBg(ctx, x, y, w, h);
+        ctx.save(); ctx.beginPath(); ctx.roundRect(x, y, w, h, 14); ctx.clip();
+        drawItems(ctx, x + w / 2, y + h * 0.56, s.crit[fi], fit);
+        ctx.restore();
+        ctx.save(); ctx.font = "18px system-ui, sans-serif"; ctx.fillStyle = "#9d978c"; ctx.textAlign = "center";
+        ctx.fillText(`${((fi + 1) * 0.05).toFixed(2)} s`, x + w / 2, y + h - 16); ctx.restore();
+      });
+  } },
+];
+
+async function main() {
+  for (const f of G.fonts) {
+    if (f.url) { try { const ff = new FontFace(f.family, `url(${f.url})`); await ff.load(); document.fonts.add(ff); } catch (e) {} f.css = `"${f.family}", Georgia, serif`; }
+    else f.css = f.family;
+  }
+  await new Promise(r => { if (logo.complete || !logo.src) r(); else { logo.onload = r; logo.onerror = r; } });
+  await document.fonts.ready;
+  const save = new URLSearchParams(location.search).get('save') === '1';
+  const out = document.getElementById('out');
+  const log = [];
+  for (const img of IMAGES) {
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    img.draw(c.getContext('2d'));
+    out.appendChild(c);
+    if (save) {
+      const res = await fetch('/save?name=' + img.name + '.png', { method: 'POST', body: c.toDataURL('image/png') });
+      log.push(img.name + ': ' + (res.ok ? 'saved' : 'failed'));
+    }
+  }
+  document.getElementById('log').textContent = save ? log.join(' · ') : 'Rendered ' + IMAGES.length + ' images (add ?save=1 to save them).';
+  window.SHOWCASE_DONE = true;
+}
+main();
+</script>
+</body>
+</html>

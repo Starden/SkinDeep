@@ -131,7 +131,14 @@ local result = { skins = {} }
 for _, id in ipairs(ns.SkinOrder) do
   if not only or only[id] then
     local skin = ns.Skins[id]
-    local rec = { id = id, name = skin.name, group = skin.group or "style", tagline = skin.tagline or "" }
+    local CLASS = { WARRIOR = "Warrior", PALADIN = "Paladin", HUNTER = "Hunter", ROGUE = "Rogue", PRIEST = "Priest",
+                    SHAMAN = "Shaman", MAGE = "Mage", WARLOCK = "Warlock", DRUID = "Druid" }
+    local note = skin.spec and (skin.spec .. " " .. (CLASS[skin.class] or ""))
+      or (skin.prof and (skin.prof .. " · Artisan")) or skin.listNote
+      or (skin.class and CLASS[skin.class]) or (skin.rank and ("%s · Rank %d"):format(skin.faction, skin.rank))
+      or skin.faction or ""
+    local rec = { id = id, name = skin.name, group = skin.group or "style", tagline = skin.tagline or "", note = note,
+                  font = skin.font or "", color = skin.color or { 1, 1, 1 } }
     for _, crit in ipairs({ false, true }) do
       run(3)   -- let everything finish
       math.randomseed(7)
