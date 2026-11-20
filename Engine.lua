@@ -254,6 +254,7 @@ local function newPop()
     p.text = inner:CreateFontString(nil, "OVERLAY")
     p.text:SetDrawLayer("OVERLAY", 7)
     p.parts = {}
+    p.pieces, p.frontPieces = {}, {}
     p.containers = {}
     return p
 end
@@ -262,6 +263,8 @@ local function hideTextures(p)
     p.glow:Hide()
     p.decor:Hide(); p.burst:Hide(); p.burst2:Hide(); p.ring:Hide()
     for _, part in ipairs(p.parts) do part.tex:Hide(); part.alive = false end
+    for _, tex in pairs(p.pieces) do tex:Hide() end
+    for _, tex in pairs(p.frontPieces) do tex:Hide() end
     for _, c in pairs(p.containers) do c:Hide() end
 end
 
@@ -431,7 +434,7 @@ local function spawnParticles(p, pd, crit, color, first)
         part.drag = pd.inward and 0 or (pd.drag or 0.9)
         part.shrink = pd.shrink or 0.35
         local angle = rad(rr(pd.dir or { 0, 360 }))
-        part.t, part.life = 0, rr(pd.life or { 0.4, 0.8 })
+        part.life = rr(pd.life or { 0.4, 0.8 })
         if pd.inward then
             -- Converge: start out on a ring, arrive at the center at end of life.
             local r = rr(pd.radius or { 50, 70 })
@@ -442,6 +445,13 @@ local function spawnParticles(p, pd, crit, color, first)
             part.vx, part.vy = cos(angle) * speed, sin(angle) * speed
             part.x, part.y = 0, 0
         end
+        -- origin: where they start (a cloud, a crest); spread: a box around it.
+        local o, sp = pd.origin or EMPTY, pd.spread or EMPTY
+        part.x = part.x + (o[1] or 0) + ((sp[1] or 0) > 0 and (random() - 0.5) * sp[1] or 0)
+        part.y = part.y + (o[2] or 0) + ((sp[2] or 0) > 0 and (random() - 0.5) * sp[2] or 0)
+        -- delay: they wait unseen (dust kicked up when a crest lands).
+        part.t = -rr(pd.delay or 0)
+        if part.t < 0 then tex:SetAlpha(0) end
         if pd.mirror then part.vx = part.vx * -p.dir end
         part.gravity = pd.gravity or 0
         part.spin = pd.spin and (random() - 0.5) * 2 * pd.spin or 0
@@ -557,6 +567,7 @@ function Engine.Spawn(e)
     -- Decor, bursts, rings, particles.
     hideTextures(p)
     p.decorDef, p.burstDef, p.burst2Def, p.ringDef, p.glowDef = nil, nil, nil, nil, nil
+    p.pieceDefs = nil
     if db.effects and e.kind ~= "word" and not e.echo then
         -- Crit glow: a soft halo in the number's color, behind everything.
         if crit and e.kind == "dmg" and not skin.noGlow and not skin.ownText then
@@ -585,6 +596,23 @@ function Engine.Spawn(e)
             p.ringDef = { tex = "ring", size = skin.ring.size, color = skin.ring.color, alpha = skin.ring.alpha,
                           grow = skin.ring.grow, blend = "ADD" }
             setupTexture(p.ring, p.ringDef, 0)
+        end
+        if crit and skin.critPieces and e.kind == "dmg" then
+            p.pieceDefs = skin.critPieces
+            for i, d in ipairs(skin.critPieces) do
+                local list = d.front and p.frontPieces or p.pieces
+                local tex = list[i]
+                if not tex then
+                    -- Back pieces sit behind the number; front pieces live on a
+                    -- child frame, which draws over it (an arrow in the number).
+                    local owner = d.front and Engine.Container(p, "frontPieces", true) or p.inner
+                    tex = owner:CreateTexture(nil, "ARTWORK", nil, min(7, i))
+                    list[i] = tex
+                end
+                setupTexture(tex, d, d.fromRot or d.rot or 0, p.dir)
+                tex:SetTexCoord(0, 1, 0, 1)
+                if d.front then p.containers.frontPieces:Show() end
+            end
         end
         local slot = 1
         if skin.particles then slot = spawnParticles(p, skin.particles, crit, color, slot) end
@@ -667,6 +695,96 @@ local function animateTexture(tex, d, t, life, rotation, steady)
     if tex.SetRotation then tex:SetRotation(rot) end
 end
 
+-- Pieces (skin.critPieces): a crit's choreography, one texture each, every
+-- one on its own clock. Beyond the texture options above:
+--   x, y, rot     where it ends up; from = { x, y } and fromRot: where it
+--                 starts. It travels there over `move` seconds (ease "out"
+--                 by default, "in" to accelerate like a falling stamp,
+--                 "linear" for a sweep).
+--   pivot = { x, y }  the point (from the texture's center) that x, y and the
+--                 rotation are about: a wing turns on its shoulder.
+--   reveal        "up", "down", "right" or "left": the texture uncovers from
+--                 one edge over `move` (a banner unrolls, a vine grows).
+--                 Meant for unrotated pieces.
+--   wobble = { amp, freq, decay }  a rotation quiver once it arrives.
+--   flap = { amp, freq }  a steady rotation sway.
+--   turn          spin about the vertical axis (rad/s): a gem showing its
+--                 facets.
+--   jitter = { px, seconds }  shakes in place (a roar).
+--   hold          stays until the number fades; otherwise it lives `life`
+--                 seconds (half the pop's time by default) and fades over
+--                 the last 40% of that.
+--   front         drawn over the number.
+local REVEAL = { up = true, down = true, right = true, left = true }
+local function animatePiece(tex, d, t, p)
+    local k0 = t - (d.delay or 0)
+    if k0 < 0 then tex:SetAlpha(0); return end
+    local life = d.hold and p.dur or (d.life or p.dur * 0.55)
+    local k = min(1, k0 / max(0.05, life))
+    local move = d.move or 0.15
+    local m = min(1, k0 / move)
+    local e = d.ease == "in" and m * m or d.ease == "linear" and m or 1 - (1 - m) * (1 - m) * (1 - m)
+    local x1, y1 = d.x or 0, d.y or 0
+    local from = d.from or EMPTY
+    local x = (from[1] or x1) + (x1 - (from[1] or x1)) * e
+    local y = (from[2] or y1) + (y1 - (from[2] or y1)) * e
+    local r0, r1 = d.fromRot or d.rot or 0, d.rot or 0
+    local rot = r0 + (r1 - r0) * e + (d.spin or 0) * k0
+    if d.wobble and k0 > move then
+        local w = k0 - move
+        rot = rot + d.wobble[1] * sin(w * (d.wobble[2] or 40)) * exp(-w * (d.wobble[3] or 5))
+    end
+    if d.flap then rot = rot + d.flap[1] * sin(k0 * (d.flap[2] or 8)) end
+    if d.jitter and k0 < (d.jitter[2] or 0.4) then
+        x, y = x + (random() - 0.5) * 2 * d.jitter[1], y + (random() - 0.5) * 2 * d.jitter[1]
+    end
+
+    local a = (d.alpha or 1) * min(1, k0 / FADE_IN)
+    if not d.hold and k > 0.6 then
+        local q = (k - 0.6) / 0.4
+        a = a * (1 - q * q * (3 - 2 * q))
+    end
+    if d.flicker then a = a * (0.25 + 0.75 * random()) end
+    tex:SetAlpha(max(0, min(1, a)))
+
+    local w, h = sizeOf(d.size or 64)
+    local g = 1 + (d.grow or 0) * (1 - (1 - k) * (1 - k))
+    if d.snap then
+        local snapTime = d.snapTime or 0.15
+        if k0 < snapTime then
+            local q = 1 - k0 / snapTime
+            g = g * (1 + (d.snap - 1) * q * q)
+        end
+    end
+    w, h = w * g, h * g
+    local tw = d.turn and max(0.12, math.abs(cos(k0 * d.turn))) or 1
+
+    -- Rotation about the pivot: the texture's center sits off it.
+    if d.pivot then
+        local px, py = d.pivot[1] * g, d.pivot[2] * g
+        local c, s = cos(rot), sin(rot)
+        x, y = x - (px * c - py * s), y - (px * s + py * c)
+    end
+
+    if tex.SetRotation then tex:SetRotation(rot) end
+    local rv = d.reveal and REVEAL[d.reveal] and d.reveal
+    if rv then
+        local r = max(0.01, e)
+        if rv == "down" then
+            tex:SetTexCoord(0, 1, 0, r); y = y + h * (1 - r) / 2; h = h * r
+        elseif rv == "up" then
+            tex:SetTexCoord(0, 1, 1 - r, 1); y = y - h * (1 - r) / 2; h = h * r
+        elseif rv == "right" then
+            tex:SetTexCoord(0, r, 0, 1); x = x - w * (1 - r) / 2; w = w * r
+        else
+            tex:SetTexCoord(1 - r, 1, 0, 1); x = x + w * (1 - r) / 2; w = w * r
+        end
+    end
+    tex:SetSize(max(0.1, w * tw), max(0.1, h))
+    tex:ClearAllPoints()
+    tex:SetPoint("CENTER", tex:GetParent(), "CENTER", x, y)
+end
+
 -- Advances one pop by dt seconds; false once it's done.
 function Engine.Step(p, dt)
     local t = p.t + dt
@@ -744,8 +862,9 @@ function Engine.Step(p, dt)
 
     -- Position (+ crit shake).
     local x, y = p.ox + p.mx, p.oy + p.my
-    if p.shake and t < 0.25 then
-        local k = p.shake * (1 - t / 0.25)
+    local st = t - (p.skin.shakeAt or 0)   -- shakeAt: a jolt on impact, not at once
+    if p.shake and st >= 0 and st < 0.25 then
+        local k = p.shake * (1 - st / 0.25)
         x, y = x + (random() - 0.5) * 2 * k, y + (random() - 0.5) * 2 * k
     end
     p:ClearAllPoints()
@@ -757,6 +876,11 @@ function Engine.Step(p, dt)
     animateTexture(p.burst2, p.burst2Def, t, p.dur * 0.55, p.burst2Rot or 0)
     animateTexture(p.ring, p.ringDef, t, p.dur * 0.45, 0)
     animateTexture(p.glow, p.glowDef, t, p.dur * 0.7, 0)
+    if p.pieceDefs then
+        for i, d in ipairs(p.pieceDefs) do
+            animatePiece(d.front and p.frontPieces[i] or p.pieces[i], d, t, p)
+        end
+    end
 
     -- Particles fly from where the number spawned, not with it.
     for _, part in ipairs(p.parts) do
@@ -765,6 +889,8 @@ function Engine.Step(p, dt)
             if part.t >= part.life then
                 part.alive = false
                 part.tex:Hide()
+            elseif part.t < 0 then
+                part.tex:SetAlpha(0)
             else
                 if part.drag > 0 then
                     local damp = exp(-part.drag * dt)

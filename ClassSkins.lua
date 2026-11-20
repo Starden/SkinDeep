@@ -56,7 +56,10 @@ add("paladin", {
 
 add("hunter", {
     group = "class", class = "HUNTER",
-    name = "Dead Eye", tagline = "Hunter: numbers fly in like arrows; crits snap a crosshair onto the target.",
+    name = "Dead Eye", tagline = "Hunter: numbers fly in like arrows; crits streak in on a speed trail and snap a crosshair onto the target.",
+    critPieces = {
+        { tex = "speedlines", size = { 90, 40 }, x = -62, from = { -14, 0 }, move = 0.22, life = 0.45, color = { 0.8, 0.95, 0.6 }, alpha = 0.8 },
+    },
     font = F.friz, size = 24, outline = "OUTLINE",
     color = { 0.67, 0.83, 0.45 },
     physColor = { 0.9, 0.96, 0.8 }, spellColor = { 0.58, 0.85, 0.32 },  -- pale green / hunter green
@@ -70,7 +73,6 @@ add("hunter", {
     critDecor = { tex = "reticle", size = 80, color = { 1, 0.25, 0.2 }, alpha = 1,
                   snap = 2.2, snapTime = 0.15, unwind = 1.6 },
     world = { floatingCombatTextCombatDamageDirectionalScale = 1.5 },
-    ring = { size = 50, color = { 1, 0.35, 0.3 }, grow = 1.8, alpha = 0.8 },
     particles = { tex = "spark", count = 0, critCount = 8, size = { 3, 6 }, speed = { 60, 140 }, dir = { 0, 360 },
                   gravity = 0, life = { 0.3, 0.6 }, color = { 1, 0.85, 0.6 } },
 })
@@ -111,12 +113,15 @@ add("priest", {
                   dir = { 0, 360 }, gravity = -30, life = { 0.8, 1.3 }, spin = 2, color = { 1, 1, 1 }, blend = "BLEND" },
     world = { WorldTextRampDuration = 1.4 },
     critDecor2 = { tex = "beam", size = { 50, 160 }, y = 60, color = { 1, 0.97, 0.8 }, alpha = 0.5, snap = 0.3, snapTime = 0.2 },
-    ring = { size = 60, color = { 1, 1, 0.85 }, grow = 1.4, alpha = 0.6 },
 })
 
 add("shaman", {
     group = "class", class = "SHAMAN",
-    name = "Stormcall", tagline = "Shaman: crystal numbers crackle upward; crits fork chain lightning.",
+    name = "Stormcall", tagline = "Shaman: crystal numbers crackle upward; crits fork chain lightning that jumps out to both sides.",
+    critPieces = {
+        { tex = "bolt", size = { 18, 64 }, x = -44, y = 4, rot = 1.25, delay = 0.06, life = 0.3, flicker = true, color = { 0.6, 0.82, 1 } },
+        { tex = "bolt", size = { 18, 64 }, x = 46, y = -2, rot = -1.3, delay = 0.12, life = 0.3, flicker = true, color = { 0.6, 0.82, 1 } },
+    },
     font = F.shard, size = 28, outline = "OUTLINE",
     color = { 0, 0.44, 0.87 },
     physColor = { 0.86, 0.93, 1 }, spellColor = { 0.3, 0.62, 1 },     -- ice white / storm blue
@@ -125,7 +130,6 @@ add("shaman", {
     dur = 1.0, critDur = 1.3, critScale = 1.5, pop = 0.2,
     decor = { tex = "bolt", size = { 14, 48 }, color = { 0.55, 0.8, 1 }, alpha = 0.8, flicker = true, randomRot = true },
     critDecor = { tex = "bolt", size = { 26, 100 }, color = { 0.45, 0.7, 1 }, alpha = 0.8, flicker = true, randomRot = true },
-    ring = { size = 130, color = { 0.4, 0.7, 1 }, grow = 1.3, alpha = 0.9 },
     particles = { tex = "bolt", count = 0, critCount = 6, size = { 30, 44 }, aspect = 0.3, speed = { 140, 220 },
                   dir = { 0, 360 }, orient = true, life = { 0.18, 0.3 }, color = { 0.75, 0.9, 1 } },
     world = { floatingCombatTextCombatDamageDirectionalScale = 1.5 },
@@ -143,7 +147,6 @@ add("mage", {
     },
     motion = "implode", motionArgs = { time = 0.15, rise = 30 },
     dur = 1.15, critDur = 1.45, critScale = 1.5, pop = 0,
-    ring = { size = 60, color = { 1, 0.5, 0.1 }, grow = 2.2, alpha = 1 },
     critDecor = { tex = "ring", size = 60, color = { 0.5, 0.9, 1 }, alpha = 1, grow = 2.2, delay = 0.08 },
     critDecor2 = { tex = "ring", size = 60, color = { 0.85, 0.45, 1 }, alpha = 1, grow = 2.2, delay = 0.16 },
     particles = { tex = "spark", inward = true, count = 6, critCount = 10, radius = { 50, 70 }, size = { 5, 7 },
@@ -165,7 +168,6 @@ add("warlock", {
     critReplacesDecor = true,
     critDecor = { tex = "rune", size = 140, color = { 0.4, 0.95, 0.18 }, alpha = 0.55, spin = -2 },
     critDecor2 = { tex = "burst", size = 130, color = { 0.4, 1, 0.15 }, alpha = 0.6, spin = 1 },
-    ring = { size = 100, color = { 0.6, 0.3, 0.95 }, grow = 1, alpha = 0.9 },
     particles = { tex = "glow", count = 2, critCount = 8, size = { 4, 8 }, speed = { 15, 40 }, dir = { 70, 110 },
                   gravity = 50, life = { 0.6, 1.1 }, color = { 0.5, 1, 0.3 }, sway = true },
     world = { WorldTextGravity = 0.3 },
@@ -186,7 +188,6 @@ add("druid", {
                   dir = { 0, 360 }, gravity = -40, life = { 0.7, 1.2 }, spin = 4,
                   color = { 0.45, 0.8, 0.25 }, altColor = { 1, 0.6, 0.2 }, blend = "BLEND" },
     world = { floatingCombatTextCombatDamageDirectionalScale = 1.3 },
-    ring = { size = 64, color = { 0.55, 0.95, 0.4 }, grow = 1.5, alpha = 0.7 },
     particles2 = { tex = "glow", count = 0, critCount = 8, size = { 3, 5 }, speed = { 15, 45 }, dir = { 0, 360 },
                    gravity = 8, life = { 0.8, 1.4 }, color = { 1, 0.95, 0.55 } },
 })

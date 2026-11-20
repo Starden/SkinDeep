@@ -5,7 +5,7 @@
 local LAYER = { BACKGROUND = 0, BORDER = 1, ARTWORK = 2, OVERLAY = 3, HIGHLIGHT = 4 }
 local base = {}
 for _, k in ipairs({ "CreateTexture", "CreateFontString", "SetDrawLayer", "SetSize", "SetWidth", "SetHeight",
-                     "SetVertexColor", "SetRotation", "SetBlendMode", "SetFont", "SetTextColor", "SetShadowOffset" }) do
+                     "SetVertexColor", "SetRotation", "SetTexCoord", "SetBlendMode", "SetFont", "SetTextColor", "SetShadowOffset" }) do
   base[k] = Widget[k]
 end
 function Widget:CreateTexture(name, layer, tmpl, sub)
@@ -24,6 +24,7 @@ function Widget:SetWidth(w) base.SetWidth(self, w); self.w = w end
 function Widget:SetHeight(h) base.SetHeight(self, h); self.h = h end
 function Widget:SetVertexColor(r, g, b, a) base.SetVertexColor(self, r, g, b, a); self.vc = { r, g, b, a or 1 } end
 function Widget:SetRotation(r) base.SetRotation(self, r); self.rot = r end
+function Widget:SetTexCoord(l, r, t, b) base.SetTexCoord(self, l, r, t, b); self.tc = { l, r, t, b } end
 function Widget:SetBlendMode(m) base.SetBlendMode(self, m); self.blend = m end
 function Widget:SetFont(path, size, flags) local ok = base.SetFont(self, path, size, flags); self.fontSize, self.flags = size, flags or ""; return ok end
 function Widget:SetTextColor(r, g, b, a) base.SetTextColor(self, r, g, b, a); self.color = { r, g, b, a or 1 } end
@@ -86,7 +87,8 @@ local function snapshot()
         if w.kind == "Texture" and w.tex and w.w then
           local c = w.vc or { 1, 1, 1 }
           out[#out + 1] = { 0, r2(x), r2(y), r2(w.w * s), r2((w.h or w.w) * s), r2(a), r2(w.rot or 0),
-                            r2(c[1]), r2(c[2]), r2(c[3]), intern(texs, texIndex, w.tex), w.blend == "BLEND" and 1 or 0, 0, 0, z }
+                            r2(c[1]), r2(c[2]), r2(c[3]), intern(texs, texIndex, w.tex), w.blend == "BLEND" and 1 or 0, 0, 0, z,
+                            w.tc and { r2(w.tc[1]), r2(w.tc[2]), r2(w.tc[3]), r2(w.tc[4]) } or 0 }
         elseif w.kind == "FontString" and w.text and w.text ~= "" and w.fontSize then
           local c = w.color or { 1, 1, 1, 1 }
           local flags = (w.flags or ""):find("THICK") and 2 or ((w.flags or ""):find("OUTLINE") and 1 or 0)

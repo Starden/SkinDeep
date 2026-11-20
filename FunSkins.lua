@@ -20,7 +20,6 @@ add("natural20", {
     decor = { tex = "d20", size = 18, x = 26, y = 8, color = { 0.5, 0.36, 0.9 }, alpha = 0.95, blend = "BLEND", spin = 7 },
     critReplacesDecor = true,
     critDecor = { tex = "d20", size = 44, y = 46, color = GOLD, alpha = 1, blend = "BLEND", snap = 1.8, snapTime = 0.35, unwind = 9 },
-    ring = { size = 60, color = { 1, 0.9, 0.55 }, grow = 1.6, alpha = 0.8 },
     critTitle = { text = "NAT 20!", y = 78, size = 17, font = F.morpheus, pop = 1.5, delay = 0.35,
                   colors = { GOLD, { 1, 1, 1 }, { 0.75, 0.6, 1 } }, shadowColor = { 0.25, 0.15, 0 } },
     particles = { tex = "twinkle", count = 0, critCount = 12, size = { 9, 15 }, speed = { 40, 110 }, dir = { 0, 360 },
@@ -99,7 +98,6 @@ add("graveyard", {
     fadeIn = 0.2, flicker = true,
     dur = 1.3, critDur = 1.7, critScale = 1.5, pop = 0.2,
     decor = { tex = "tombstone", size = { 22, 30 }, y = -26, color = { 0.45, 0.48, 0.55 }, alpha = 0.8, blend = "BLEND" },
-    ring = { size = 60, color = { 0.65, 1, 0.85 }, grow = 1.6, alpha = 0.7 },
     particles = { tex = "puff", count = 0, critCount = 8, size = { 12, 20 }, speed = { 20, 50 }, dir = { 70, 110 },
                   gravity = 10, life = { 0.8, 1.3 }, color = { 0.6, 1, 0.82 }, sway = true },
     critReplacesDecor = true,
@@ -172,7 +170,6 @@ add("sakura", {
     particles = { tex = "petal", count = 4, critCount = 20, size = { 9, 14 }, speed = { 15, 70 }, dir = { 0, 360 },
                   gravity = -18, life = { 0.9, 1.6 }, color = { 1, 0.72, 0.85 }, altColor = { 1, 0.9, 0.95 },
                   blend = "BLEND", spin = 4, sway = true, drag = 1.4, shrink = 0.15 },
-    ring = { size = 56, color = { 1, 0.8, 0.9 }, grow = 1.6, alpha = 0.6 },
     critDecor = { tex = "bloom", size = 90, color = { 1, 0.72, 0.85 }, alpha = 0.7, spin = 0.6, blend = "BLEND", snap = 0.4, snapTime = 0.2 },
 })
 

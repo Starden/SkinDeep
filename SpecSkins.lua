@@ -38,7 +38,7 @@ end
 ---------------------------------------------------------------------------
 variant("warrior_arms", "warrior", "Arms", 1, {
     name = "Mortal Strike", tagline = "Arms: heavy numbers slam down; crits carve a deep red wound that bleeds.",
-    spellColor = { 0.85, 0.15, 0.1 }, shake = 6,
+    spellColor = { 0.85, 0.15, 0.1 }, shake = 6, ring = false,
     critDecor = { tex = "slash", size = { 130, 30 }, rot = -0.5, color = { 0.9, 0.15, 0.1 }, alpha = 1, snap = 0.1, snapTime = 0.08 },
     critDecor2 = { tex = "crack", size = 100, y = -8, color = { 0.5, 0.04, 0.03 }, alpha = 0.85, blend = "BLEND", randomRot = true },
     particles = { tex = "glow", count = 0, critCount = 7, size = { 4, 7 }, speed = { 20, 60 }, dir = { 200, 340 },
@@ -49,11 +49,10 @@ variant("warrior_fury", "warrior", "Fury", 2, {
     physColor = { 1, 0.82, 0.55 }, spellColor = { 1, 0.4, 0.15 },
     layers = { { x = 2, y = -2, color = { 0.5, 0.1, 0.02, 1 } } },
     motion = "zap", motionArgs = { speed = 60, step = 0.03, jolt = 2 },
-    echo = { delay = 0.07 }, shake = 8, dur = 0.95,
+    echo = { delay = 0.07 }, shake = 8, dur = 0.95, ring = false,
     critDecor = { tex = "burst", size = 120, color = { 1, 0.3, 0.1 }, alpha = 0.75, spin = 2 },
     particles = { tex = "flame", count = 0, critCount = 6, size = { 8, 12 }, aspect = 0.5, speed = { 50, 120 }, dir = { 0, 360 },
                   gravity = 0, life = { 0.3, 0.5 }, color = { 1, 0.35, 0.1 }, orient = true },
-    ring = { size = 64, color = { 1, 0.4, 0.15 }, grow = 1.8, alpha = 0.85 },
 })
 variant("warrior_prot", "warrior", "Protection", 3, {
     name = "Shield Wall", tagline = "Protection: numbers bounce off a steel shield; crits ring out in a shockwave.",
@@ -72,7 +71,29 @@ variant("warrior_prot", "warrior", "Protection", 3, {
 -- Paladin (Lightbringer)
 ---------------------------------------------------------------------------
 variant("paladin_holy", "paladin", "Holy", 1, {
-    name = "Radiance", tagline = "Holy: soft golden numbers among rising motes of light; crits bloom in halos.",
+    name = "Radiance", tagline = "Holy: soft golden numbers among rising motes of light; crits send a fan of lights up from them like lanterns.",
+    critPieces = {
+        { tex = "glow", size = 24, x = -46, y = 30, from = { -9, 4 }, move = 0.35, delay = 0.00, hold = true,
+          color = { 1, 0.92, 0.6 } },
+        { tex = "spark", size = 10, x = -46, y = 30, from = { -9, 4 }, move = 0.35, delay = 0.00, hold = true,
+          color = { 1, 1, 0.9 } },
+        { tex = "glow", size = 24, x = -24, y = 46, from = { -5, 4 }, move = 0.35, delay = 0.04, hold = true,
+          color = { 1, 0.92, 0.6 } },
+        { tex = "spark", size = 10, x = -24, y = 46, from = { -5, 4 }, move = 0.35, delay = 0.04, hold = true,
+          color = { 1, 1, 0.9 } },
+        { tex = "glow", size = 24, x = 0, y = 54, from = { 0, 4 }, move = 0.35, delay = 0.08, hold = true,
+          color = { 1, 0.92, 0.6 } },
+        { tex = "spark", size = 10, x = 0, y = 54, from = { 0, 4 }, move = 0.35, delay = 0.08, hold = true,
+          color = { 1, 1, 0.9 } },
+        { tex = "glow", size = 24, x = 24, y = 46, from = { 5, 4 }, move = 0.35, delay = 0.12, hold = true,
+          color = { 1, 0.92, 0.6 } },
+        { tex = "spark", size = 10, x = 24, y = 46, from = { 5, 4 }, move = 0.35, delay = 0.12, hold = true,
+          color = { 1, 1, 0.9 } },
+        { tex = "glow", size = 24, x = 46, y = 30, from = { 9, 4 }, move = 0.35, delay = 0.16, hold = true,
+          color = { 1, 0.92, 0.6 } },
+        { tex = "spark", size = 10, x = 46, y = 30, from = { 9, 4 }, move = 0.35, delay = 0.16, hold = true,
+          color = { 1, 1, 0.9 } },
+    },
     physColor = { 1, 0.98, 0.9 }, spellColor = { 1, 0.9, 0.55 },
     layers = glow({ 1, 0.95, 0.6 }, 0.35),
     motion = "rise", motionArgs = { speed = 30, sway = 4, freq = 2 },
@@ -80,7 +101,6 @@ variant("paladin_holy", "paladin", "Holy", 1, {
     critReplacesDecor = true,
     critDecor = { tex = "burst", size = 110, color = { 1, 0.95, 0.7 }, alpha = 0.5, spin = 0.3 },
     critDecor2 = false,
-    ring = { size = 40, color = { 1, 0.95, 0.6 }, grow = 3, alpha = 0.9 },
     particles = { tex = "glow", count = 2, critCount = 8, size = { 3, 5 }, speed = { 10, 30 }, dir = { 70, 110 },
                   gravity = 20, life = { 0.6, 1.1 }, color = { 1, 0.95, 0.7 } },
 })
@@ -117,17 +137,33 @@ variant("hunter_bm", "hunter", "Beast Mastery", 1, {
     motionArgs = { arrive = true, dist = 60, time = 0.22, rise = 18 }, shake = 3,
     decor = false,
     critDecor = { tex = "claws", size = 118, color = { 1, 0.62, 0.25 }, alpha = 1, snap = 0.1, snapTime = 0.08 },
+    -- The second paw rakes back the other way.
+    critPieces = {
+        { tex = "claws", size = 96, rot = 1.9, delay = 0.12, snap = 0.1, snapTime = 0.08, life = 0.6, color = { 0.9, 0.45, 0.15 } },
+    },
     particles = { tex = "glow", count = 0, critCount = 6, size = { 3, 6 }, speed = { 40, 100 }, dir = { 200, 340 },
                   gravity = -200, life = { 0.4, 0.8 }, color = { 0.6, 0.4, 0.2 }, blend = "BLEND" },
 })
 variant("hunter_mm", "hunter", "Marksmanship", 2, {
-    name = "Bullseye", tagline = "Marksmanship: every shot is sighted; crits land dead center in a red bullseye.",
+    name = "Bullseye", tagline = "Marksmanship: every hit takes an arrow; crits are sighted through a scope and the shot thunks home.",
     physColor = { 0.95, 0.98, 0.9 }, spellColor = { 0.75, 0.9, 0.5 },
-    motionArgs = { arrive = true, dist = 110, time = 0.22, rise = 18 },
-    decor = { tex = "reticle", size = 36, color = { 0.9, 0.95, 0.8 }, alpha = 0.35 },
+    layers = { { x = 2, y = -2, color = { 0.12, 0.16, 0.05, 1 } } },
+    motion = "rise", motionArgs = { speed = 16 },
+    decor = { tex = "arrow", size = { 44, 10 }, x = -30, y = -1, color = { 0.95, 0.85, 0.65 }, alpha = 0.85, blend = "BLEND" },
     critReplacesDecor = true,
-    critDecor = { tex = "reticle", size = 90, color = { 1, 0.2, 0.2 }, alpha = 1, snap = 2.4, snapTime = 0.12 },
-    ring = { size = 30, color = { 1, 0.3, 0.3 }, grow = 2, alpha = 0.9 },
+    critDecor = false, ring = false, shake = 4, shakeAt = 0.21,
+    -- The scope closes in, the arrow flies in from the side and quivers.
+    critPieces = {
+        { tex = "reticle", size = 72, color = { 1, 0.25, 0.2 }, alpha = 0.9, snap = 2.8, snapTime = 0.22, life = 0.75 },
+        { tex = "crack", size = 54, x = -30, delay = 0.21, life = 0.45, color = { 1, 0.92, 0.75 }, alpha = 0.55,
+          snap = 0.3, snapTime = 0.08 },
+        { tex = "arrow", size = { 100, 22 }, x = -30, y = 0, from = { -240, 0 }, pivot = { 48, 0 }, ease = "linear",
+          delay = 0.12, move = 0.09, wobble = { 0.13, 48, 5 }, hold = true, front = true,
+          color = { 0.95, 0.85, 0.65 }, blend = "BLEND" },
+    },
+    particles = { tex = "shard", count = 0, critCount = 6, size = { 4, 7 }, speed = { 40, 100 }, dir = { 120, 240 },
+                  gravity = -260, life = { 0.3, 0.5 }, origin = { -30, 0 }, delay = 0.21, color = { 0.85, 0.7, 0.45 },
+                  blend = "BLEND", spin = 8 },
 })
 variant("hunter_sv", "hunter", "Survival", 3, {
     name = "Trapper", tagline = "Survival: numbers spring the trap; crits snap its jaws shut in a venom cloud.",
@@ -136,6 +172,11 @@ variant("hunter_sv", "hunter", "Survival", 3, {
     motion = "slam", motionArgs = { from = 2, time = 0.14, drift = 18 },
     decor = false,
     critDecor = { tex = "spikes", size = 96, color = { 0.36, 0.34, 0.32 }, alpha = 0.95, blend = "BLEND", snap = 2, snapTime = 0.08 },
+    -- The trap's iron jaws slam shut from either side.
+    critPieces = {
+        { tex = "chevron", size = 46, x = -26, from = { -72, 0 }, rot = -1.5708, move = 0.08, ease = "in", life = 0.6, color = { 0.6, 0.58, 0.55 }, blend = "BLEND" },
+        { tex = "chevron", size = 46, x = 26, from = { 72, 0 }, rot = 1.5708, move = 0.08, ease = "in", life = 0.6, color = { 0.6, 0.58, 0.55 }, blend = "BLEND" },
+    },
     particles = { tex = "puff", count = 0, critCount = 5, size = { 14, 22 }, speed = { 20, 50 }, dir = { 0, 360 },
                   gravity = 5, life = { 0.6, 1.0 }, color = { 0.45, 0.85, 0.25 }, blend = "BLEND" },
     particles2 = { tex = "drop", count = 0, critCount = 6, size = { 5, 8 }, aspect = 0.6, speed = { 40, 90 }, dir = { 30, 150 },
@@ -146,15 +187,20 @@ variant("hunter_sv", "hunter", "Survival", 3, {
 -- Rogue (Cutthroat)
 ---------------------------------------------------------------------------
 variant("rogue_assa", "rogue", "Assassination", 1, {
-    name = "Venom", tagline = "Assassination: numbers drip poison; crits slash a green X through a toxic cloud.",
+    name = "Venom", tagline = "Assassination: numbers ooze downward, dripping poison; crits splash a toxic pool and boil with bubbles.",
     physColor = { 0.9, 1, 0.75 }, spellColor = { 0.35, 1, 0.25 },
     layers = { { x = 2, y = -2, color = { 0.05, 0.25, 0.02, 1 } } },
-    critDecor = { tex = "slash", size = { 150, 36 }, rot = 0.65, color = { 0.4, 1, 0.3 }, alpha = 1, snap = 0.1, snapTime = 0.08 },
-    critDecor2 = { tex = "slash", size = { 150, 36 }, rot = -0.65, color = { 0.4, 1, 0.3 }, alpha = 1, snap = 0.1, snapTime = 0.08 },
-    particles = { tex = "drop", count = 1, critCount = 7, size = { 6, 9 }, aspect = 0.5, speed = { 20, 60 }, dir = { 200, 340 },
-                  gravity = -300, life = { 0.5, 0.9 }, color = { 0.35, 0.95, 0.25 } },
-    particles2 = { tex = "puff", count = 0, critCount = 3, size = { 30, 44 }, speed = { 10, 30 }, dir = { 0, 360 },
-                   gravity = 0, life = { 0.6, 1.0 }, color = { 0.3, 0.75, 0.2 }, blend = "BLEND" },
+    -- It sinks instead of rising: a beat in place, then a slow ooze down.
+    motion = "drip", motionArgs = { hold = 0.2, speed = 12, accel = 60 }, shake = 0,
+    critDecor = { tex = "splat", size = { 120, 70 }, y = -6, color = { 0.25, 0.75, 0.15 }, alpha = 0.8, blend = "BLEND",
+                  randomRot = false, snap = 0.3, snapTime = 0.14 },
+    critDecor2 = false,
+    particles = { tex = "drop", count = 1, critCount = 7, size = { 10, 15 }, aspect = 0.55, speed = { 0, 12 }, dir = { 265, 275 },
+                  gravity = -240, drag = 0, life = { 0.5, 0.9 }, origin = { 0, -10 }, spread = { 64, 4 }, delay = { 0.08, 0.6 },
+                  color = { 0.35, 0.95, 0.25 }, blend = "BLEND" },
+    particles2 = { tex = "bubble", count = 0, critCount = 8, size = { 9, 15 }, speed = { 18, 36 }, dir = { 80, 100 },
+                   gravity = 10, sway = true, life = { 0.45, 0.8 }, spread = { 90, 16 }, delay = { 0, 0.5 },
+                   color = { 0.6, 1, 0.45 } },
 })
 variant("rogue_combat", "rogue", "Combat", 2, {
     name = "Blade Flurry", tagline = "Combat: numbers dash in with a blur of steel; crits flash a flurry of slashes.",
@@ -193,11 +239,20 @@ variant("priest_disc", "priest", "Discipline", 1, {
     particles = false,
 })
 variant("priest_holy", "priest", "Holy", 2, {
-    name = "Seraph", tagline = "Holy: haloed numbers float on feathers; crits call down a beam of light.",
+    name = "Seraph", tagline = "Holy: numbers drift down on loose feathers; crits spread a pair of wings.",
     physColor = { 1, 1, 1 }, spellColor = { 1, 0.95, 0.7 },
-    critDecor2 = { tex = "beam", size = { 60, 240 }, y = 40, color = { 1, 1, 0.85 }, alpha = 0.8 },
-    particles = { tex = "feather", count = 0, critCount = 6, size = { 12, 18 }, aspect = 0.5, speed = { 10, 30 },
-                  dir = { 0, 360 }, gravity = -30, life = { 0.8, 1.3 }, spin = 2, color = { 1, 1, 1 }, blend = "BLEND" },
+    motion = "rise", motionArgs = { speed = 22, sway = 3, freq = 2 },
+    decor = false, critDecor = false, critDecor2 = false, ring = false,
+    -- The wings turn open on their shoulders, then beat slowly.
+    critPieces = {
+        { tex = "wingleft", size = 66, x = -8, y = 6, pivot = { 28, -10 }, fromRot = 1.15, rot = 0, move = 0.32,
+          flap = { 0.07, 6 }, hold = true, color = { 1, 0.97, 0.86 }, alpha = 0.88 },
+        { tex = "wingright", size = 66, x = 8, y = 6, pivot = { -28, -10 }, fromRot = -1.15, rot = 0, move = 0.32,
+          flap = { -0.07, 6 }, hold = true, color = { 1, 0.97, 0.86 }, alpha = 0.88 },
+    },
+    particles = { tex = "feather", count = 1, critCount = 7, size = { 12, 18 }, aspect = 0.5, speed = { 4, 16 },
+                  dir = { 250, 290 }, gravity = -22, sway = true, origin = { 0, 22 }, spread = { 110, 12 },
+                  delay = { 0.15, 0.6 }, life = { 0.9, 1.3 }, spin = 2, color = { 1, 0.98, 0.9 }, blend = "BLEND" },
 })
 variant("priest_shadow", "priest", "Shadow", 3, {
     name = "Mind Flay", tagline = "Shadow: flickering numbers drift under a void eye; crits ripple into darkness.",
@@ -206,7 +261,6 @@ variant("priest_shadow", "priest", "Shadow", 3, {
     motion = "rise", motionArgs = { speed = 24, sway = 8, freq = 3 },
     decor = { tex = "eye", size = { 40, 20 }, color = { 0.5, 0.2, 0.85 }, alpha = 0.25, blend = "BLEND", y = 0 },
     critDecor = { tex = "eye", size = { 90, 45 }, color = { 0.5, 0.2, 0.85 }, alpha = 0.65, blend = "BLEND", y = 0, snap = 0.3, snapTime = 0.12 },
-    ring = { size = 40, color = { 0.45, 0.15, 0.75 }, grow = 3, alpha = 0.85 },
     particles = { tex = "puff", count = 1, critCount = 5, size = { 12, 20 }, speed = { 10, 30 }, dir = { 60, 120 },
                   gravity = 10, life = { 0.6, 1.1 }, color = { 0.25, 0.08, 0.35 }, blend = "BLEND" },
 })
@@ -215,13 +269,26 @@ variant("priest_shadow", "priest", "Shadow", 3, {
 -- Shaman (Stormcall)
 ---------------------------------------------------------------------------
 variant("shaman_ele", "shaman", "Elemental", 1, {
-    name = "Thunderhead", tagline = "Elemental: storm clouds and forking lightning; crits split the sky.",
+    name = "Thunderhead", tagline = "Elemental: numbers rumble under a small storm cloud; crits gather a thunderhead that strikes them.",
     physColor = { 0.9, 0.95, 1 }, spellColor = { 0.55, 0.75, 1 },
-    decor = { tex = "bolt", size = { 16, 56 }, color = { 0.8, 0.9, 1 }, alpha = 0.9, flicker = true, randomRot = true },
-    critDecor = { tex = "bolt", size = { 30, 120 }, color = { 0.55, 0.75, 1 }, alpha = 0.85, flicker = true, randomRot = true },
-    ring = { size = 150, color = { 0.6, 0.8, 1 }, grow = 1.4, alpha = 0.9 },
-    particles2 = { tex = "puff", count = 0, critCount = 3, size = { 30, 40 }, speed = { 10, 25 }, dir = { 60, 120 },
-                   gravity = 0, life = { 0.8, 1.2 }, color = { 0.35, 0.38, 0.45 }, blend = "BLEND" },
+    motion = "zap", motionArgs = { speed = 22, step = 0.09, jolt = 3 },
+    decor = { tex = "cloud", size = { 46, 22 }, y = 22, color = { 0.42, 0.46, 0.56 }, alpha = 0.75, blend = "BLEND" },
+    critReplacesDecor = true,
+    critDecor = false, ring = false, shake = 5, shakeAt = 0.17,
+    -- The cloud gathers, one bolt forks down into the number, rain follows.
+    critPieces = {
+        { tex = "glow", size = { 230, 150 }, y = 20, delay = 0.16, life = 0.14, color = { 0.7, 0.82, 1 }, alpha = 0.45 },
+        { tex = "cloud", size = { 124, 58 }, y = 50, from = { 0, 60 }, move = 0.18, snap = 0.45, snapTime = 0.18,
+          hold = true, color = { 0.34, 0.37, 0.46 }, alpha = 0.95, blend = "BLEND" },
+        { tex = "bolt", size = { 28, 72 }, y = 16, delay = 0.16, life = 0.32, flicker = true, color = { 0.78, 0.9, 1 },
+          snap = 0.5, snapTime = 0.05 },
+        { tex = "bolt", size = { 16, 40 }, x = 16, y = 28, rot = 0.6, delay = 0.19, life = 0.24, flicker = true,
+          color = { 0.6, 0.78, 1 } },
+    },
+    particles = { tex = "pixel", count = 0, critCount = 16, size = { 11, 15 }, aspect = 0.12, speed = { 170, 230 },
+                  dir = { 262, 272 }, gravity = -60, drag = 0, orient = true, life = { 0.22, 0.34 }, origin = { 0, 40 },
+                  spread = { 96, 8 }, delay = { 0.2, 0.8 }, color = { 0.62, 0.74, 0.92 }, blend = "BLEND" },
+    particles2 = false,
 })
 variant("shaman_enh", "shaman", "Enhancement", 2, {
     name = "Stormstrike", tagline = "Enhancement: twin electrified strikes; crits cross two charged slashes.",
@@ -265,7 +332,6 @@ variant("mage_fire", "mage", "Fire", 2, {
     layers = { { x = 1, y = 1, color = { 0.6, 0.15, 0, 0.6 } }, { x = -1, y = -1, color = { 0.6, 0.15, 0, 0.6 } } },
     critDecor = { tex = "burst", size = 130, color = { 1, 0.5, 0.1 }, alpha = 0.8, spin = 1 },
     critDecor2 = false,
-    ring = { size = 60, color = { 1, 0.6, 0.2 }, grow = 1.6, alpha = 0.9 },
     particles = { tex = "spark", inward = true, count = 6, critCount = 10, radius = { 50, 70 }, size = { 5, 7 },
                   life = { 0.15, 0.15 }, color = { 1, 0.6, 0.2 } },
     particles2 = { tex = "flame", count = 2, critCount = 12, size = { 8, 14 }, aspect = 0.5, speed = { 40, 120 }, dir = { 50, 130 },
@@ -279,7 +345,6 @@ variant("mage_frost", "mage", "Frost", 3, {
     -- The spike itself: a tall ice shard striking from above.
     critDecor = { tex = "shard", size = { 26, 72 }, y = 50, color = { 0.72, 0.93, 1 }, alpha = 0.95, snap = 1.8, snapTime = 0.1 },
     critDecor2 = { tex = "snowflake", size = 70, color = { 0.8, 0.95, 1 }, alpha = 0.55, spin = 1.2 },
-    ring = { size = 60, color = { 0.7, 0.92, 1 }, grow = 2, alpha = 0.9 },
     particles = { tex = "shard", count = 0, critCount = 9, size = { 10, 16 }, speed = { 90, 160 }, dir = { 0, 360 },
                   gravity = -220, life = { 0.4, 0.8 }, color = { 0.75, 0.95, 1 }, spin = 6 },
 })
@@ -294,7 +359,6 @@ variant("warlock_aff", "warlock", "Affliction", 1, {
     motion = "drip", motionArgs = { hold = 0.25, speed = 20, accel = 60 }, flicker = false,
     decor = false,
     critDecor2 = { tex = "puff", size = 92, y = 8, color = { 0.45, 0.75, 0.3 }, alpha = 0.55, blend = "BLEND", grow = 0.8, spin = 0.3 },
-    ring = { size = 56, color = { 0.6, 0.9, 0.4 }, grow = 1.5, alpha = 0.7 },
     critDecor = { tex = "skull", size = 44, y = 28, color = { 0.75, 0.65, 0.95 }, alpha = 0.9, blend = "BLEND", snap = 1.4, snapTime = 0.1 },
     particles = { tex = "puff", count = 1, critCount = 5, size = { 12, 20 }, speed = { 5, 20 }, dir = { 60, 120 },
                   gravity = 15, life = { 0.7, 1.2 }, color = { 0.3, 0.12, 0.4 }, blend = "BLEND" },
@@ -354,18 +418,32 @@ variant("druid_guardian", "druid", "Guardian", 2, {
     decor = { tex = "bark", size = 36, y = 20, color = { 0.55, 0.38, 0.2 }, alpha = 0.6, blend = "BLEND" },
     critReplacesDecor = true,
     critDecor = { tex = "bark", size = 56, y = 20, color = { 0.6, 0.42, 0.22 }, alpha = 0.95, blend = "BLEND", snap = 1.4, snapTime = 0.1 },
-    ring = { size = 60, color = { 0.75, 0.6, 0.35 }, grow = 1.6, alpha = 0.9 },
-    particles = false,
+    -- Thorns spring out of the bark, and splinters fly.
+    critDecor2 = { tex = "spikes", size = 92, y = 20, color = { 0.42, 0.3, 0.14 }, alpha = 0.9, blend = "BLEND", snap = 0.3, snapTime = 0.12, delay = 0.06 },
+    particles = { tex = "shard", count = 0, critCount = 8, size = { 5, 9 }, speed = { 60, 130 }, dir = { 0, 360 },
+                  gravity = -300, life = { 0.35, 0.6 }, origin = { 0, 20 }, spin = 8, color = { 0.55, 0.38, 0.2 }, blend = "BLEND" },
 })
 variant("druid_resto", "druid", "Restoration", 3, {
-    name = "Lifebloom", tagline = "Restoration: numbers drift up among opening flowers; crits bloom in full.",
+    name = "Lifebloom", tagline = "Restoration: numbers drift up on motes of life; crits grow vines around them that flower.",
     physColor = { 0.95, 1, 0.9 }, spellColor = { 0.45, 1, 0.55 },
     layers = glow({ 0.5, 1, 0.5 }, 0.3),
-    motion = "rise", motionArgs = { speed = 28, sway = 10, freq = 2.5 },
-    decor = { tex = "bloom", size = 40, color = { 0.5, 0.95, 0.5 }, alpha = 0.3, spin = 1, blend = "BLEND" },
+    motion = "rise", motionArgs = { speed = 20, sway = 4, freq = 2 },
+    decor = { tex = "sprout", size = 22, y = -16, color = { 0.5, 0.9, 0.4 }, alpha = 0.6, blend = "BLEND" },
     critReplacesDecor = true,
-    critDecor = { tex = "bloom", size = 110, color = { 0.55, 1, 0.5 }, alpha = 0.85, spin = 0.6, blend = "BLEND", snap = 0.05, snapTime = 0.25 },
-    ring = { size = 40, color = { 0.6, 1, 0.6 }, grow = 2.5, alpha = 0.7 },
-    particles = { tex = "leaf", count = 2, critCount = 9, size = { 8, 12 }, aspect = 0.5, speed = { 15, 50 }, dir = { 0, 360 },
-                  gravity = -30, life = { 0.7, 1.2 }, spin = 4, color = { 0.5, 0.95, 0.4 }, blend = "BLEND" },
+    critDecor = false, ring = false,
+    -- Two vines climb up either side and curl; a flower opens at each tip.
+    critPieces = {
+        { tex = "vineleft", size = { 50, 100 }, x = -40, y = 2, reveal = "up", move = 0.45, hold = true,
+          color = { 0.4, 0.78, 0.3 }, alpha = 0.95, blend = "BLEND" },
+        { tex = "vineright", size = { 50, 100 }, x = 40, y = 2, reveal = "up", move = 0.45, hold = true,
+          color = { 0.4, 0.78, 0.3 }, alpha = 0.95, blend = "BLEND" },
+        { tex = "bloom", size = 26, x = -57, y = 21, delay = 0.4, snap = 0.1, snapTime = 0.25, spin = 0.8, hold = true,
+          color = { 1, 0.78, 0.9 }, blend = "BLEND" },
+        { tex = "bloom", size = 26, x = 57, y = 21, delay = 0.46, snap = 0.1, snapTime = 0.25, spin = -0.8, hold = true,
+          color = { 1, 0.78, 0.9 }, blend = "BLEND" },
+    },
+    particles = { tex = "glow", count = 1, critCount = 10, size = { 3, 6 }, speed = { 18, 40 }, dir = { 80, 100 },
+                  gravity = 6, sway = true, life = { 0.8, 1.3 }, spread = { 80, 16 }, delay = { 0, 0.4 },
+                  color = { 0.75, 1, 0.6 } },
+    particles2 = false,
 })
