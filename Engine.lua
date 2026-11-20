@@ -11,12 +11,13 @@ local Engine = {}
 ns.Engine = Engine
 
 local TEX = "Interface\\AddOns\\SkinDeep\\Media\\Textures\\"
-local MAX_POPS, MAX_LAYERS, MAX_PARTS = 40, 5, 12
+local MAX_POPS, MAX_LAYERS, MAX_PARTS = 40, 5, 24
 local FADE_IN = 0.05
 local POP_TIME = 0.12
+local FLASH_TIME = 0.12   -- a crit's number flashes toward white as it lands
 
 local random, sin, cos, floor, min, max, rad = math.random, math.sin, math.cos, math.floor, math.min, math.max, math.rad
-local pi, atan2 = math.pi, math.atan2 or math.atan
+local pi, atan2, exp = math.pi, math.atan2 or math.atan, math.exp
 local tremove, tinsert = table.remove, table.insert
 
 local WHITE = { 1, 1, 1 }
@@ -64,6 +65,13 @@ MOTIONS.rise = {
     update = function(p, t, dt, a)
         p.mx = (a.sway or 0) * sin(t * (a.freq or 5) + p.phase)
         p.my = (a.speed or 60) * t
+    end,
+}
+
+-- Rises while bobbing up and down (a float on the water).
+MOTIONS.bob = {
+    update = function(p, t, dt, a)
+        p.my = (a.speed or 24) * t + (a.amp or 4) * sin(t * (a.freq or 8) + p.phase)
     end,
 }
 
@@ -187,6 +195,34 @@ MOTIONS.implode = {
     end,
 }
 
+-- Rises in a few measured steps, each one stamped with a little pulse.
+MOTIONS.march = {
+    update = function(p, t, dt, a)
+        local stepTime, steps = a.stepTime or 0.22, a.steps or 3
+        local step = min(steps, floor(t / stepTime))
+        p.my = step * (a.px or 14) + (step >= steps and (t - steps * stepTime) * (a.drift or 10) or 0)
+        local k = (t % stepTime) / stepTime
+        p.ms = step < steps and 1 + (a.pulse or 0.12) * max(0, 1 - k * 4) or 1
+    end,
+}
+
+-- Rises with a lurching side-to-side stagger.
+MOTIONS.lurch = {
+    update = function(p, t, dt, a)
+        local side = floor(t / (a.period or 0.16)) % 2 == 0 and -1 or 1
+        p.mx = side * (a.amp or 6) * p.dir
+        p.my = (a.speed or 22) * t
+    end,
+}
+
+-- Pops up from below, then rises.
+MOTIONS.sneak = {
+    update = function(p, t, dt, a)
+        local rise = a.rise or 0.1
+        p.my = t < rise and -(a.from or 16) * (1 - t / rise) or (a.speed or 28) * (t - rise)
+    end,
+}
+
 Engine.MOTIONS = MOTIONS
 
 ---------------------------------------------------------------------------
@@ -225,6 +261,27 @@ local function hideTextures(p)
     p.decor:Hide(); p.burst:Hide(); p.burst2:Hide(); p.ring:Hide()
     for _, part in ipairs(p.parts) do part.tex:Hide(); part.alive = false end
     for _, c in pairs(p.containers) do c:Hide() end
+end
+
+-- The crit title's widgets: an unscaled holder at the title's offset, and a
+-- frame centered on it that scales on its own (an offset on a scaled frame
+-- would scale too).
+function Engine.TitleKit(p)
+    local c = Engine.Container(p, "critTitle", true)
+    if not c.frame then
+        c.holder = CreateFrame("Frame", nil, c)
+        c.holder:SetSize(1, 1)
+        c.frame = CreateFrame("Frame", nil, c.holder)
+        c.frame:SetSize(1, 1)
+        c.frame:SetPoint("CENTER")
+        c.shadow = c.frame:CreateFontString(nil, "OVERLAY")
+        c.shadow:SetDrawLayer("OVERLAY", 1)
+        c.shadow:SetPoint("CENTER", c.frame, "CENTER", 2, -2)
+        c.text = c.frame:CreateFontString(nil, "OVERLAY")
+        c.text:SetDrawLayer("OVERLAY", 2)
+        c.text:SetPoint("CENTER", c.frame, "CENTER", 0, 0)
+    end
+    return c
 end
 
 -- A frame a skin can build its own widgets in, kept with the pop and
@@ -272,8 +329,11 @@ end
 
 -- dir: the pop's motion direction (-1/1); d.trail puts the texture's x
 -- offset behind the motion (an arrow streak).
+-- d.file is one of the game's own textures (the faction crests); if the
+-- client can't load it, d.tex (SkinDeep's own) stands in.
 local function setupTexture(tex, d, rotation, dir)
-    tex:SetTexture(TEX .. d.tex .. ".tga")
+    local ok = d.file and tex:SetTexture(d.file)
+    if not ok then tex:SetTexture(TEX .. d.tex .. ".tga") end
     tex:SetBlendMode(d.blend or "ADD")
     local c = d.color or WHITE
     tex:SetVertexColor(c[1], c[2], c[3])
@@ -325,10 +385,14 @@ local function laneOffset(anchor, step)
     return ((lane.n - 1) % 4) * (step or 16)
 end
 
-local function spawnParticles(p, pd, crit, color)
+-- Fills particle slots from `first` on; returns the next free slot, so a
+-- second system (skin.particles2) can follow the first. Unused slots were
+-- already hidden by hideTextures.
+local function spawnParticles(p, pd, crit, color, first)
+    first = first or 1
     local count = crit and (pd.critCount or pd.count or 0) or (pd.count or 0)
-    count = min(count, MAX_PARTS)
-    for i = 1, count do
+    count = min(count, MAX_PARTS - first + 1)
+    for i = first, first + count - 1 do
         local part = p.parts[i]
         if not part then
             part = { tex = p:CreateTexture(nil, "OVERLAY") }
@@ -344,6 +408,10 @@ local function spawnParticles(p, pd, crit, color)
         local size = rr(pd.size or { 4, 8 })
         local aspect = pd.aspect or (pd.tex == "shard" and 0.5) or 1
         tex:SetSize(size * aspect, size)
+        part.w, part.h = size * aspect, size
+        -- Sparks slow as they fly (drag) and shrink as they fade.
+        part.drag = pd.inward and 0 or (pd.drag or 0.9)
+        part.shrink = pd.shrink or 0.35
         local angle = rad(rr(pd.dir or { 0, 360 }))
         part.t, part.life = 0, rr(pd.life or { 0.4, 0.8 })
         if pd.inward then
@@ -365,13 +433,13 @@ local function spawnParticles(p, pd, crit, color)
         part.alive = true
         tex:Show()
     end
-    for i = count + 1, #p.parts do p.parts[i].alive = false; p.parts[i].tex:Hide() end
+    return first + count
 end
 
 function Engine.Spawn(e)
     local db = ns.db
     if not db then return end
-    local skin = (e.skin and ns.Skins[e.skin]) or ns.CurrentSkin()
+    local skin = (e.skin and ns.TierSkin(ns.Skins[e.skin], e.tier)) or ns.CurrentSkin()
     if #active >= MAX_POPS then release(1) end
     local p = tremove(free) or newPop()
 
@@ -382,9 +450,12 @@ function Engine.Spawn(e)
     p.motion = MOTIONS[skin.motion] or MOTIONS.rise
     p.dur = (crit and skin.critDur or skin.dur) or 1.1
     p.fade = skin.fade or 0.35
+    p.fadeIn = skin.fadeIn or FADE_IN          -- a slow fade-in (numbers out of shadow)
+    p.alphaMul = e.echo and 0.85 or 1
     p.pop = skin.pop or 0.3
     p.base = (db.scale or 1) * (inc and 0.8 or 1) * (crit and (skin.critScale or 1.5) or 1)
     p.shake = crit and skin.shake or nil
+    p.drum = crit and skin.drum or nil
     p.t, p.mx, p.my, p.ms = 0, 0, 0, 1
     p.dir = e.dir or (random() < 0.5 and -1 or 1)
     p.phase = random() * 6.28
@@ -393,6 +464,7 @@ function Engine.Spawn(e)
     -- Crit color flashing is part of a skin's own palette only.
     p.cycle = crit and (db.colorScheme or "skin") == "skin" and skin.critCycle or nil
     p.cyclePeriod = skin.cyclePeriod or 0.08
+    p.flash = crit and not skin.ownText and not skin.noFlash and e.kind ~= "word" or nil
 
     -- Where: anchor + origin. Origins jitter a little and stack per anchor.
     p.anchor = e.anchor or UIParent
@@ -400,6 +472,11 @@ function Engine.Spawn(e)
     p.ax, p.ay = e.ax or 0, e.ay or 0
     p.ox = (random() - 0.5) * 30
     p.oy = laneOffset(p.anchor, skin.laneStep)
+    if e.echo then
+        -- An echo sits just beside the hit it repeats.
+        p.ox, p.oy = (e.echoX or 0) + 30 * p.dir, (e.echoY or 0) - 20
+        p.base = p.base * 0.8
+    end
     p:SetFrameStrata(e.strata or "LOW")
 
     -- Text and its layers (skins with ownText draw their own).
@@ -443,7 +520,7 @@ function Engine.Spawn(e)
     -- Decor, bursts, rings, particles.
     hideTextures(p)
     p.decorDef, p.burstDef, p.burst2Def, p.ringDef = nil, nil, nil, nil
-    if db.effects and e.kind ~= "word" then
+    if db.effects and e.kind ~= "word" and not e.echo then
         -- critReplacesDecor: a crit swaps the everyday decor for its own.
         if skin.decor and not (crit and skin.critReplacesDecor) then
             p.decorDef = skin.decor
@@ -465,12 +542,44 @@ function Engine.Spawn(e)
                           grow = skin.ring.grow, blend = "ADD" }
             setupTexture(p.ring, p.ringDef, 0)
         end
-        if skin.particles then spawnParticles(p, skin.particles, crit, color) end
+        local slot = 1
+        if skin.particles then slot = spawnParticles(p, skin.particles, crit, color, slot) end
+        if skin.particles2 then spawnParticles(p, skin.particles2, crit, color, slot) end
+    end
+
+    -- Crit title: a banner word above the number ("GRAND MARSHAL").
+    p.titleDef = nil
+    if crit and skin.critTitle and e.kind == "dmg" then
+        local d, c = skin.critTitle, Engine.TitleKit(p)
+        c.holder:ClearAllPoints()
+        c.holder:SetPoint("CENTER", c, "CENTER", d.x or 0, d.y or 44)
+        for _, fs in ipairs({ c.shadow, c.text }) do
+            setFont(fs, d.font or ns.Fonts.friz, d.size or 18, "THICKOUTLINE")
+            fs:SetText(d.text)
+        end
+        local sc = d.shadowColor or { 0, 0, 0 }
+        c.shadow:SetTextColor(sc[1], sc[2], sc[3], 1)
+        local c1 = d.colors[1]
+        c.text:SetTextColor(c1[1], c1[2], c1[3], 1)
+        c.frame:SetScale(1)
+        c.frame:SetAlpha(0)
+        p.titleDef, p.titleKit = d, c
     end
 
     -- Skins with their own machinery (Jackpot.lua) build it here; they may
     -- also adjust p.dur, p.base, p.landAt and friends.
     if skin.onSpawn then skin.onSpawn(p, e, crit) end
+
+    -- Echo: the same hit lands again a moment later, beside the first
+    -- (Rampage, Stormstrike). The echo is a plain number, no effects.
+    if skin.echo and not e.echo and e.kind == "dmg" and C_Timer then
+        local again = {}
+        for k, v in pairs(e) do again[k] = v end
+        again.echo, again.crit = true, false
+        again.skin = skin.id
+        again.echoX, again.echoY = p.ox, p.oy
+        C_Timer.After(skin.echo.delay or 0.07, function() Engine.Spawn(again) end)
+    end
 
     if p.motion.init then p.motion.init(p, p.args) end
     tinsert(active, p)
@@ -487,13 +596,13 @@ end
 -- to 1 over snapTime: >1 slams in, <1 springs open), unwind (extra rotation
 -- that eases away with the snap), flicker (random alpha and jitter, like
 -- crackling lightning).
-local function animateTexture(tex, d, t, life, rotation)
+local function animateTexture(tex, d, t, life, rotation, steady)
     if not d then return end
     local delay = d.delay or 0
     if t < delay then tex:SetAlpha(0); return end
     t, life = t - delay, max(0.05, life - delay)
     local k = min(1, t / life)
-    local a = (d.alpha or 1) * min(1, t / FADE_IN) * (1 - k)
+    local a = (d.alpha or 1) * min(1, t / FADE_IN) * (steady and 1 or (1 - k) * (1 - k * 0.4))
     local rot = rotation + (d.spin or 0) * t
     if d.flicker then
         a = a * (0.2 + 0.8 * random())
@@ -524,16 +633,52 @@ function Engine.Step(p, dt)
 
     -- Scale: settle from the "pop" size during the first moments.
     local s = p.base * (p.ms or 1)
-    if p.pop > 0 and t < POP_TIME then
-        local k = 1 - t / POP_TIME
-        s = s * (1 + p.pop * k * k)
+    if p.pop > 0 then
+        if p.crit and not p.skin.noSpring then
+            -- Damped spring: big, a little under, settled by ~0.35s.
+            if t < 0.4 then s = s * (1 + p.pop * 1.15 * exp(-t * 13) * cos(t * 24)) end
+        elseif t < POP_TIME then
+            local k = 1 - t / POP_TIME
+            s = s * (1 + p.pop * k * k)
+        end
+    end
+    local fadeStart = p.dur * (1 - p.fade)
+    if t > fadeStart then s = s * (1 - 0.12 * (t - fadeStart) / (p.dur - fadeStart)) end
+    -- War drum: a few hard pulses in a row on crits.
+    if p.drum then
+        local gap = p.drum.gap or 0.13
+        for i = 0, (p.drum.count or 3) - 1 do
+            local d = t - i * gap
+            if d >= 0 and d < gap then
+                local q = 1 - d / gap
+                s = s * (1 + (p.drum.amp or 0.25) * q * q)
+            end
+        end
     end
     p.inner:SetScale(max(0.01, s))
 
+    -- Crit title: pops in big, flashes through its colors, then settles.
+    if p.titleDef then
+        local d, c = p.titleDef, p.titleKit
+        local k = t - (d.delay or 0.05)
+        if k < 0 then
+            c.frame:SetAlpha(0)
+        else
+            local pop = max(0, 1 - k / 0.2)
+            c.frame:SetScale(1 + (d.pop or 1.2) * pop * pop)
+            c.frame:SetAlpha(min(1, k / 0.05))
+            local cols = d.colors
+            local col = k > (d.cycleFor or 0.8) and cols[1] or cols[floor(k / (d.period or 0.08)) % #cols + 1]
+            c.text:SetTextColor(col[1], col[2], col[3], 1)
+        end
+    end
+
     -- Alpha: quick fade in, fade out over the last part.
-    local fadeStart = p.dur * (1 - p.fade)
-    local alpha = min(1, t / FADE_IN)
-    if t > fadeStart then alpha = alpha * (1 - (t - fadeStart) / (p.dur - fadeStart)) end
+    local alpha = min(1, t / p.fadeIn) * p.alphaMul
+    if t > fadeStart then
+        local k = (t - fadeStart) / (p.dur - fadeStart)
+        alpha = alpha * (1 - k * k * (3 - 2 * k))
+    end
     if p.flicker then alpha = alpha * (0.78 + 0.22 * sin(t * 37 + p.phase) * sin(t * 13)) end
     if p.blink and t > p.dur * 0.65 and floor(t * 18) % 2 == 0 then alpha = alpha * 0.25 end
     p:SetAlpha(max(0, alpha))
@@ -541,6 +686,16 @@ function Engine.Step(p, dt)
     if p.cycle then
         local c = p.cycle[floor(t / p.cyclePeriod) % #p.cycle + 1]
         p.text:SetTextColor(c[1], c[2], c[3], 1)
+    elseif p.flash then
+        local k = 1 - t / FLASH_TIME
+        local c = p.color
+        if k > 0 then
+            local w = 0.75 * k * k
+            p.text:SetTextColor(c[1] + (1 - c[1]) * w, c[2] + (1 - c[2]) * w, c[3] + (1 - c[3]) * w, 1)
+        else
+            p.text:SetTextColor(c[1], c[2], c[3], 1)
+            p.flash = nil
+        end
     end
 
     -- Position (+ crit shake).
@@ -553,7 +708,7 @@ function Engine.Step(p, dt)
     p:SetPoint("CENTER", p.anchor, p.anchorPoint, p.ax + x, p.ay + y)
 
     -- Decor follows the number; bursts and rings live for half its time.
-    animateTexture(p.decor, p.decorDef, t, p.dur, p.decorRot or 0)
+    animateTexture(p.decor, p.decorDef, t, p.dur, p.decorRot or 0, true)
     animateTexture(p.burst, p.burstDef, t, p.dur * 0.55, p.burstRot or 0)
     animateTexture(p.burst2, p.burst2Def, t, p.dur * 0.55, p.burst2Rot or 0)
     animateTexture(p.ring, p.ringDef, t, p.dur * 0.45, 0)
@@ -566,11 +721,19 @@ function Engine.Step(p, dt)
                 part.alive = false
                 part.tex:Hide()
             else
+                if part.drag > 0 then
+                    local damp = exp(-part.drag * dt)
+                    part.vx, part.vy = part.vx * damp, part.vy * damp
+                end
                 part.vy = part.vy + part.gravity * dt
                 part.x = part.x + part.vx * dt
                 part.y = part.y + part.vy * dt
                 local k = part.t / part.life
-                part.tex:SetAlpha((1 - k) * min(1, part.t / 0.04))
+                part.tex:SetAlpha((1 - k * k) * min(1, part.t / 0.04))
+                if part.shrink > 0 then
+                    local g = 1 - part.shrink * k
+                    part.tex:SetSize(max(0.1, part.w * g), max(0.1, part.h * g))
+                end
                 if part.tex.SetRotation then
                     if part.orient then
                         part.tex:SetRotation(atan2(part.vy, part.vx) - pi / 2)

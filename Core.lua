@@ -42,6 +42,11 @@ local DEFAULTS = {
     abbreviate = true,
     effects = true,         -- bursts, rings, decor and particles
     sounds = true,          -- skin sound effects (Jackpot's reels and payout)
+    toasts = true,          -- popup when a feat completes / a skin unlocks
+    toastSound = true,      -- its fanfare
+    shareSkins = true,      -- tell other SkinDeep users your skin; show theirs (tooltips, duels)
+    -- unlockMode: nil until the first-run window is answered, then
+    -- "collector" (earn skins through feats) or "all"
     worldFont = true,       -- give Blizzard's numbers the skin's font (next login)
     worldMotion = true,     -- give Blizzard's numbers the skin's motion preset
     scale = 1.0,
@@ -136,12 +141,63 @@ end
 -- The skin id that's really in use ("auto" resolved).
 function ns.ResolvedSkinID()
     local id = ns.db and ns.db.skin
-    if id == ns.AUTO then return ns.ClassSkinID() or AUTO_FALLBACK end
+    -- Locked for this character (Collector mode): use the class skin instead.
+    if id ~= ns.AUTO and ns.Feats and ns.db and not ns.Feats.IsUnlocked(id) then id = ns.AUTO end
+    if id == ns.AUTO then
+        -- Auto: the active spec's variant once it's earned, else the class skin.
+        local variant = ns.SpecVariantID()
+        if variant and (not ns.Feats or ns.Feats.IsUnlocked(variant)) then return variant end
+        return ns.ClassSkinID() or AUTO_FALLBACK
+    end
     return id
 end
 
+-- The spec variant skin for this character's active spec, or nil.
+function ns.SpecVariantID()
+    local F = ns.Feats
+    if not (F and F.ActiveTree) then return nil end
+    local tree = F.ActiveTree()
+    if not tree then return nil end
+    local ok, _, cls = pcall(UnitClass, "player"); cls = ok and ns.Plain(cls, "string")
+    local form = F.PlayerForm and F.PlayerForm()
+    local plain
+    for _, id in ipairs(ns.SkinOrder) do
+        local s = ns.Skins[id]
+        if s.spec and s.class == cls and s.tree == tree then
+            if s.form and s.form == form then return id end
+            if not s.form and not plain then plain = id end
+        end
+    end
+    return plain
+end
+
 function ns.CurrentSkin()
-    return ns.Skins[ns.ResolvedSkinID()] or ns.Skins.classic
+    return ns.TierSkin(ns.Skins[ns.ResolvedSkinID()] or ns.Skins.classic)
+end
+
+-- Profession skins grow with their tier (Journeyman, Expert, Artisan): the
+-- skin plus each earned tier's changes (false clears a field), cached.
+-- tier: someone else's tier for their skin (else your own).
+function ns.TierSkin(skin, tier)
+    if not (skin and skin.tiers) then return skin end
+    tier = (tier and tier > 0 and tier) or (ns.Feats and ns.Feats.SkinTier(skin.id)) or 3
+    if tier <= 1 then return skin end
+    skin.tierCache = skin.tierCache or {}
+    local s = skin.tierCache[tier]
+    if not s then
+        s = {}
+        for k, v in pairs(skin) do
+            if k ~= "tiers" and k ~= "tierCache" then s[k] = v end
+        end
+        for t = 2, tier do
+            for k, v in pairs(skin.tiers[t] or {}) do
+                if v == false then s[k] = nil else s[k] = v end
+            end
+        end
+        s.tier = tier
+        skin.tierCache[tier] = s
+    end
+    return s
 end
 
 function ns.IsValidSkin(id)
@@ -152,8 +208,10 @@ function ns.WorldFontFor(skin)
     return skin.worldFont or skin.font
 end
 
+-- false, "locked" for a skin Collector mode hasn't unlocked yet.
 function ns.SetSkin(id)
     if not ns.IsValidSkin(id) then return false end
+    if ns.Feats and not ns.Feats.IsUnlocked(id) then return false, "locked" end
     ns.db.skin = id
     ns.ApplyCVars()
     if ns.OnSettingsChanged then ns.OnSettingsChanged() end
@@ -324,6 +382,12 @@ function ns.HandleCombat(unit, action, flags, amount, school)
         return
     end
     e.anchor, e.point, e.ax, e.ay = ns.Engine.AnchorFor(u, side)
+    e.skin = ns.PvPSkinFor(u, side)
+    -- In a duel, the hits you take show in your opponent's skin.
+    if side == "inc" and e.kind ~= "heal" and ns.Share then
+        local id, tier = ns.Share.IncomingSkin()
+        if id then e.skin, e.tier = id, tier end
+    end
     ns.Engine.Spawn(e)
 end
 
@@ -341,12 +405,12 @@ local TEST = {
 }
 
 -- anchorFrame: where to show them (nil = the target's plate or the out anchor).
-function ns.Test(anchorFrame, skinID, strata)
+function ns.Test(anchorFrame, skinID, strata, tier)
     for i, hit in ipairs(TEST) do
         C_Timer.After((i - 1) * 0.22, function()
             if anchorFrame and not ns.PreviewVisible(anchorFrame) then return end
             local e ={ side = "out", kind = hit.kind, amount = hit.amount, crit = hit.crit,
-                        school = hit.school or 1, skin = skinID, strata = strata,
+                        school = hit.school or 1, skin = skinID, strata = strata, tier = tier,
                         preview = anchorFrame ~= nil }
             if hit.word then e.word = wordFor(hit.word) end
             if anchorFrame then
@@ -402,6 +466,29 @@ local function announceGroup()
     end
 end
 
+---------------------------------------------------------------------------
+-- PvP skin: a second skin for battlegrounds and fights with players
+---------------------------------------------------------------------------
+local inBattleground = false
+
+function ns.UpdateInstance()
+    local ok, _, kind = pcall(IsInInstance)
+    inBattleground = ok and ns.Plain(kind, "string") == "pvp" or false
+end
+
+function ns.InBattleground() return inBattleground end
+
+-- The PvP skin for a hit, or nil for the usual one. Hits you take have no
+-- known source, so for those only battlegrounds count.
+function ns.PvPSkinFor(unit, side)
+    local id = ns.db and ns.db.pvpSkin
+    if not id or not ns.Skins[id] then return nil end
+    if ns.Feats and not ns.Feats.IsUnlocked(id) then return nil end
+    if inBattleground then return id end
+    if side == "out" and unit and ns.SafeBool(UnitIsPlayer, unit) then return id end
+    return nil
+end
+
 local events = CreateFrame("Frame")
 events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("PLAYER_LOGIN")
@@ -410,10 +497,14 @@ events:RegisterEvent("PLAYER_REGEN_ENABLED")
 events:RegisterEvent("GROUP_ROSTER_UPDATE")
 events:RegisterEvent("UNIT_COMBAT")
 events:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
+events:RegisterEvent("PLAYER_ENTERING_WORLD")
+events:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 
 events:SetScript("OnEvent", function(_, event, ...)
     if event == "UNIT_COMBAT" then
         ns.HandleCombat(...)
+    elseif event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED_NEW_AREA" then
+        ns.UpdateInstance()
     elseif event == "NAME_PLATE_UNIT_REMOVED" then
         ns.Engine.PlateRemoved(...)
     elseif event == "ADDON_LOADED" then
@@ -427,6 +518,7 @@ events:SetScript("OnEvent", function(_, event, ...)
         fill(ns.db, DEFAULTS)
         ns.db.borrowed = ns.db.borrowed or {}
         ns.db.wrote = ns.db.wrote or {}
+        if ns.Feats then ns.Feats.InitDB(ns.db) end
         if not ns.IsValidSkin(ns.db.skin) then ns.db.skin = DEFAULTS.skin end
         -- Blizzard's world numbers read this once, as the world loads.
         ns.loginDefaultFont = DAMAGE_TEXT_FONT

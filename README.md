@@ -4,17 +4,31 @@
 
 SkinDeep replaces the numbers that pop over your enemies with animated, themed
 "damage skins": custom fonts, motion, colors, crit bursts and particles. It ships
-with 19 skins, including one for every class and a slot-machine skin that rolls
-every hit and hits the JACKPOT on crits.
+with 51 skins, including one for every class, eleven faction skins, fifteen PvP
+skins (up to Grand Marshal and High Warlord), seasonal skins, and a slot-machine
+skin that rolls every hit and hits the JACKPOT on crits.
 
 Type `/skindeep` to open the skin picker with a live preview.
 
 Download: [CurseForge](https://www.curseforge.com/wow/addons/skindeep) (WoW: Forever).
 
+## Collect them, or have them all
+
+The first time you log in, SkinDeep asks how you want your skins:
+
+- **Collector**: start with Classic+, Auto and your class's skin, and earn the
+  rest through SkinDeep's own feats (777 crits for Jackpot, Fire damage for
+  Ember Tide, a level 10 character of a class for its skin...).
+- **Everything unlocked**: every skin right away; feats still pop up for fun.
+
+Switch any time on the **Feats** tab (`/skindeep feats`), which also shows your
+progress. Unlocks are shared by all your characters.
+
 ## Skins
 
 **Auto: my class** (the default) uses your current character's class skin, so
-every character gets its own look.
+every character gets its own look. Once you have earned the spec skin for the talent tree you
+have the most points in, Auto uses that instead.
 
 | Class skins | |
 |---|---|
@@ -28,6 +42,60 @@ every character gets its own look.
 | **Fel Pact** (Warlock) | Flickering numbers over a fel sigil; crits flare fel fire and a void ring. |
 | **Wild Bloom** (Druid) | Numbers sway up like falling leaves; crits bloom a flower. |
 
+**Spec skins**: every class skin has a variant for each talent tree (28 in
+all, with Druid Guardian), such as Mortal Strike, Rampage and Shield Wall for
+Warriors or Arcane Surge, Pyroclasm and Glacial Spike for Mages. Earn one by
+spending 20 talent points in that tree on a character of the class (Feral
+Combat earns both Shred and Ironbark; Auto uses Ironbark in Bear Form). On the
+Skins tab, click a class to fold out its specs. `/skindeep talents` shows the
+points SkinDeep reads.
+
+**Profession skins** grow with your skill: reach 150 in a profession to
+unlock its skin (Journeyman), 225 to upgrade it to Expert and 300 to Artisan.
+Philter (Alchemy), Anvilstrike (Blacksmithing), Runethread (Enchanting),
+Blastcap (Engineering), Wildroot (Herbalism), Stitchwork (Leatherworking),
+Motherlode (Mining), Keen Edge (Skinning), Bolt of Cloth (Tailoring), Sizzle
+(Cooking), Lucky Bobber (Fishing) and Field Dressing (First Aid).
+
+**Loot skins**: Fresh Find, Rare Find, Epic Haul and Legendary unlock when
+you loot an item of that quality (Uncommon, Rare, Epic, Legendary; a better
+item counts for the lower ones too). Full Set unlocks when you wear every
+piece of an item set. `/skindeep loot` shows what SkinDeep reads.
+
+**Skin sharing**: SkinDeep users see each other's skins on their tooltips, and
+`/skindeep peek` previews your target's skin. In a duel between two SkinDeep
+users, the hits you take show in your opponent's skin. (The game doesn't say
+who dealt a hit, so a duel, where only your opponent hits you, is the one place
+another player's skin can show on your numbers.)
+
+| Faction skins | |
+|---|---|
+| **Crimson Oath** (Scarlet Crusade) | Numbers march up over the crusade's sigil; crits burn with holy fire. Earn it: slay 100 Scarlet Crusade or defeat Whitemane. |
+| **Plague Tide** (Scourge) | Numbers lurch through plague mist; crits raise an icy rune and a skull. Earn it: slay 250 Undead or defeat Baron Rivendare. |
+| **Red Kerchief** (Defias Brotherhood) | Numbers pop up from below; crits go off in a gunpowder flash. Earn it: defeat Edwin VanCleef. |
+| **Molten Anvil** (Dark Iron) | Molten numbers slam down and throw forge sparks. Earn it: slay 100 Dark Iron or defeat Emperor Thaurissan. |
+| **Broodmother** (Black Dragonflight) | Violet numbers rise; crits breathe a cone of dragonfire. Earn it: defeat Onyxia. |
+| **Broadside** (Bloodsail Buccaneers) | Cannonball numbers; crits burst in smoke and spill gold. Earn it: slay 100 Bloodsail Buccaneers. |
+| **Hexbound** (Gurubashi) | Voodoo numbers with a hex mask. Earn it: slay 100 Gurubashi or Hakkari, or defeat Hakkar. |
+| **Old God Whispers** (Twilight's Hammer) | Numbers under a watching eye. Earn it: slay 100 Twilight's Hammer or defeat C'Thun. |
+| **Silithid Swarm** (Qiraji) | Numbers in a cloud of beetles. Earn it: slay 250 Silithid or Qiraji, or defeat Ossirian. |
+| **Tidecaller** (Hydraxian Waterlords) | Tidal numbers that splash. Earn it: slay 100 Elementals or defeat Ragnaros. |
+| **Silver Dawn** (Argent Dawn) | Silver numbers rise over the dawn light; crits break into rays. Earn it: defeat Darkmaster Gandling. |
+
+| PvP skins | |
+|---|---|
+| **Knight · Lieutenant Commander · Grand Marshal** (Alliance) | Blue-and-gold ranks; reach PvP Rank 6, 10 and 14 on an Alliance character. Grand Marshal crowns every crit with a crest, a sunburst, its title and a shower of gold. |
+| **Stone Guard · Champion · High Warlord** (Horde) | Iron-and-blood ranks; reach PvP Rank 6, 10 and 14 on a Horde character. High Warlord crits beat the war drum, split the ground and erupt in fire and skulls. |
+| **Flag Runner** (Warsong Gulch) | Numbers sprint in; crits plant the flag. Win 5 Warsong Gulch battles. |
+| **Five Banners** (Arathi Basin) | Numbers climb around the five nodes. Win 5 Arathi Basin battles. |
+| **Winter Siege** (Alterac Valley) | Frosty numbers slam in with snow. Win 3 Alterac Valley battles. |
+| **Duelist** (Duels) | Numbers feint and strike; crits flash crossed blades. Win 25 duels. |
+| **Tally Marks · Headhunter · Warmonger** | Honorable-kill trophies: 100, 1,000 and 5,000 honorable kills (lifetime kills count). |
+| **Lion's Pride · Blood & Thunder** | 250 honorable kills on Alliance / Horde characters. Numbers rise over the game's own Alliance or Horde crest, and crits raise it full size. |
+
+Shift-click any skin to make it your **PvP skin**, used automatically in
+battlegrounds and against players.
+
 | Style skins | |
 |---|---|
 | **Jackpot** | Every hit is a little slot roll; crits on your target open a cabinet that lands on your crit and pays out in coins. |
@@ -40,6 +108,10 @@ every character gets its own look.
 | **Retro Arcade** | Pixel numbers hop up in steps; crits flash every color. |
 | **Gilded Hoard** | Beveled gold numbers tossed like coins. |
 | **Swiftblade** | Slanted steel numbers dash sideways with a motion trail. |
+| **Starfall** | Starlit numbers and shooting stars. |
+| **Gearworks** | Numbers tick up over turning gears. |
+| **Murloc Mayhem** | Bubbling numbers; crits shout MRGLGL! |
+| **Hallow's End · Winter Veil · Heartthrob** | Seasonal: bats and a jack-o'-lantern, snow and a gift, hearts. Earned by playing in October, December and February. |
 
 ## Colors
 
@@ -59,8 +131,10 @@ Physical and spell damage always read apart, like Blizzard's white and yellow:
 - Bursts and particles, skin sounds, abbreviated big numbers, size and speed.
 - **Blizzard's numbers in groups**: off by default. See *Groups* below.
 
-Slash commands: `/skindeep test`, `/skindeep list`, `/skindeep skin <name>`,
-`/skindeep on`, `/skindeep off`, `/skindeep restore`, `/skindeep unlock`.
+Slash commands: `/skindeep test`, `/skindeep feats`, `/skindeep list`,
+`/skindeep skin <name>`, `/skindeep welcome`, `/skindeep on`, `/skindeep off`,
+`/skindeep restore`, `/skindeep unlock`, `/skindeep peek [name]`, `/skindeep pvp`,
+`/skindeep rank`, `/skindeep talents`, `/skindeep loot`.
 
 ## Good to know
 

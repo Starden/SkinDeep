@@ -13,8 +13,17 @@
 ## AddonCompartmentFunc: SkinDeep_OnCompartmentClick
 
 Skins.lua
+StyleSkins.lua
 ClassSkins.lua
+SpecSkins.lua
+FactionSkins.lua
+PvPSkins.lua
+ProfSkins.lua
+LootSkins.lua
 Core.lua
+Feats.lua
 Engine.lua
 Jackpot.lua
 Options.lua
+Welcome.lua
+Share.lua

@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SkinDeep gallery</title>
+<script src="data.js"></script>
+<style>
+  :root { --bg: #14161a; --card: #1d2026; --line: #2c3038; --text: #e8e4dc; --muted: #9a958c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.4 system-ui, sans-serif; }
+  header { padding: 12px 16px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; position: sticky; top: 0; background: var(--bg); z-index: 2; border-bottom: 1px solid var(--line); }
+  header button { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+  header button.on { border-color: #d9a441; color: #ffd27a; }
+  main { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 10px; padding: 12px 16px; }
+  main.strip { grid-template-columns: repeat(auto-fill, minmax(716px, 1fr)); }
+  main.strip h3 { font-size: 12px; margin: 0 0 3px; }
+  main.strip { gap: 6px; padding: 6px; }
+  main.strip .row { flex-wrap: nowrap; gap: 3px; margin-bottom: 3px; }
+  main.strip .card { padding: 6px; }
+  main.strip .card p { display: none; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+  .card h3 { margin: 0 0 2px; font-size: 14px; font-weight: 600; }
+  .card p { margin: 0 0 6px; color: var(--muted); font-size: 12px; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; }
+  canvas { border-radius: 4px; display: block; }
+  .lbl { font-size: 11px; color: var(--muted); }
+</style>
+</head>
+<body>
+<header id="bar"></header>
+<main id="grid"></main>
+<script>
+const G = window.GALLERY;
+const params = new URLSearchParams(location.search);
+let group = params.get('group') || 'all';
+let strip = params.get('strip') === '1';
+const critOnly = params.get('crit') === '1';
+const CRIT_FRAMES = [0, 1, 3, 6, 11, 18];
+let light = params.get('bg') === 'light';
+const onlyId = params.get('id');
+const STRIP_FRAMES = [0, 1, 2, 4, 7, 11, 17, 25];
+
+// Fonts.
+for (const f of G.fonts) {
+  if (f.url) { const ff = new FontFace(f.family, `url(${f.url})`); ff.load().then(x => document.fonts.add(x)); f.css = `"${f.family}"`; }
+  else f.css = f.family;
+}
+// Textures: grey luminance + alpha, tinted per color on demand.
+const tint = new Map();
+function tinted(ti, r, g, b) {
+  const key = ti + ':' + r + ',' + g + ',' + b;
+  if (tint.has(key)) return tint.get(key);
+  const t = G.textures[ti];
+  if (t.missing) { tint.set(key, null); return null; }
+  if (!t.bytes) t.bytes = Uint8Array.from(atob(t.rgba), c => c.charCodeAt(0));
+  const c = document.createElement('canvas'); c.width = t.w; c.height = t.h;
+  const cx = c.getContext('2d'); const img = cx.createImageData(t.w, t.h);
+  for (let i = 0; i < t.bytes.length; i += 4) {
+    const l = t.bytes[i] / 255;
+    img.data[i] = l * r * 255; img.data[i + 1] = l * g * 255; img.data[i + 2] = l * b * 255; img.data[i + 3] = t.bytes[i + 3];
+  }
+  cx.putImageData(img, 0, 0); tint.set(key, c); return c;
+}
+
+function drawBg(ctx, w, h) {
+  if (light) {
+    const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#b9c4cc'); g.addColorStop(1, '#8b9590');
+    ctx.fillStyle = g;
+  } else {
+    const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#2b3038'); g.addColorStop(1, '#1f2420');
+    ctx.fillStyle = g;
+  }
+  ctx.fillRect(0, 0, w, h);
+}
+function drawFrame(ctx, w, h, items, sc) {
+  drawBg(ctx, w, h);
+  const cx = w / 2, cy = h * 0.62;
+  for (const e of items || []) {
+    const [kind, x, y, ew, eh, a, rot, r, g, b, ref, mode, size, flags] = e;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1, a));
+    ctx.translate(cx + x * sc, cy - y * sc);
+    if (kind === 0) {
+      const img = tinted(ref, r, g, b);
+      if (img) {
+        ctx.rotate(-rot);
+        ctx.globalCompositeOperation = mode === 1 ? 'source-over' : 'lighter';
+        ctx.drawImage(img, -ew * sc / 2, -eh * sc / 2, ew * sc, eh * sc);
+      }
+    } else {
+      const f = G.fonts[mode];
+      ctx.font = `${size * sc}px ${f ? f.css : 'Georgia'}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+      if (flags) { ctx.lineWidth = (flags === 2 ? 3.2 : 2) * sc; ctx.strokeStyle = 'rgba(0,0,0,0.95)'; ctx.strokeText(ref, 0, 0); }
+      ctx.fillStyle = `rgb(${r * 255},${g * 255},${b * 255})`;
+      ctx.fillText(ref, 0, 0);
+    }
+    ctx.restore();
+  }
+}
+
+const SETS = ['all', 'style', 'class', 'faction', 'pvp', 'prof', 'loot'];
+function bar() {
+  const el = document.getElementById('bar'); el.innerHTML = '';
+  for (const s of SETS) {
+    const b = document.createElement('button'); b.textContent = s; b.className = s === group ? 'on' : '';
+    b.onclick = () => { group = s; build(); }; el.appendChild(b);
+  }
+  const sb = document.createElement('button'); sb.textContent = strip ? 'filmstrip' : 'animated'; sb.className = 'on';
+  sb.onclick = () => { strip = !strip; build(); }; el.appendChild(sb);
+  const lb = document.createElement('button'); lb.textContent = light ? 'light ground' : 'dark ground'; lb.className = 'on';
+  lb.onclick = () => { light = !light; build(); }; el.appendChild(lb);
+}
+
+let anims = [];
+function build() {
+  bar();
+  const grid = document.getElementById('grid'); grid.innerHTML = ''; grid.className = strip ? 'strip' : '';
+  anims = [];
+  for (const s of G.skins) {
+    if (onlyId && s.id !== onlyId) continue;
+    if (group !== 'all' && s.group !== group) continue;
+    const card = document.createElement('div'); card.className = 'card';
+    card.innerHTML = `<h3>${s.name} <span class="lbl">${s.id} · ${s.group}</span></h3><p>${s.tagline}</p>`;
+    if (strip) {
+      for (const kind of (critOnly ? ['crit'] : ['hit', 'crit'])) {
+        const row = document.createElement('div'); row.className = 'row';
+        if (critOnly) {
+          for (const fi of CRIT_FRAMES) {
+            const c = document.createElement('canvas'); c.width = 124; c.height = 108;
+            drawFrame(c.getContext('2d'), 124, 108, s[kind][fi], 0.6); row.appendChild(c);
+          }
+          card.appendChild(row); continue;
+        }
+        for (const fi of STRIP_FRAMES) {
+          const c = document.createElement('canvas'); c.width = 88; c.height = 84;
+          drawFrame(c.getContext('2d'), 88, 84, s[kind][fi], 0.45);
+          row.appendChild(c);
+        }
+        card.appendChild(row);
+      }
+    } else {
+      const row = document.createElement('div'); row.className = 'row';
+      for (const kind of ['hit', 'crit']) {
+        const c = document.createElement('canvas'); c.width = 155; c.height = 150;
+        row.appendChild(c); anims.push({ ctx: c.getContext('2d'), frames: s[kind], w: 155, h: 150 });
+      }
+      card.appendChild(row);
+    }
+    grid.appendChild(card);
+  }
+}
+let tick = 0;
+setInterval(() => { tick++; for (const a of anims) drawFrame(a.ctx, a.w, a.h, a.frames[tick % (a.frames.length + 8)], 0.68); }, 50);
+document.fonts.ready.then(build);
+build();
+</script>
+</body>
+</html>

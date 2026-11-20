@@ -231,6 +231,366 @@ const TEXTURES = {
     const heart = 1 - smooth(0.16, 0.2, r);
     return [Math.max(al, heart), heart > 0.5 ? 1 : 0.7 + 0.3 * (1 - r)];
   }],
+  // --- Faction skins -------------------------------------------------------
+  // Crusade sigil (original design): a ring around a flame, over a bar.
+  sigil: [128, 128, (u, v) => {
+    const r = Math.hypot(u, v);
+    let al = 1 - smooth(0.035, 0.06, Math.abs(r - 0.86));
+    al += 1 - smooth(0.015, 0.03, Math.abs(r - 0.74));
+    // Flame: round below, pointed above, centred a little high.
+    const fy = v - 0.1;
+    const w = fy < -0.15 ? 0.3 * Math.sqrt(clamp(1 - Math.pow((fy + 0.15) / 0.3, 2)))
+                         : 0.3 * Math.pow(clamp(1 - (fy + 0.15) / 0.6), 1.4);
+    if (fy > -0.45 && fy < 0.45) al += 1 - smooth(w - 0.03, w, Math.abs(u));
+    // Bar and post beneath the flame.
+    if (Math.abs(u) < 0.42 && Math.abs(v + 0.42) < 0.045) al += 1;
+    if (Math.abs(u) < 0.045 && v < -0.36 && v > -0.62) al += 1;
+    return al;
+  }],
+  // Flame tongue: round base, pointed tip, hotter core.
+  flame: [32, 64, (u, v) => {
+    const w = v < -0.35 ? 0.62 * Math.sqrt(clamp(1 - Math.pow((v + 0.35) / 0.62, 2)))
+                        : 0.62 * Math.pow(clamp(1 - (v + 0.35) / 1.35), 1.3);
+    const inside = 1 - smooth(w * 0.8, w, Math.abs(u));
+    return [inside, 1 - 0.45 * clamp(Math.abs(u) / (w || 1))];
+  }],
+  // Soft smoke / plague puff: three overlapping soft blobs.
+  puff: [64, 64, (u, v) => {
+    const blob = (cx, cy, rad) => 1 - smooth(rad * 0.4, rad, Math.hypot(u - cx, v - cy));
+    return 0.85 * Math.max(blob(0, 0.05, 0.62), blob(0.35, -0.15, 0.45), blob(-0.38, -0.12, 0.42));
+  }],
+  // Skull: cranium, jaw, hollow eyes and nose.
+  skull: [64, 64, (u, v) => {
+    const head = 1 - smooth(0.52, 0.56, Math.hypot(u, (v - 0.12) * 1.05));
+    const jaw = (Math.abs(u) < 0.32 && v < -0.2 && v > -0.62) ? 1 : 0;
+    let al = Math.max(head, jaw);
+    for (const ex of [-0.2, 0.2]) al -= 1 - smooth(0.11, 0.14, Math.hypot(u - ex, v - 0.05));
+    if (v < -0.08 && v > -0.24 && Math.abs(u) < (v + 0.24) * 0.4) al = 0;   // nose
+    if (v < -0.42 && v > -0.62 && Math.abs(u) < 0.3 && Math.abs((u * 6) % 1) < 0.25) al = 0; // teeth gaps
+    return [clamp(al), 0.95];
+  }],
+  // --- PvP skins (original designs) ----------------------------------------
+  // Heater shield with a cross, bevel-lit.
+  shield: [64, 64, (u, v) => {
+    const top = 0.78, half = 0.72;
+    let w = half;
+    if (v < 0.1) w = half * Math.sqrt(clamp(1 - Math.pow((0.1 - v) / 0.95, 2)));
+    const inside = v < top && v > -0.88 && Math.abs(u) < w ? 1 : 0;
+    const edge = inside && (Math.abs(u) > w - 0.12 || v > top - 0.12) ? 1 : 0;
+    const cross = inside && (Math.abs(u) < 0.08 || Math.abs(v - 0.22) < 0.08) ? 1 : 0;
+    return [inside, edge || cross ? 1 : 0.55 + 0.25 * (v + 1) / 2];
+  }],
+  // War ring: a thick ring crowned with ten spikes.
+  spikes: [128, 128, (u, v) => {
+    const [r, a] = polar(u, v);
+    const ring = 1 - smooth(0.06, 0.09, Math.abs(r - 0.5));
+    const seg = ((a / (Math.PI * 2)) * 10 % 1 + 1) % 1;
+    const tri = 1 - Math.abs(seg - 0.5) * 2;          // 0 at the gaps, 1 mid-spike
+    const spike = r > 0.55 && r < 0.55 + 0.42 * tri ? 1 : 0;
+    return Math.max(ring, spike);
+  }],
+  // Rank chevrons: three stacked V stripes.
+  chevron: [64, 64, (u, v) => {
+    let al = 0;
+    for (const off of [-0.45, 0, 0.45]) {
+      const d = Math.abs((v - off) - (0.25 - Math.abs(u) * 0.6));
+      if (Math.abs(u) < 0.8) al = Math.max(al, 1 - smooth(0.06, 0.1, d));
+    }
+    return al;
+  }],
+  // Battle flag on a pole.
+  flag: [64, 64, (u, v) => {
+    const pole = Math.abs(u + 0.7) < 0.06 && v > -0.95 && v < 0.9 ? 1 : 0;
+    const wave = 0.08 * Math.sin((u + 0.7) * 5);
+    const cloth = u > -0.66 && u < 0.85 && v > 0.05 + wave && v < 0.85 + wave ? 1 : 0;
+    return [Math.max(pole, cloth), pole ? 0.7 : 1];
+  }],
+  // Five capture nodes on a ring.
+  nodes: [128, 128, (u, v) => {
+    const r = Math.hypot(u, v);
+    let al = 0.6 * (1 - smooth(0.02, 0.035, Math.abs(r - 0.78)));
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + i * 2 * Math.PI / 5;
+      al = Math.max(al, 1 - smooth(0.11, 0.14, Math.hypot(u - Math.cos(a) * 0.78, v - Math.sin(a) * 0.78)));
+    }
+    return al;
+  }],
+  // Crossed blades.
+  blades: [128, 128, (u, v) => {
+    let al = 0;
+    for (const ang of [Math.PI / 4, -Math.PI / 4]) {
+      const x = Math.cos(ang) * u + Math.sin(ang) * v, y = -Math.sin(ang) * u + Math.cos(ang) * v;
+      const blade = y > -0.55 && y < 0.9 && Math.abs(x) < 0.07 * (y > 0.75 ? (0.9 - y) / 0.15 : 1) ? 1 : 0;
+      const guard = Math.abs(y + 0.55) < 0.04 && Math.abs(x) < 0.22 ? 1 : 0;
+      const grip = y < -0.55 && y > -0.85 && Math.abs(x) < 0.05 ? 1 : 0;
+      al = Math.max(al, blade, guard, grip);
+    }
+    return al;
+  }],
+  // Six-armed snowflake.
+  snowflake: [64, 64, (u, v) => {
+    const [r, a] = polar(u, v);
+    const arm = Math.abs(Math.sin(a * 3)) * r;           // distance to the nearest of 6 arms
+    let al = r < 0.92 ? 1 - smooth(0.09, 0.14, arm) : 0;
+    al = Math.max(al, 1 - smooth(0.16, 0.22, r));          // solid heart
+    // Little side twigs two-thirds out on each arm.
+    for (let i = 0; i < 6; i++) {
+      const ca = i * Math.PI / 3, px = Math.cos(ca) * 0.6, py = Math.sin(ca) * 0.6;
+      for (const s of [-1, 1]) {
+        const ta = ca + s * Math.PI / 4;
+        const dx = u - px, dy = v - py;
+        const along = dx * Math.cos(ta) + dy * Math.sin(ta), across = -dx * Math.sin(ta) + dy * Math.cos(ta);
+        if (along > 0 && along < 0.28) al = Math.max(al, 1 - smooth(0.05, 0.09, Math.abs(across)));
+      }
+    }
+    return al;
+  }],
+  // --- Round 3 (original designs) -----------------------------------------
+  // Five-pointed star.
+  star: [64, 64, (u, v) => {
+    const [r, a] = polar(u, -v);
+    const k = Math.cos(Math.PI / 5) / Math.cos(((a + Math.PI / 2) % (2 * Math.PI / 5) + 2 * Math.PI / 5) % (2 * Math.PI / 5) - Math.PI / 5);
+    return 1 - smooth(0.9, 1, r / (0.92 * (0.45 + 0.55 * Math.pow(clamp(k - 0.809) / 0.191, 1.6))));
+  }],
+  // Cog with twelve teeth and a hub.
+  gear: [128, 128, (u, v) => {
+    const [r, a] = polar(u, v);
+    const tooth = (((a / (Math.PI * 2)) * 12 % 1) + 1) % 1 < 0.5 ? 0.92 : 0.74;
+    const body = 1 - smooth(tooth - 0.03, tooth, r);
+    const hole = 1 - smooth(0.2, 0.24, r);
+    const spoke = r < 0.6 && r > 0.24 && (Math.abs(u) < 0.07 || Math.abs(v) < 0.07) ? 0 : 1;
+    const window_ = r > 0.3 && r < 0.6 ? 0.35 : 1;
+    return [body * (1 - hole) * Math.max(window_, 1 - spoke), 0.75 + 0.25 * (r > 0.6 ? 1 : 0.6)];
+  }],
+  // Soap bubble: thin rim with a highlight.
+  bubble: [64, 64, (u, v) => {
+    const r = Math.hypot(u, v);
+    const rim = 1 - smooth(0.05, 0.1, Math.abs(r - 0.82));
+    const shine = 1 - smooth(0.06, 0.14, Math.hypot(u + 0.32, v - 0.34));
+    return Math.max(rim, shine, 0.12 * (r < 0.82 ? 1 : 0));
+  }],
+  // Bat in flight.
+  bat: [64, 32, (u, v) => {
+    const body = 1 - smooth(0.16, 0.2, Math.hypot(u * 1.4, v + 0.1));
+    const span = Math.abs(u);
+    // Flat leading edge sloping to the tip, scalloped trailing edge below.
+    const wingTop = 0.55 - 0.35 * span;
+    const wingBot = -0.35 + 0.5 * span - 0.22 * Math.abs(Math.sin(span * 7.85));
+    const wing = span < 0.98 && v < wingTop && v > wingBot ? 1 : 0;
+    const ear = Math.abs(Math.abs(u) - 0.09) < 0.05 && v > 0.05 && v < 0.35 - Math.abs(u) ? 1 : 0;
+    return Math.max(body, wing, ear);
+  }],
+  // Jack-o'-lantern: ribbed pumpkin, stem, carved face (hollow).
+  pumpkin: [64, 64, (u, v) => {
+    let body = 0;
+    for (const ox of [-0.32, 0, 0.32]) body = Math.max(body, 1 - smooth(0.95, 1.05, Math.hypot((u - ox) / 0.5, (v + 0.08) / 0.72)));
+    const stem = Math.abs(u) < 0.08 && v > 0.55 && v < 0.88 ? 1 : 0;
+    let face = 0;
+    for (const ex of [-0.3, 0.3]) if (v > 0.02 && v < 0.24 && Math.abs(u - ex) < (0.24 - v) * 0.7) face = 1;
+    if (v < -0.2 && v > -0.42 && Math.abs(u) < 0.42 && !(v > -0.3 && Math.abs((u * 5) % 1) < 0.2)) face = 1;
+    return [Math.max(stem, body * (1 - face)), stem ? 0.55 : 0.8 + 0.2 * Math.cos(u * 9)];
+  }],
+  // Wrapped gift: box, ribbon cross, bow.
+  gift: [64, 64, (u, v) => {
+    const box = Math.abs(u) < 0.7 && v > -0.85 && v < 0.35 ? 1 : 0;
+    const ribbon = box && (Math.abs(u) < 0.12 || Math.abs(v + 0.25) < 0.1) ? 1 : 0;
+    let bow = 0;
+    for (const s of [-1, 1]) bow = Math.max(bow, 1 - smooth(0.9, 1.05, Math.hypot((u - s * 0.25) / 0.26, (v - 0.55) / 0.17)));
+    return [Math.max(box, bow), ribbon || bow ? 1 : 0.6];
+  }],
+  // Heart.
+  heart: [64, 64, (u, v) => {
+    const x = u * 1.15, y = v * 1.15 + 0.15;
+    const f = Math.pow(x * x + y * y - 0.55, 3) - x * x * y * y * y;
+    return f < 0 ? 1 : 1 - smooth(0, 0.004, f);
+  }],
+  // Voodoo hex mask: tall face, slit eyes, bared teeth.
+  mask: [64, 64, (u, v) => {
+    const face = 1 - smooth(0.95, 1.05, Math.hypot(u / 0.62, v / 0.95));
+    let holes = 0;
+    for (const ex of [-0.25, 0.25]) if (Math.abs(v - 0.2) < 0.08 - Math.abs(u - ex) * 0.25 && Math.abs(u - ex) < 0.2) holes = 1;
+    if (v < -0.35 && v > -0.55 && Math.abs(u) < 0.3 && Math.abs((u * 6) % 1) > 0.25) holes = 1;
+    const stripe = Math.abs(u) < 0.05 && v > 0.35 ? 1 : 0;
+    return [face * (1 - holes), stripe ? 1 : 0.7 + 0.3 * (1 - Math.abs(u))];
+  }],
+  // Watching eye with a slit pupil.
+  eye: [64, 32, (u, v) => {
+    const lid = Math.abs(v) < 0.95 * Math.sqrt(clamp(1 - u * u)) ? 1 : 0;
+    const pupil = Math.abs(u) < 0.12 * Math.sqrt(clamp(1 - v * v)) ? 1 : 0;
+    const iris = 1 - smooth(0.4, 0.45, Math.hypot(u, v * 0.5));
+    return [lid * (1 - pupil * 0.95), iris ? 1 : 0.65];
+  }],
+  // Beetle: shell, head, six legs.
+  bug: [32, 32, (u, v) => {
+    const shell = 1 - smooth(0.9, 1.05, Math.hypot(u / 0.38, (v + 0.1) / 0.62));
+    const head = 1 - smooth(0.17, 0.21, Math.hypot(u, v - 0.6));
+    let legs = 0;
+    for (const ly of [-0.35, -0.05, 0.25]) for (const s of [-1, 1]) {
+      const d = segDist(u, v, s * 0.3, ly, s * 0.8, ly + 0.15);
+      legs = Math.max(legs, 1 - smooth(0.04, 0.07, d));
+    }
+    const seam = Math.abs(u) < 0.03 && v < 0.45 ? 1 : 0;
+    return [Math.max(shell, head, legs), seam ? 0.5 : 0.9];
+  }],
+  // Water droplet.
+  drop: [32, 64, (u, v) => {
+    const w = v < -0.35 ? 0.6 * Math.sqrt(clamp(1 - Math.pow((v + 0.35) / 0.6, 2)))
+                        : 0.6 * Math.pow(clamp(1 - (v + 0.35) / 1.3), 1.2);
+    const inside = 1 - smooth(w * 0.85, w, Math.abs(u));
+    const shine = 1 - smooth(0.06, 0.12, Math.hypot(u + 0.2, v + 0.35));
+    return [Math.max(inside, shine), 0.75 + 0.25 * shine];
+  }],
+  // Five tally marks: four strokes and a slash.
+  tally: [64, 64, (u, v) => {
+    let al = 0;
+    for (let i = 0; i < 4; i++) al = Math.max(al, 1 - smooth(0.05, 0.08, segDist(u, v, -0.55 + i * 0.32, -0.7, -0.5 + i * 0.32, 0.7)));
+    al = Math.max(al, 1 - smooth(0.05, 0.08, segDist(u, v, -0.85, -0.5, 0.7, 0.45)));
+    return al;
+  }],
+  // --- Spec variants (original designs) -----------------------------------
+  // Three parallel claw rakes, tapered at both ends.
+  claws: [128, 128, (u, v) => {
+    let al = 0;
+    for (const off of [-0.32, 0, 0.32]) {
+      const x = (u - off) * Math.cos(0.6) - v * Math.sin(0.6), y = (u - off) * Math.sin(0.6) + v * Math.cos(0.6);
+      const len = 0.85, t = clamp(1 - Math.abs(y) / len);
+      if (Math.abs(y) < len) al = Math.max(al, 1 - smooth(0.05 * t, 0.075 * t + 0.005, Math.abs(x)));
+    }
+    return al;
+  }],
+  // Crescent moon.
+  moon: [64, 64, (u, v) => {
+    const outer = 1 - smooth(0.82, 0.88, Math.hypot(u, v));
+    const bite = 1 - smooth(0.66, 0.72, Math.hypot(u - 0.36, v - 0.2));
+    return [clamp(outer - bite), 0.85 + 0.15 * (u < 0 ? 1 : 0)];
+  }],
+  // Round bark shield: wood grain lines on a disc.
+  bark: [64, 64, (u, v) => {
+    const r = Math.hypot(u, v);
+    const disc = 1 - smooth(0.86, 0.92, r);
+    const grain = 0.5 + 0.5 * Math.sin((u + 0.08 * Math.sin(v * 5)) * 22);
+    const rim = r > 0.74 ? 1 : 0;
+    return [disc, rim ? 0.55 : 0.6 + 0.3 * grain];
+  }],
+  // --- Profession skins (original designs) ---------------------------------
+  // Round-bottomed flask with a neck; liquid shaded lighter below the line.
+  flask: [64, 64, (u, v) => {
+    const bulb = 1 - smooth(0.52, 0.58, Math.hypot(u, v + 0.3));
+    const neck = (Math.abs(u) < 0.16 && v > 0 && v < 0.78) ? 1 : 0;
+    const lip = (Math.abs(u) < 0.26 && v > 0.7 && v < 0.84) ? 1 : 0;
+    const al = Math.max(bulb, neck, lip);
+    return [al, v < -0.25 ? 1 : 0.55];
+  }],
+  // Anvil: flat face, horn to the left, waist and foot.
+  anvil: [64, 32, (u, v) => {
+    const face = (u > -0.55 && u < 0.85 && v > 0.25 && v < 0.75) ? 1 : 0;
+    const horn = (u <= -0.55 && u > -0.98 && v > 0.25 + (-0.55 - u) * 0.7 && v < 0.75) ? 1 : 0;
+    const waist = (Math.abs(u - 0.15) < 0.28 && v > -0.4 && v <= 0.25) ? 1 : 0;
+    const foot = (Math.abs(u - 0.15) < 0.6 && v > -0.85 && v <= -0.4) ? 1 : 0;
+    return [Math.max(face, horn, waist, foot), v > 0.6 ? 1 : 0.7];
+  }],
+  // Dashed stitching around a rounded patch.
+  stitch: [128, 64, (u, v) => {
+    const d = roundBox(u, v, 0.86, 0.72, 0.18);
+    const line = 1 - smooth(0.02, 0.045, Math.abs(d));
+    const along = Math.abs(u) / 0.86 > Math.abs(v) / 0.72 ? v * 3.4 : u * 3.4;
+    const dash = Math.sin(along * Math.PI * 2) > -0.2 ? 1 : 0;
+    return line * dash;
+  }],
+  // A curved knife stroke, thick in the middle and tapered to points.
+  arc: [128, 128, (u, v) => {
+    const [r, a] = polar(u, v + 0.6);
+    const t = (a - 0.35) / (Math.PI - 0.7);
+    if (t < 0 || t > 1) return 0;
+    const w = 0.07 * Math.sin(t * Math.PI);
+    return 1 - smooth(w * 0.6, w + 0.01, Math.abs(r - 1.05));
+  }],
+  // Flat elliptical ripple ring.
+  ripple: [128, 64, (u, v) => {
+    const r = Math.hypot(u, v);
+    return 1 - smooth(0.035, 0.08, Math.abs(r - 0.82));
+  }],
+  // Fishing bobber: a ball (darker top half) with a short quill.
+  bobber: [32, 32, (u, v) => {
+    const ball = 1 - smooth(0.5, 0.6, Math.hypot(u, v + 0.15));
+    const quill = (Math.abs(u) < 0.08 && v > 0.3 && v < 0.9) ? 1 : 0;
+    return [Math.max(ball, quill), quill ? 0.8 : (v > -0.15 ? 0.45 : 1)];
+  }],
+  // Leaping fish silhouette with a forked tail, head up (particles fly it
+  // head first along their path).
+  fish: [32, 64, (x, y) => {
+    const u = -y, v = x;
+    const body = 1 - smooth(0.9, 1.0, Math.hypot((u + 0.15) / 0.62, v / 0.5));
+    const tx = u - 0.5;
+    const tail = (tx > 0 && tx < 0.45 && Math.abs(v) < tx * 1.6 && Math.abs(v) > tx * 0.5) ? 1 : 0;
+    const eye = Math.hypot(u + 0.55, v - 0.1) < 0.07 ? 0.3 : 1;
+    return [Math.max(body, tail), eye];
+  }],
+  // Plain plus sign.
+  cross: [32, 32, (u, v) => {
+    const bar = (a, b) => (Math.abs(a) < 0.24 && Math.abs(b) < 0.78) ? 1 : 0;
+    return Math.max(bar(u, v), bar(v, u));
+  }],
+  // Bandage strip: soft edges, stitched border, faint weave.
+  bandage: [128, 32, (u, v) => {
+    const band = (1 - smooth(0.9, 0.98, Math.abs(u))) * (1 - smooth(0.62, 0.72, Math.abs(v)));
+    const edge = Math.abs(Math.abs(v) - 0.5) < 0.06 && Math.sin(u * 40) > 0 ? 0.7 : 1;
+    const weave = 0.9 + 0.1 * Math.sin(u * 90) * Math.sin(v * 30);
+    return [band, edge * weave];
+  }],
+  // A ribbon of cloth: a wavy band with a light fold line.
+  ribbon: [128, 32, (u, v) => {
+    const mid = Math.sin(u * Math.PI * 1.5) * 0.35;
+    const d = Math.abs(v - mid);
+    const band = (1 - smooth(0.32, 0.4, d)) * (1 - smooth(0.88, 0.98, Math.abs(u)));
+    return [band, 0.7 + 0.3 * Math.cos(u * Math.PI * 1.5)];
+  }],
+  // Wavy thread.
+  thread: [128, 32, (u, v) => {
+    const y = Math.sin(u * Math.PI * 3) * 0.55;
+    return (1 - smooth(0.05, 0.11, Math.abs(v - y))) * (1 - smooth(0.9, 0.99, Math.abs(u)));
+  }],
+  // A curling stem with two leaves, growing up from the bottom.
+  sprout: [64, 64, (u, v) => {
+    const sx = 0.18 * Math.sin((v + 1) * 2.2);
+    const stem = (v < 0.75) ? 1 - smooth(0.04, 0.08, Math.abs(u - sx)) : 0;
+    const leaf = (cx, cy, dir) => {
+      const x = (u - cx) * dir, y = v - cy;
+      const rx = x * Math.cos(0.5) + y * Math.sin(0.5), ry = -x * Math.sin(0.5) + y * Math.cos(0.5);
+      return 1 - smooth(0.9, 1.0, Math.hypot(rx / 0.32, ry / 0.13));
+    };
+    return Math.max(stem, leaf(0.3, 0.15, 1), leaf(-0.28, -0.25, -1), leaf(0.1, 0.78, 1) * 0.9);
+  }],
+  // --- Loot and set skins (original designs) -------------------------------
+  // Cut gem: a kite shape with facet lines, the table lighter.
+  gem: [64, 64, (u, v) => {
+    const top = v > 0.3;
+    const inside = top ? (Math.abs(u) < 0.8 - (v - 0.3) * 1.0 && v < 0.82) : (Math.abs(u) < 0.8 * (v + 0.95) / 1.25 && v > -0.95);
+    if (!inside) return 0;
+    const facet = Math.abs(v - 0.3) < 0.035 || Math.abs(u) < 0.03 || Math.abs(Math.abs(u) - (v + 0.95) * 0.32) < 0.03;
+    return [1, facet ? 1 : (top ? 0.85 : 0.6 + 0.25 * (u > 0 ? 1 : 0))];
+  }],
+  // Three motes spaced round a circle (spun as a whole: an orbiting aura).
+  orbit: [64, 64, (u, v) => {
+    let al = 0;
+    for (let i = 0; i < 3; i++) {
+      const a = i / 3 * Math.PI * 2;
+      al = Math.max(al, 1 - smooth(0.06, 0.13, Math.hypot(u - Math.cos(a) * 0.78, v - Math.sin(a) * 0.78)));
+    }
+    return al;
+  }],
+  // Eight armor-piece pips round a ring.
+  setring: [128, 128, (u, v) => {
+    let al = 0;
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * Math.PI * 2 + Math.PI / 8;
+      const x = u - Math.cos(a) * 0.8, y = v - Math.sin(a) * 0.8;
+      const rx = x * Math.cos(a) + y * Math.sin(a), ry = -x * Math.sin(a) + y * Math.cos(a);
+      al = Math.max(al, (Math.abs(rx) < 0.1 && Math.abs(ry) < 0.1) ? 1 : 0);
+    }
+    const ring = (1 - smooth(0.015, 0.035, Math.abs(Math.hypot(u, v) - 0.8))) * 0.6;
+    return Math.max(al, ring);
+  }],
   // Four-point twinkle.
   twinkle: [64, 64, (u, v) => {
     const r = Math.hypot(u, v);
