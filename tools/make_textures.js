@@ -591,6 +591,158 @@ const TEXTURES = {
     const ring = (1 - smooth(0.015, 0.035, Math.abs(Math.hypot(u, v) - 0.8))) * 0.6;
     return Math.max(al, ring);
   }],
+  // --- Rank 13 and secret skins (original designs) ---------------------------
+  // Spiked crown: a band with five points, the middle one tallest.
+  crown: [64, 40, (u, v) => {
+    const band = (Math.abs(u) < 0.9 && v > -0.85 && v < -0.35) ? 1 : 0;
+    let spike = 0;
+    for (let i = 0; i < 5; i++) {
+      const cx = -0.72 + i * 0.36, top = i === 2 ? 0.95 : 0.6;
+      const t = (v + 0.35) / (top + 0.35);
+      if (t >= 0 && t <= 1 && Math.abs(u - cx) < 0.15 * (1 - t)) spike = 1;
+    }
+    return [Math.max(band, spike), band ? 0.75 : 1];
+  }],
+  // Laurel wreath: two curved rows of leaves, open at the top.
+  laurel: [64, 64, (u, v) => {
+    let al = 0;
+    for (const side of [-1, 1]) {
+      for (let i = 0; i < 7; i++) {
+        const a = -Math.PI / 2 + side * (0.35 + i * 0.36);
+        const cx = Math.cos(a) * 0.72, cy = Math.sin(a) * 0.72;
+        const x = u - cx, y = v - cy, ang = a + side * Math.PI / 2;
+        const rx = x * Math.cos(ang) + y * Math.sin(ang), ry = -x * Math.sin(ang) + y * Math.cos(ang);
+        al = Math.max(al, 1 - smooth(0.85, 1, Math.hypot(rx / 0.17, ry / 0.08)));
+      }
+    }
+    return al;
+  }],
+  // A d20 seen face-on: a hexagon split into facets.
+  d20: [64, 64, (u, v) => {
+    const r = Math.max(Math.abs(u) * 0.866 + Math.abs(v) * 0.5, Math.abs(v));
+    if (r > 0.9) return 0;
+    const edge = r > 0.84 ? 1 : 0;
+    const inner = Math.abs(v + 0.15) < 0.03 && Math.abs(u) < 0.5 || Math.abs(v - (0.62 - Math.abs(u) * 1.55)) < 0.035 && v > -0.2;
+    const face = v > -0.15 && v < 0.62 - Math.abs(u) * 1.55 ? 1 : 0.7;
+    return [1, edge || inner ? 1 : 0.55 * face + 0.15];
+  }],
+  // Neon sun: a disc banded with gaps toward the bottom (tinted in game).
+  synthsun: [64, 64, (u, v) => {
+    const disc = 1 - smooth(0.86, 0.92, Math.hypot(u, v));
+    if (v < 0) {
+      const stripe = (v + 1) * 6;
+      if (stripe % 1 < (0.15 + -v * 0.35)) return 0;
+    }
+    return [disc, 0.6 + 0.4 * (v + 1) / 2];
+  }],
+  // Perspective grid: lines converging to the horizon, rows bunching up.
+  synthgrid: [128, 64, (u, v) => {
+    if (v > 0.6) return 0;
+    const depth = (0.6 - v) / 1.6;
+    const x = u / (0.15 + depth);
+    const vert = Math.abs(x * 3 - Math.round(x * 3)) < 0.06 / (0.3 + depth) ? 1 : 0;
+    const row = Math.abs(Math.log(depth + 0.05) * 4 % 1) < 0.08 ? 1 : 0;
+    const horizon = Math.abs(v - 0.6) < 0.025 ? 1 : 0;
+    return Math.max(vert, row, horizon) * (0.4 + 0.6 * depth);
+  }],
+  // Disco ball: a sphere of mirror tiles, one bright highlight.
+  discoball: [64, 64, (u, v) => {
+    const r = Math.hypot(u, v);
+    if (r > 0.88) return 0;
+    const z = Math.sqrt(Math.max(0, 1 - (r / 0.88) ** 2));
+    const lon = Math.atan2(u, z) * 6, lat = Math.asin(v / 0.88) * 6;
+    const grout = Math.abs(lon - Math.round(lon)) < 0.08 || Math.abs(lat - Math.round(lat)) < 0.08;
+    const shine = Math.max(0, 1 - Math.hypot(u + 0.3, v - 0.35) * 2.5);
+    return [1, grout ? 0.25 : 0.55 + 0.45 * shine + 0.15 * ((Math.round(lon) + Math.round(lat)) % 2)];
+  }],
+  // Coiled spring, seen from the side.
+  spring: [32, 64, (u, v) => {
+    const t = (v + 0.9) / 1.8;
+    if (t < 0 || t > 1) return 0;
+    const x = Math.sin(t * Math.PI * 12) * 0.62;
+    const back = Math.cos(t * Math.PI * 12) < 0;
+    return [1 - smooth(0.1, 0.18, Math.abs(u - x)), back ? 0.55 : 1];
+  }],
+  // Rounded tombstone with a cross carved in.
+  tombstone: [48, 64, (u, v) => {
+    const body = (Math.abs(u) < 0.62 && v < 0.35 && v > -0.95) || Math.hypot(u, (v - 0.35) / 1.0) < 0.62;
+    if (!body) return 0;
+    const cross = (Math.abs(u) < 0.07 && v > -0.35 && v < 0.55) || (Math.abs(v - 0.28) < 0.07 && Math.abs(u) < 0.27);
+    return [1, cross ? 0.35 : 0.8];
+  }],
+  // --- Anime and music skins (original designs) -----------------------------
+  // Rising energy aura: a round base that wraps the number, tapering up
+  // into a flickering flame tip.
+  aura: [64, 96, (u, v) => {
+    const y = (v + 1) / 2;                       // 0 bottom .. 1 top
+    let body;
+    if (y < 0.32) body = 0.9 * Math.sqrt(Math.max(0, 1 - ((0.32 - y) / 0.32) ** 2));
+    else body = 0.9 * Math.pow(1 - (y - 0.32) / 0.68, 0.9);
+    body += 0.1 * Math.max(0, Math.sin(u * 12 + y * 9)) * Math.min(1, y * 2);
+    const edge = Math.abs(u) / Math.max(0.01, body);
+    if (edge > 1) return 0;
+    return [1 - smooth(0.65, 1, edge) * 0.75, 0.5 + 0.5 * (1 - edge)];
+  }],
+  // Cut-in band: a long flat bar with dark rims.
+  band: [128, 32, (u, v) => {
+    const body = (1 - smooth(0.92, 0.99, Math.abs(u))) * (Math.abs(v) < 0.8 ? 1 : 0);
+    return [body, Math.abs(v) > 0.62 ? 0.15 : 1];
+  }],
+  // Speed lines: horizontal streaks of varied length.
+  speedlines: [128, 64, (u, v) => {
+    const row = Math.floor((v + 1) * 6);
+    const len = 0.35 + ((row * 37) % 10) / 16;
+    const off = ((row * 53) % 10) / 20 - 0.25;
+    const inLine = Math.abs(((v + 1) * 6) % 1 - 0.5) < 0.12;
+    return inLine && u > off - len / 2 && u < off + len / 2 ? 1 - smooth(off + len / 2 - 0.15, off + len / 2, u) : 0;
+  }],
+  // Cherry petal: a rounded petal with a notch at the tip.
+  petal: [32, 32, (u, v) => {
+    const body = 1 - smooth(0.9, 1, Math.hypot(u / 0.62, (v + 0.05) / 0.85));
+    const notch = Math.hypot(u, v - 0.82) < 0.22 ? 0 : 1;
+    return [body * notch, 0.75 + 0.25 * (1 - Math.hypot(u, v))];
+  }],
+  // HUD brackets: four corner marks around a target.
+  brackets: [64, 48, (u, v) => {
+    const t = 0.07, l = 0.32;
+    const cx = Math.abs(u) > 0.92 - t && Math.abs(u) < 0.92 && Math.abs(v) > 0.88 - l && Math.abs(v) < 0.88;
+    const cy = Math.abs(v) > 0.88 - t * 1.4 && Math.abs(v) < 0.88 && Math.abs(u) > 0.92 - l && Math.abs(u) < 0.92;
+    return cx || cy ? 1 : 0;
+  }],
+  // Equalizer: nine bars of different heights.
+  eqbars: [128, 64, (u, v) => {
+    const i = Math.floor((u + 1) / 2 * 9);
+    const cx = -1 + (i + 0.5) * 2 / 9;
+    if (Math.abs(u - cx) > 0.075) return 0;
+    const h = [0.35, 0.7, 0.5, 0.95, 0.6, 0.85, 0.4, 0.65, 0.3][i] * 2 - 1;
+    if (v > h || v < -1) return 0;
+    const seg = ((v + 1) * 8) % 1 < 0.2 ? 0.4 : 1;
+    return [1, seg * (0.6 + 0.4 * (v + 1) / 2)];
+  }],
+  // Vinyl record: grooves, a label and a spindle hole.
+  vinyl: [64, 64, (u, v) => {
+    const r = Math.hypot(u, v);
+    if (r > 0.92 || r < 0.05) return 0;
+    if (r < 0.32) return [1, 1];
+    const groove = 0.18 + 0.12 * (Math.sin(r * 90) > 0 ? 1 : 0);
+    const shine = Math.abs(Math.sin(Math.atan2(v, u) * 2)) > 0.92 ? 0.35 : 0;
+    return [1, groove + shine];
+  }],
+  // Eighth note.
+  note: [32, 48, (u, v) => {
+    const head = 1 - smooth(0.85, 1, Math.hypot((u + 0.25) / 0.45, (v + 0.62) / 0.3));
+    const stem = Math.abs(u - 0.17) < 0.07 && v > -0.62 && v < 0.85 ? 1 : 0;
+    const flag = v > 0.35 && v < 0.85 && u > 0.17 && u < 0.17 + (0.85 - v) * 0.9 && u > 0.17 + (v - 0.35) * 0.6 ? 1 : 0;
+    return Math.max(head, stem, flag);
+  }],
+  // Microphone on a short stand.
+  mic: [32, 64, (u, v) => {
+    const head = Math.hypot(u / 0.5, (v - 0.55) / 0.36) < 1;
+    const handle = Math.abs(u) < 0.2 - (0.55 - v) * 0.1 && v < 0.3 && v > -0.6;
+    const base = Math.abs(u) < 0.55 && v > -0.9 && v < -0.78;
+    const grille = head && (Math.sin(u * 30) > 0.6 || Math.sin(v * 30) > 0.6) ? 0.7 : 1;
+    return head || handle || base ? [1, head ? grille : 0.8] : 0;
+  }],
   // Four-point twinkle.
   twinkle: [64, 64, (u, v) => {
     const r = Math.hypot(u, v);

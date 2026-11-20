@@ -21,11 +21,11 @@ local Feats = ns.Feats
 
 -- Skins and feats are shown one group at a time. The Feats tab adds a Specs
 -- group (spec variants live inside Classes on the Skins tab).
--- Tab widths fit six tabs beside the preview stage.
-local GROUPS = { { "style", "Styles", 36 }, { "class", "Class", 34 }, { "faction", "Faction", 40 }, { "pvp", "PvP", 26 },
-                 { "prof", "Trades", 38 }, { "loot", "Loot", 30 } }
+-- Tab widths fit seven tabs beside the preview stage.
+local GROUPS = { { "style", "Styles", 33 }, { "class", "Class", 30 }, { "faction", "Faction", 37 }, { "pvp", "PvP", 24 },
+                 { "prof", "Trades", 34 }, { "loot", "Loot", 26 }, { "fun", "Fun", 24 } }
 local FEAT_GROUPS = { { "style", "Styles" }, { "class", "Classes" }, { "spec", "Specs" }, { "faction", "Factions" }, { "pvp", "PvP" },
-                      { "prof", "Trades" }, { "loot", "Loot" } }
+                      { "prof", "Trades" }, { "loot", "Loot" }, { "fun", "Secrets" } }
 local CLASS_ORDER = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
 local LIST_ROW, LIST_TOP = 24, -70
 local listGroup, featGroup = "style", "style"
@@ -130,7 +130,7 @@ end
 local function lockLine(id)
     local f = Feats.FeatForSkin(id)
     if not f then return "" end
-    return ("|cffffd84aLocked.|r Earn it: %s  |cff999999(%s)|r"):format(f.text, Feats.ProgressText(f))
+    return ("|cffffd84aLocked.|r Earn it: %s  |cff999999(%s)|r"):format(Feats.DisplayText(f), Feats.ProgressText(f))
 end
 
 ---------------------------------------------------------------------------
@@ -232,6 +232,8 @@ local function refreshFeats()
         local isDone = Feats.IsDone(f)
         local cur, goal = Feats.Progress(f)
         if isDone then cur, goal = 1, 1 end
+        if f.secret and not isDone then cur = 0 end   -- no hints from the bar
+        row.text:SetText(Feats.DisplayText(f))
         row.status:SetText(isDone and "|cff7fe07fComplete|r" or ("|cffaaa59a" .. Feats.ProgressText(f, true) .. "|r"))
         row.fill:SetWidth(math.max(0.01, row.barWidth * (goal > 0 and cur / goal or 0)))
         row.fill:SetColorTexture(isDone and 0.45 or 0.85, isDone and 0.85 or 0.64, isDone and 0.4 or 0.15, 1)
@@ -358,7 +360,7 @@ local function buildSkins(page)
         t.group = g[1]
         t:SetSize(g[3], 20)
         t:SetPoint("TOPLEFT", x, -44)
-        x = x + g[3] + 2
+        x = x + g[3] + 1
         skinGroupTabs[#skinGroupTabs + 1] = t
     end
     local mine = ns.Skins[ns.ClassSkinID() or ""]
@@ -412,7 +414,7 @@ local function buildSkins(page)
             if IsShiftKeyDown and IsShiftKeyDown() and id ~= ns.AUTO then
                 -- Shift-click: the skin used in battlegrounds and against players.
                 if isLocked(id) then
-                    ns.Print("that skin is locked. Earn it first: " .. Feats.FeatForSkin(id).text .. ".")
+                    ns.Print("that skin is locked. Earn it first: " .. Feats.DisplayText(Feats.FeatForSkin(id)) .. ".")
                 elseif ns.db.pvpSkin == id then
                     ns.db.pvpSkin = nil
                     ns.Print("PvP skin off: your usual skin shows everywhere.")
@@ -440,7 +442,7 @@ local function buildSkins(page)
             if isLocked(id) then
                 local f = Feats.FeatForSkin(id)
                 GameTooltip:AddLine(" ")
-                GameTooltip:AddLine("Locked. Earn it: " .. f.text, 1, 0.82, 0.29, true)
+                GameTooltip:AddLine("Locked. Earn it: " .. Feats.DisplayText(f), 1, 0.82, 0.29, true)
                 GameTooltip:AddLine(Feats.ProgressText(f), 0.7, 0.7, 0.7)
                 GameTooltip:AddLine("Click to preview it.", 0.6, 0.6, 0.6)
             elseif id ~= ns.AUTO then
@@ -700,7 +702,7 @@ local function buildFeats(page)
         r.text:SetWidth(colW)
         r.text:SetJustifyH("LEFT")
         if r.text.SetWordWrap then r.text:SetWordWrap(false) end
-        r.text:SetText(f.text)
+        r.text:SetText(Feats.DisplayText(f))
         r.barWidth = colW
         local track = r:CreateTexture(nil, "BACKGROUND")
         track:SetPoint("BOTTOMLEFT", 0, 0)
@@ -935,7 +937,7 @@ SlashCmdList.SKINDEEP = function(msg)
         local title = rank and (rank == 0 and "Civilian" or (names and names[rank])) or nil
         local c = ns.db.counters
         if rank then
-            ns.Print(("PvP rank %d (%s, %s). Best so far: Alliance %d, Horde %d. Rank skins unlock at 6, 10 and 14.")
+            ns.Print(("PvP rank %d (%s, %s). Best so far: Alliance %d, Horde %d. Rank skins unlock at 3, 7, 10, 13 and 14.")
                 :format(rank, title or "?", faction, c.rankAlliance or 0, c.rankHorde or 0))
         else
             ns.Print("couldn't read a PvP rank from the game on this client.")
@@ -955,7 +957,7 @@ SlashCmdList.SKINDEEP = function(msg)
             if not id or id == ns.AUTO then
                 ns.Print("no skin called '" .. rest .. "'. /skindeep list")
             elseif isLocked(id) then
-                ns.Print(("%s is locked. Earn it: %s."):format(ns.Skins[id].name, Feats.FeatForSkin(id).text))
+                ns.Print(("%s is locked. Earn it: %s."):format(ns.Skins[id].name, Feats.DisplayText(Feats.FeatForSkin(id))))
             else
                 ns.db.pvpSkin = id
                 ns.Print(("PvP skin: %s, in battlegrounds and against players."):format(ns.Skins[id].name))
@@ -975,7 +977,7 @@ SlashCmdList.SKINDEEP = function(msg)
             ns.Print("no skin called '" .. rest .. "'. /skindeep list")
         elseif isLocked(id) then
             local f = Feats.FeatForSkin(id)
-            ns.Print(("%s is locked. Earn it: %s (%s)."):format(ns.Skins[id].name, f.text, Feats.ProgressText(f)))
+            ns.Print(("%s is locked. Earn it: %s (%s)."):format(ns.Skins[id].name, Feats.DisplayText(f), Feats.ProgressText(f)))
         else
             ns.SetSkin(id)
             ns.Print("skin: " .. (id == ns.AUTO and ("Auto: my class (" .. ns.CurrentSkin().name .. ")") or ns.Skins[id].name))

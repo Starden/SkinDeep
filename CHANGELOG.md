@@ -1,5 +1,21 @@
 # SkinDeep
 
+## 1.3.0
+
+- **PvP ranks now match the Legacy ladder** (Rank 3, 7, 10, 13, 14):
+  - New **Sergeant** skins for each faction (Rank 3), and **Field Marshal**
+    and **Warlord** (Rank 13), each with its own crit title.
+  - Knight and Stone Guard become **Knight-Lieutenant** and **Blood Guard**
+    at Rank 7. Already earned? They stay yours.
+- **Fifteen secret skins** on a new **Fun** tab, each earned by a secret
+  feat. The Feats tab's **Secrets** group shows only a riddle until you earn
+  one:
+  - Natural 20, Synthwave, Glitch, Disco Fever, Bunny Hop, Graveyard Shift
+    and Hogger!
+  - Anime-inspired: Power Surge, Final Move, Sakura Drift and Mecha Strike.
+  - Music-inspired: Bass Drop, Lo-Fi, Karaoke and Power Ballad.
+- The Rank 3 to 14 PvP skins show the Alliance and Horde crests.
+
 ## 1.2.1
 
 - **Skin sharing fix**: hovering players no longer fills chat with "No

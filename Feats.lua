@@ -89,11 +89,17 @@ end
 -- has reached. Battleground wins come from PVP_MATCH_COMPLETE, duels from the
 -- game's "has defeated ... in a duel" line.
 local PVP = {
-    { id = "knight",       counter = "rankAlliance", goal = 6,  text = "Reach PvP Rank 6 (Knight) on an Alliance character" },
+    -- The Legacy ranks: 3, 7, 10, 13, 14. (knight and stoneguard keep their
+    -- ids from when they were Rank 6, so earlier unlocks stay earned.)
+    { id = "sergeant_a",   counter = "rankAlliance", goal = 3,  text = "Reach PvP Rank 3 (Sergeant) on an Alliance character" },
+    { id = "knight",       counter = "rankAlliance", goal = 7,  text = "Reach PvP Rank 7 (Knight-Lieutenant) on an Alliance character" },
     { id = "ltcommander",  counter = "rankAlliance", goal = 10, text = "Reach PvP Rank 10 on an Alliance character" },
+    { id = "fieldmarshal", counter = "rankAlliance", goal = 13, text = "Reach PvP Rank 13 (Field Marshal) on an Alliance character" },
     { id = "grandmarshal", counter = "rankAlliance", goal = 14, text = "Reach PvP Rank 14 on an Alliance character" },
-    { id = "stoneguard",   counter = "rankHorde",    goal = 6,  text = "Reach PvP Rank 6 (Stone Guard) on a Horde character" },
+    { id = "sergeant_h",   counter = "rankHorde",    goal = 3,  text = "Reach PvP Rank 3 (Sergeant) on a Horde character" },
+    { id = "stoneguard",   counter = "rankHorde",    goal = 7,  text = "Reach PvP Rank 7 (Blood Guard) on a Horde character" },
     { id = "champion",     counter = "rankHorde",    goal = 10, text = "Reach PvP Rank 10 on a Horde character" },
+    { id = "warlord",      counter = "rankHorde",    goal = 13, text = "Reach PvP Rank 13 (Warlord) on a Horde character" },
     { id = "highwarlord",  counter = "rankHorde",    goal = 14, text = "Reach PvP Rank 14 on a Horde character" },
     { id = "flagrunner",   counter = "winWSG",        goal = 5,  text = "Win 5 Warsong Gulch battles" },
     { id = "fivebanners",  counter = "winAB",         goal = 5,  text = "Win 5 Arathi Basin battles" },
@@ -145,6 +151,46 @@ for _, id in ipairs(ns.SkinOrder) do
         LIST[#LIST + 1] = f
         SPEC_FEATS[#SPEC_FEATS + 1] = f
     end
+end
+
+-- Fun skins (FunSkins.lua): secret feats. Until one is done, players see
+-- only its hint (Feats.DisplayText).
+local FUN = {
+    { id = "natural20",  counter = "nat20",        goal = 1,    hint = "Let the dice decide.",
+      text = "Type /roll 20 and roll a natural 20" },
+    { id = "synthwave",  counter = "midnightCrit", goal = 1,    hint = "When the clock strikes twelve.",
+      text = "Land a crit at exactly midnight, game time" },
+    { id = "glitch",     counter = "reloads",      goal = 50,   hint = "Have you tried turning it off and on again?",
+      text = "Reload your UI 50 times" },
+    { id = "discofever", counter = "dances",       goal = 100,  hint = "Feel the rhythm.",
+      text = "/dance 100 times" },
+    { id = "bunnyhop",   counter = "jumps",        goal = 5000, hint = "Up, up and away.",
+      text = "Jump 5,000 times" },
+    { id = "graveyard",  counter = "deaths",       goal = 50,   hint = "Every hero falls.",
+      text = "Die 50 times" },
+    { id = "hogger",     counter = "hogger",       goal = 1,    hint = "Elwynn's worst nightmare.",
+      text = "Slay Hogger" },
+    -- Anime- and music-inspired.
+    { id = "powersurge", counter = "crits",        goal = 9001, hint = "Over nine thousand...",
+      text = "Land 9,001 crits" },
+    { id = "finalmove",  counter = "critBurst",    goal = 1,    hint = "Unleash everything at once.",
+      text = "Land 5 crits within 3 seconds" },
+    { id = "sakura",     counter = "hitsApr",      goal = 100,  hint = "When the blossoms fall.",
+      text = "Land 100 hits during April" },
+    { id = "mechastrike", boss = { "Mekgineer Thermaplugg" },   hint = "Pilot the machine.",
+      text = "Defeat Mekgineer Thermaplugg" },
+    { id = "bassdrop",   counter = "danceZones",   goal = 10,   hint = "Every floor is a dance floor.",
+      text = "/dance in 10 different zones" },
+    { id = "lofi",       counter = "afk",          goal = 25,   hint = "Just chill.",
+      text = "Go AFK 25 times" },
+    { id = "karaoke",    counter = "sings",        goal = 50,   hint = "Grab the mic.",
+      text = "/sing 50 times" },
+    { id = "powerballad", counter = "cheers",      goal = 100,  hint = "Raise your lighters.",
+      text = "/cheer 100 times" },
+}
+for _, f in ipairs(FUN) do
+    f.skin, f.secret = f.id, true
+    LIST[#LIST + 1] = f
 end
 
 -- Loot skins (LootSkins.lua): loot an item of that quality or better
@@ -231,6 +277,7 @@ function Feats.InitDB(d)
     d.bosses = d.bosses or {}
     d.specPoints = d.specPoints or {}   -- best talent points seen per class and tree ("WARRIOR:1")
     d.setsWorn = d.setsWorn or {}       -- complete item sets worn, by name
+    d.danceZones = d.danceZones or {}   -- zones you've danced in (Bass Drop)
     d.profSkill = d.profSkill or {}     -- best skill seen per profession (skill line id)
     d.feats = d.feats or {}
     d.hkChars = d.hkChars or {}
@@ -258,9 +305,16 @@ function Feats.Progress(f)
     return 0, 1
 end
 
+-- The requirement as players see it: a secret shows only its hint.
+function Feats.DisplayText(f)
+    if f.secret and not Feats.IsDone(f) then return "Secret: " .. f.hint end
+    return f.text
+end
+
 -- short: the compact form for the Feats tab's right-hand column.
 function Feats.ProgressText(f, short)
     if Feats.IsDone(f) then return "Complete" end
+    if f.secret then return "???" end
     if not f.counter and not f.classLevel and not f.spec and not f.skillLine then return "Not yet" end
     local cur, goal = Feats.Progress(f)
     if f.money then return ("%d / %d gold"):format(floor(cur / GOLD), floor(goal / GOLD)) end
@@ -408,6 +462,7 @@ end
 
 -- A mob you fought died.
 function Feats.Killed(name, creatureType)
+    if name == "Hogger" then raise("hogger", 1) end
     -- Each counter at most once per kill ("Gurubashi Hakkari" is one troll).
     local hit = {}
     if name then
@@ -445,7 +500,7 @@ end
 ---------------------------------------------------------------------------
 local CRIT = { CRITICAL = true, CRUSHING = true }
 local SCHOOL_COUNTER = { [4] = "fire", [16] = "frost", [64] = "arcane" }
-local MONTH_COUNTER = { [10] = "hitsOct", [12] = "hitsDec", [2] = "hitsFeb" }
+local MONTH_COUNTER = { [10] = "hitsOct", [12] = "hitsDec", [2] = "hitsFeb", [4] = "hitsApr" }
 
 -- The real-world month (local clock), for the seasonal skins.
 function Feats.Month()
@@ -829,6 +884,8 @@ local function scanProfessions()
 end
 Feats.ScanProfessions = scanProfessions
 
+local recentCrits = {}   -- times of your latest crits (Final Move)
+
 function Feats.OnCombat(unit, action, flags, amount, school)
     if not db() then return end
     local u = ns.Plain(unit, "string")
@@ -845,6 +902,12 @@ function Feats.OnCombat(unit, action, flags, amount, school)
     if CRIT[ns.Plain(flags, "string") or ""] then
         bump("crits")
         if Feats.IsNight() then bump("nightCrits") end
+        local okTime, hour, minute = pcall(GetGameTime)
+        if okTime and ns.Plain(hour, "number") == 0 and ns.Plain(minute, "number") == 0 then raise("midnightCrit", 1) end
+        local now = call(GetTime) or 0
+        tinsert(recentCrits, now)
+        while recentCrits[1] and now - recentCrits[1] > 3 do table.remove(recentCrits, 1) end
+        if #recentCrits >= 5 then raise("critBurst", 1) end
     end
     local sc = SCHOOL_COUNTER[ns.Plain(school, "number") or 1]
     if sc then bump(sc) end
@@ -939,9 +1002,32 @@ local function buildDuelPattern()
     duelPattern = "^" .. f .. "$"
 end
 
+-- "Name rolls 20 (1-20)" as a pattern (any client language).
+local rollPattern
+local function myRoll(msg)
+    if rollPattern == nil then
+        local fmt = rawget(_G, "RANDOM_ROLL_RESULT")
+        if type(fmt) == "string" then
+            rollPattern = "^" .. fmt:gsub("([%(%)%.%[%]%*%+%-%?%^%$])", "%%%1"):gsub("%%s", "(.+)"):gsub("%%d", "(%%d+)")
+        else
+            rollPattern = "^(.+) rolls (%d+) %((%d+)%-(%d+)%)"
+        end
+    end
+    local who, roll, lo, hi = msg:match(rollPattern)
+    if not who then return end
+    local me = ns.Plain(call(UnitName, "player"), "string")
+    if not me or not (who == me or who:sub(1, #me + 1) == me .. "-" or who:sub(1, #me + 1) == me .. " ") then return end
+    return tonumber(roll), tonumber(lo), tonumber(hi)
+end
+
 function Feats.OnSystemMessage(msg)
     msg = ns.Plain(msg, "string")
     if not msg then return end
+    local roll, lo, hi = myRoll(msg)
+    if roll then
+        if roll == 20 and lo == 1 and hi == 20 then raise("nat20", 1) end
+        return
+    end
     if not duelPattern then buildDuelPattern() end
     if not duelPattern then return end
     local a, b = msg:match(duelPattern)
@@ -1008,7 +1094,8 @@ end
 
 local lastForm
 local events = CreateFrame("Frame")
-for _, e in ipairs({ "CHAT_MSG_LOOT", "PLAYER_EQUIPMENT_CHANGED", "UPDATE_SHAPESHIFT_FORM", "SKILL_LINES_CHANGED", "CHAT_MSG_SKILL", "CHAT_MSG_COMBAT_HONOR_GAIN", "PLAYER_PVP_KILLS_CHANGED", "PLAYER_TALENT_UPDATE",
+local wasAfk
+for _, e in ipairs({ "PLAYER_FLAGS_CHANGED", "PLAYER_DEAD", "CHAT_MSG_TEXT_EMOTE", "CHAT_MSG_LOOT", "PLAYER_EQUIPMENT_CHANGED", "UPDATE_SHAPESHIFT_FORM", "SKILL_LINES_CHANGED", "CHAT_MSG_SKILL", "CHAT_MSG_COMBAT_HONOR_GAIN", "PLAYER_PVP_KILLS_CHANGED", "PLAYER_TALENT_UPDATE",
                      "CHARACTER_POINTS_CHANGED", "PLAYER_SPECIALIZATION_CHANGED", "ACTIVE_TALENT_GROUP_CHANGED",
                      "TRAIT_CONFIG_UPDATED",
                      "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "UNIT_COMBAT", "UNIT_HEALTH", "PLAYER_TARGET_CHANGED",
@@ -1053,6 +1140,36 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d, e)
         or event == "PLAYER_SPECIALIZATION_CHANGED" or event == "ACTIVE_TALENT_GROUP_CHANGED" then
         scanTalents()
         if ns.OnSettingsChanged then ns.OnSettingsChanged() end  -- Auto may now pick another variant
+    elseif event == "PLAYER_FLAGS_CHANGED" then
+        if ns.Plain(a, "string") == "player" then
+            local afk = ns.SafeBool(rawget(_G, "UnitIsAFK"), "player") == true
+            if afk and not wasAfk then bump("afk") end
+            wasAfk = afk
+        end
+    elseif event == "PLAYER_DEAD" then
+        bump("deaths")
+    elseif event == "CHAT_MSG_TEXT_EMOTE" then
+        -- Your own /dance ("You burst into dance." / "You dance with ...").
+        local text, sender = ns.Plain(a, "string"), ns.Plain(b, "string")
+        local me = ns.Plain(call(UnitName, "player"), "string")
+        if text and sender and me and (sender == me or sender:sub(1, #me + 1) == me .. "-") then
+            local lower = text:lower()
+            if lower:find("dance", 1, true) then
+                bump("dances")
+                -- Bass Drop: the zones you've danced in.
+                local zone = ns.Plain(call(rawget(_G, "GetRealZoneText")) or call(rawget(_G, "GetZoneText")), "string")
+                if zone and zone ~= "" and not db().danceZones[zone] then
+                    db().danceZones[zone] = true
+                    local n = 0
+                    for _ in pairs(db().danceZones) do n = n + 1 end
+                    raise("danceZones", n)
+                end
+            elseif lower:find("song", 1, true) or lower:find("sing", 1, true) then
+                bump("sings")
+            elseif lower:find("cheer", 1, true) then
+                bump("cheers")
+            end
+        end
     elseif event == "CHAT_MSG_LOOT" then
         Feats.OnLootMessage(a)
     elseif event == "PLAYER_EQUIPMENT_CHANGED" then
@@ -1077,7 +1194,13 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d, e)
         scanTalents()
         scanProfessions()
         level()
+        -- Jumps: the jump key calls JumpOrAscendStart.
+        local hook, jump = rawget(_G, "hooksecurefunc"), rawget(_G, "JumpOrAscendStart")
+        if hook and jump and not Feats.jumpHooked then
+            Feats.jumpHooked = pcall(hook, "JumpOrAscendStart", function() bump("jumps") end)
+        end
     elseif event == "PLAYER_ENTERING_WORLD" then
+        if b == true then bump("reloads") end   -- isReloadingUi
         lastMoney = nil
         money()
         pvpRank()

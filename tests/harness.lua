@@ -141,6 +141,15 @@ C_ChatInfo = {
   SendAddonMessage = function(prefix, text, channel, target) sentAddon[#sentAddon + 1] = { prefix, text, channel, target }; return true end,
 }
 function IsInRaid() return false end
+RANDOM_ROLL_RESULT = "%s rolls %d (%d-%d)"
+function JumpOrAscendStart() end
+zoneName, afkNow = "Elwynn Forest", false
+function GetRealZoneText() return zoneName end
+function UnitIsAFK(u) return u == "player" and afkNow end
+function hooksecurefunc(name, fn)
+  local orig = _G[name]
+  _G[name] = function(...) local r = orig(...); fn(...); return r end
+end
 ERR_CHAT_PLAYER_NOT_FOUND_S = "No player named '%s' is currently playing."
 chatFilters = {}
 function ChatFrame_AddMessageEventFilter(event, fn) chatFilters[event] = chatFilters[event] or {}; table.insert(chatFilters[event], fn) end
@@ -275,7 +284,7 @@ end
 
 -- Load the addon like the client: each file gets (addonName, ns).
 local ns = {}
-for _, file in ipairs({ "Skins.lua", "StyleSkins.lua", "ClassSkins.lua", "SpecSkins.lua", "FactionSkins.lua", "PvPSkins.lua", "ProfSkins.lua", "LootSkins.lua", "Core.lua", "Feats.lua", "Engine.lua", "Jackpot.lua", "Options.lua", "Welcome.lua", "Share.lua" }) do
+for _, file in ipairs({ "Skins.lua", "StyleSkins.lua", "ClassSkins.lua", "SpecSkins.lua", "FactionSkins.lua", "PvPSkins.lua", "ProfSkins.lua", "LootSkins.lua", "FunSkins.lua", "Core.lua", "Feats.lua", "Engine.lua", "Jackpot.lua", "Options.lua", "Welcome.lua", "Share.lua" }) do
   local chunk, err = loadfile(ADDON_DIR .. "/" .. file)
   if not chunk then error(err) end
   chunk("SkinDeep", ns)
@@ -302,7 +311,7 @@ for _, id in ipairs(ns.SkinOrder) do
 end
 local nPvP = 0
 for _, id in ipairs(ns.SkinOrder) do if ns.Skins[id].group == "pvp" then nPvP = nPvP + 1; if not ns.Feats.FeatForSkin(id) then unpaired[#unpaired + 1] = id end end end
-check(#ns.SkinOrder == 96 and nClass == 37 and nFaction == 11 and nPvP == 15, "96 skins: 37 class (9 + 28 spec), 11 faction, 15 PvP, 12 profession, 5 loot (" .. #ns.SkinOrder .. ", " .. nClass .. ", " .. nFaction .. ", " .. nPvP .. ")")
+check(#ns.SkinOrder == 115 and nClass == 37 and nFaction == 11 and nPvP == 19, "115 skins: 37 class (9 + 28 spec), 11 faction, 19 PvP, 12 profession, 5 loot, 15 fun (" .. #ns.SkinOrder .. ", " .. nClass .. ", " .. nFaction .. ", " .. nPvP .. ")")
 local styleUnpaired = {}
 for _, id in ipairs(ns.SkinOrder) do local sk = ns.Skins[id]; if not sk.group and id ~= "classic" and not ns.Feats.FeatForSkin(id) then styleUnpaired[#styleUnpaired + 1] = id end end
 check(#styleUnpaired == 0, "every style skin but Classic+ has a feat" .. (#styleUnpaired > 0 and (": missing " .. table.concat(styleUnpaired, ", ")) or ""))
@@ -584,7 +593,7 @@ for i = 1, 250 do
 end
 check(SkinDeepDB.counters.undead == 250, "Undead kills are counted (250)")
 check(not F.IsDone(F.ByID.scourge), "a feat whose skin is not released does not complete")
-check(#F.Visible() == 117, "unreleased feats are not listed (117 of 119 shown while two skins are held back)")
+check(#F.Visible() == 136, "unreleased feats are not listed (136 of 138 shown while two skins are held back)")
 local alive = { name = "Defias Pillager", ctype = "Humanoid" }
 units.nameplate2 = alive
 fire("UNIT_COMBAT", "nameplate2", "WOUND", "", 30, 1)
@@ -992,6 +1001,98 @@ do
   SkinDeepDB.shareSkins = true
   SkinDeepDB.skin, SkinDeepDB.incoming = "auto", false
   inGroup = false
+end
+
+print("== secret skins and the Legacy ranks")
+do
+  local F = ns.Feats
+  SkinDeepDB.unlockMode = "collector"
+  for _, id in ipairs({ "natural20", "synthwave", "glitch", "discofever", "bunnyhop", "graveyard", "hogger" }) do SkinDeepDB.feats[id] = nil end
+  for _, c in ipairs({ "nat20", "midnightCrit", "reloads", "dances", "jumps", "deaths", "hogger" }) do SkinDeepDB.counters[c] = nil end
+  local me = UnitName("player")
+  local nat = F.ByID.natural20
+  check(F.DisplayText(nat) == "Secret: Let the dice decide." and F.ProgressText(nat, true) == "???", "a secret shows only its riddle and ???")
+  fire("CHAT_MSG_SYSTEM", me .. " rolls 19 (1-20)")
+  fire("CHAT_MSG_SYSTEM", "Wes rolls 20 (1-20)")
+  fire("CHAT_MSG_SYSTEM", me .. " rolls 20 (1-100)")
+  check(not F.IsDone(nat), "a 19, someone else's 20, or a 20 out of 100 don't count")
+  fire("CHAT_MSG_SYSTEM", me .. " rolls 20 (1-20)")
+  check(F.IsDone(nat) and F.DisplayText(nat) == "Type /roll 20 and roll a natural 20", "a natural 20 earns Natural 20 and reveals the feat")
+  -- Midnight crit.
+  gameHour = 0
+  fire("UNIT_COMBAT", "target", "WOUND", "CRITICAL", 900, 1)
+  check(F.IsDone(F.ByID.synthwave), "a crit at 0:00 earns Synthwave")
+  gameHour = 12
+  -- Reloads, dances, jumps, deaths.
+  for _ = 1, 49 do fire("PLAYER_ENTERING_WORLD", false, true) end
+  fire("PLAYER_ENTERING_WORLD", false, false)
+  check(not F.IsDone(F.ByID.glitch), "49 reloads (and a zone change) aren't enough")
+  fire("PLAYER_ENTERING_WORLD", false, true)
+  check(F.IsDone(F.ByID.glitch), "the 50th reload earns Glitch")
+  fire("CHAT_MSG_TEXT_EMOTE", "Wes bursts into dance.", "Wes")
+  fire("CHAT_MSG_TEXT_EMOTE", "You cheer!", me)
+  check((SkinDeepDB.counters.dances or 0) == 0, "others' dances and your other emotes don't count")
+  for _ = 1, 100 do fire("CHAT_MSG_TEXT_EMOTE", "You burst into dance.", me) end
+  check(F.IsDone(F.ByID.discofever), "100 dances earn Disco Fever")
+  for _ = 1, 4999 do JumpOrAscendStart() end
+  check(not F.IsDone(F.ByID.bunnyhop) and SkinDeepDB.counters.jumps == 4999, "jumps are counted (4999)")
+  JumpOrAscendStart()
+  check(F.IsDone(F.ByID.bunnyhop), "the 5000th jump earns Bunny Hop")
+  for _ = 1, 50 do fire("PLAYER_DEAD") end
+  check(F.IsDone(F.ByID.graveyard), "50 deaths earn Graveyard Shift")
+  F.Killed("Hogger", "Humanoid")
+  check(F.IsDone(F.ByID.hogger), "slaying Hogger earns Hogger!")
+  -- Anime and music.
+  for _, id in ipairs({ "powersurge", "finalmove", "sakura", "mechastrike", "bassdrop", "lofi", "karaoke", "powerballad" }) do SkinDeepDB.feats[id] = nil end
+  for _, c in ipairs({ "critBurst", "hitsApr", "danceZones", "afk", "sings", "cheers" }) do SkinDeepDB.counters[c] = nil end
+  SkinDeepDB.danceZones = {}
+  run(4)   -- earlier crits out of the 3-second window
+  for _ = 1, 4 do fire("UNIT_COMBAT", "target", "WOUND", "CRITICAL", 900, 1); run(0.5) end
+  check(not F.IsDone(F.ByID.finalmove), "4 crits in a burst aren't enough")
+  run(4)
+  for _ = 1, 4 do fire("UNIT_COMBAT", "target", "WOUND", "CRITICAL", 900, 1); run(0.9) end
+  check(not F.IsDone(F.ByID.finalmove), "5 crits spread over more than 3 seconds don't count")
+  for _ = 1, 5 do fire("UNIT_COMBAT", "target", "WOUND", "CRITICAL", 900, 1); run(0.4) end
+  check(F.IsDone(F.ByID.finalmove), "5 crits within 3 seconds earn Final Move")
+  run(3)
+  SkinDeepDB.counters.crits = 8999
+  fire("UNIT_COMBAT", "target", "WOUND", "CRITICAL", 900, 1)
+  run(3)
+  check(not F.IsDone(F.ByID.powersurge), "9,000 crits: not yet")
+  fire("UNIT_COMBAT", "target", "WOUND", "CRITICAL", 900, 1)
+  check(F.IsDone(F.ByID.powersurge), "the 9,001st crit earns Power Surge")
+  run(3)
+  monthNow = 4
+  for _ = 1, 100 do fire("UNIT_COMBAT", "target", "WOUND", "", 100, 1) end
+  monthNow = 6
+  check(F.IsDone(F.ByID.sakura), "100 hits in April earn Sakura Drift")
+  F.BossKilled("Mekgineer Thermaplugg")
+  check(F.IsDone(F.ByID.mechastrike), "defeating Mekgineer Thermaplugg earns Mecha Strike")
+  for i = 1, 9 do zoneName = "Zone " .. i; fire("CHAT_MSG_TEXT_EMOTE", "You burst into dance.", me) end
+  zoneName = "Zone 9"
+  fire("CHAT_MSG_TEXT_EMOTE", "You burst into dance.", me)
+  check(not F.IsDone(F.ByID.bassdrop) and SkinDeepDB.counters.danceZones == 9, "dancing twice in one zone counts it once (9 zones)")
+  zoneName = "Zone 10"
+  fire("CHAT_MSG_TEXT_EMOTE", "You burst into dance.", me)
+  check(F.IsDone(F.ByID.bassdrop), "a 10th zone earns Bass Drop")
+  for _ = 1, 25 do
+    afkNow = true; fire("PLAYER_FLAGS_CHANGED", "player")
+    fire("PLAYER_FLAGS_CHANGED", "player")
+    afkNow = false; fire("PLAYER_FLAGS_CHANGED", "player")
+  end
+  check(F.IsDone(F.ByID.lofi) and SkinDeepDB.counters.afk == 25, "going AFK 25 times earns Lo-Fi (each time counted once)")
+  for _ = 1, 50 do fire("CHAT_MSG_TEXT_EMOTE", "You burst into song.", me) end
+  check(F.IsDone(F.ByID.karaoke), "50 songs earn Karaoke")
+  for _ = 1, 100 do fire("CHAT_MSG_TEXT_EMOTE", "You cheer!", me) end
+  check(F.IsDone(F.ByID.powerballad), "100 cheers earn Power Ballad")
+  -- The Legacy rank ladder.
+  check(F.ByID.sergeant_a.goal == 3 and F.ByID.knight.goal == 7 and F.ByID.fieldmarshal.goal == 13
+        and F.ByID.warlord.goal == 13 and F.ByID.stoneguard.goal == 7, "rank feats sit at the Legacy ranks 3, 7, 10, 13, 14")
+  check(ns.Skins.knight.name == "Knight-Lieutenant" and ns.Skins.stoneguard.name == "Blood Guard", "Rank 7 skins carry their Rank 7 titles")
+  ns.OpenWindow("feats")
+  run(0.3)
+  _G.SkinDeepConfig:Hide()
+  SkinDeepDB.unlockMode = "all"
 end
 
 print("== spec variants")

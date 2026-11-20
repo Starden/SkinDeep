@@ -331,8 +331,24 @@ end
 -- offset behind the motion (an arrow streak).
 -- d.file is one of the game's own textures (the faction crests); if the
 -- client can't load it, d.tex (SkinDeep's own) stands in.
+-- Whether the client has a game texture (GetFileIDFromPath knows every
+-- shipped file); without that API, trust SetTexture.
+local hasFile = {}
+local function gameFile(path)
+    if hasFile[path] == nil then
+        local lookup = rawget(_G, "GetFileIDFromPath")
+        if type(lookup) == "function" then
+            local ok, id = pcall(lookup, path)
+            hasFile[path] = (ok and id ~= nil) and true or false
+        else
+            hasFile[path] = true
+        end
+    end
+    return hasFile[path]
+end
+
 local function setupTexture(tex, d, rotation, dir)
-    local ok = d.file and tex:SetTexture(d.file)
+    local ok = d.file and gameFile(d.file) and tex:SetTexture(d.file)
     if not ok then tex:SetTexture(TEX .. d.tex .. ".tga") end
     tex:SetBlendMode(d.blend or "ADD")
     local c = d.color or WHITE
