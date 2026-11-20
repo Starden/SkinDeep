@@ -1,5 +1,17 @@
 # SkinDeep
 
+## 1.4.0
+
+- **Quality pass on every skin**, measured with a new audit (tools/audit.js):
+  - Every crit glows: a soft halo in the number's color behind it.
+  - Every skin now has a drop shadow, so numbers read over snow, sky and
+    bright effects alike.
+  - Rings and bursts grow fast, then settle.
+  - Richer crits for the 26 skins that had only one or two effects, among
+    them Classic+, Frostbite, Kaboom! (POW!), Retro Arcade (HIGH SCORE!),
+    Starfall, Ember Tide, Hallow's End, Bloodrage, Halo, Dead Eye, Wild
+    Bloom, Glacial Spike, Withering, Broodmother and Graveyard Shift.
+
 ## 1.3.0
 
 - **PvP ranks now match the Legacy ladder** (Rank 3, 7, 10, 13, 14):

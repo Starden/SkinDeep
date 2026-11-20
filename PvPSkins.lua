@@ -253,6 +253,8 @@ add("flagrunner", {
     critDecor = { tex = "flag", size = 70, x = -4, y = 12, color = { 0.85, 0.25, 0.2 }, alpha = 1, blend = "BLEND", snap = 0.1, snapTime = 0.1 },
     particles = { tex = "slash", count = 1, critCount = 5, size = { 6, 10 }, aspect = 6, speed = { 100, 180 },
                   dir = { -10, 10 }, gravity = 0, life = { 0.2, 0.35 }, color = { 0.9, 0.95, 0.8 }, mirror = true },
+    ring = { size = 60, color = { 1, 0.4, 0.3 }, grow = 1.6, alpha = 0.7 },
+    critDecor2 = { tex = "burst", size = 100, color = { 1, 0.35, 0.25 }, alpha = 0.4, spin = 0.5 },
 })
 
 add("fivebanners", {
@@ -297,6 +299,8 @@ add("duelist", {
     critDecor = { tex = "blades", size = 90, color = { 0.92, 0.94, 1 }, alpha = 0.95, snap = 0.1, snapTime = 0.1 },
     particles = { tex = "puff", count = 0, critCount = 6, size = { 14, 24 }, speed = { 30, 70 }, dir = { 200, 340 },
                   gravity = 20, life = { 0.5, 0.9 }, color = { 0.75, 0.65, 0.45 }, blend = "BLEND" },
+    ring = { size = 60, color = { 1, 0.95, 0.8 }, grow = 1.6, alpha = 0.8 },
+    critDecor2 = { tex = "burst", size = 110, color = { 1, 0.85, 0.5 }, alpha = 0.45, spin = 0.5 },
 })
 
 ---------------------------------------------------------------------------
@@ -313,6 +317,9 @@ add("tally", {
     decor = { tex = "tally", size = 26, y = 30, color = { 0.9, 0.88, 0.8 }, alpha = 0.55, blend = "BLEND" },
     critReplacesDecor = true,
     critDecor = { tex = "tally", size = 44, y = 34, color = { 1, 0.95, 0.85 }, alpha = 0.95, blend = "BLEND", snap = 1.6, snapTime = 0.1 },
+    ring = { size = 56, color = { 1, 0.95, 0.8 }, grow = 1.5, alpha = 0.6 },
+    particles = { tex = "pixel", count = 0, critCount = 6, size = { 3, 5 }, speed = { 40, 100 }, dir = { 30, 150 },
+                  gravity = -250, life = { 0.4, 0.7 }, color = { 0.9, 0.85, 0.7 }, blend = "BLEND" },
 })
 
 add("lionspride", {

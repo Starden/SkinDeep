@@ -33,6 +33,8 @@ add("warrior", {
     particles = { tex = "pixel", count = 0, critCount = 9, size = { 3, 6 }, speed = { 60, 160 }, dir = { 20, 160 },
                   gravity = -500, life = { 0.4, 0.8 }, color = { 0.5, 0.35, 0.25 }, blend = "BLEND" },
     world = { WorldTextScale = 1.25, WorldTextGravity = 2 },
+    ring = { size = 70, color = { 1, 0.5, 0.25 }, grow = 1.8, alpha = 0.8 },
+    critDecor2 = { tex = "burst", size = 110, color = { 0.9, 0.25, 0.1 }, alpha = 0.45, spin = 0.3 },
 })
 
 add("paladin", {
@@ -68,6 +70,9 @@ add("hunter", {
     critDecor = { tex = "reticle", size = 80, color = { 1, 0.25, 0.2 }, alpha = 1,
                   snap = 2.2, snapTime = 0.15, unwind = 1.6 },
     world = { floatingCombatTextCombatDamageDirectionalScale = 1.5 },
+    ring = { size = 50, color = { 1, 0.35, 0.3 }, grow = 1.8, alpha = 0.8 },
+    particles = { tex = "spark", count = 0, critCount = 8, size = { 3, 6 }, speed = { 60, 140 }, dir = { 0, 360 },
+                  gravity = 0, life = { 0.3, 0.6 }, color = { 1, 0.85, 0.6 } },
 })
 
 add("rogue", {
@@ -105,6 +110,8 @@ add("priest", {
     particles = { tex = "feather", count = 0, critCount = 5, size = { 12, 18 }, aspect = 0.5, speed = { 10, 30 },
                   dir = { 0, 360 }, gravity = -30, life = { 0.8, 1.3 }, spin = 2, color = { 1, 1, 1 }, blend = "BLEND" },
     world = { WorldTextRampDuration = 1.4 },
+    critDecor2 = { tex = "beam", size = { 50, 160 }, y = 60, color = { 1, 0.97, 0.8 }, alpha = 0.5, snap = 0.3, snapTime = 0.2 },
+    ring = { size = 60, color = { 1, 1, 0.85 }, grow = 1.4, alpha = 0.6 },
 })
 
 add("shaman", {
@@ -179,4 +186,7 @@ add("druid", {
                   dir = { 0, 360 }, gravity = -40, life = { 0.7, 1.2 }, spin = 4,
                   color = { 0.45, 0.8, 0.25 }, altColor = { 1, 0.6, 0.2 }, blend = "BLEND" },
     world = { floatingCombatTextCombatDamageDirectionalScale = 1.3 },
+    ring = { size = 64, color = { 0.55, 0.95, 0.4 }, grow = 1.5, alpha = 0.7 },
+    particles2 = { tex = "glow", count = 0, critCount = 8, size = { 3, 5 }, speed = { 15, 45 }, dir = { 0, 360 },
+                   gravity = 8, life = { 0.8, 1.4 }, color = { 1, 0.95, 0.55 } },
 })

@@ -103,6 +103,8 @@ add("brood", {
                   dir = { 65, 115 }, gravity = -40, life = { 0.35, 0.7 }, orient = true,
                   color = { 1, 0.45, 0.1 }, altColor = { 0.7, 0.3, 1 } },
     world = { WorldTextScale = 1.15 },
+    ring = { size = 70, color = { 0.75, 0.45, 1 }, grow = 1.7, alpha = 0.8 },
+    critDecor2 = { tex = "flame", size = { 50, 90 }, y = 18, color = { 0.6, 0.3, 1 }, alpha = 0.8, snap = 0.3, snapTime = 0.12 },
 })
 
 add("argent", {
@@ -137,6 +139,7 @@ add("broadside", {
                   gravity = 10, life = { 0.6, 1.0 }, color = { 0.6, 0.58, 0.55 }, blend = "BLEND" },
     particles2 = { tex = "coin", count = 0, critCount = 7, size = { 8, 11 }, speed = { 80, 160 }, dir = { 40, 140 },
                    gravity = -380, life = { 0.6, 1.0 }, color = { 1, 0.82, 0.25 }, blend = "BLEND" },
+    ring = { size = 70, color = { 1, 0.75, 0.4 }, grow = 1.8, alpha = 0.7 },
 })
 
 add("hexbound", {
@@ -152,6 +155,7 @@ add("hexbound", {
     ring = { size = 50, color = { 0.75, 0.35, 1 }, grow = 1.8, alpha = 0.9 },
     particles = { tex = "glow", count = 2, critCount = 8, size = { 3, 6 }, speed = { 15, 45 }, dir = { 60, 120 },
                   gravity = 40, life = { 0.6, 1.1 }, color = { 0.6, 1, 0.4 }, altColor = { 0.8, 0.45, 1 } },
+    critDecor2 = { tex = "burst", size = 110, color = { 0.45, 0.8, 0.3 }, alpha = 0.4, spin = 0.5 },
 })
 
 add("oldgod", {

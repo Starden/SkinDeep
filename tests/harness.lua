@@ -1107,7 +1107,7 @@ do
   check(per.WARRIOR == 3 and per.MAGE == 3 and per.DRUID == 4, "3 variants per class (Druid 4)")
   check(ns.Skins.mage_fire.font == ns.Skins.mage.font and ns.Skins.mage_fire.motion == "implode",
     "a variant inherits its class skin's font and motion")
-  check(ns.Skins.mage_frost.motion == "slam" and ns.Skins.mage_frost.critDecor == nil, "overrides apply, and false clears an inherited field")
+  check(ns.Skins.mage_frost.motion == "slam" and ns.Skins.warlock.decor ~= nil and ns.Skins.warlock_aff.decor == nil, "overrides apply, and false clears an inherited field")
   -- Unlocking: 20 talent points in that tree.
   SkinDeepDB.unlockMode = "collector"
   SkinDeepDB.skin = "auto"

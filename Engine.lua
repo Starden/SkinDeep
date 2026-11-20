@@ -244,6 +244,7 @@ local function newPop()
     p.burst = inner:CreateTexture(nil, "BORDER")
     p.burst2 = inner:CreateTexture(nil, "BORDER", nil, 1)
     p.ring = inner:CreateTexture(nil, "ARTWORK")
+    p.glow = inner:CreateTexture(nil, "BACKGROUND", nil, -2)   -- behind everything else
     p.layers = {}
     for i = 1, MAX_LAYERS do
         local fs = inner:CreateFontString(nil, "OVERLAY")
@@ -258,6 +259,7 @@ local function newPop()
 end
 
 local function hideTextures(p)
+    p.glow:Hide()
     p.decor:Hide(); p.burst:Hide(); p.burst2:Hide(); p.ring:Hide()
     for _, part in ipairs(p.parts) do part.tex:Hide(); part.alive = false end
     for _, c in pairs(p.containers) do c:Hide() end
@@ -452,10 +454,29 @@ local function spawnParticles(p, pd, crit, color, first)
     return first + count
 end
 
+-- A skin with neither a thick outline nor a dark offset layer gets a soft
+-- black drop shadow added to its layers (once).
+local function ensureShadow(skin)
+    if skin.shadowChecked or skin.ownText or skin.noShadow then return end
+    skin.shadowChecked = true
+    if (skin.outline or ""):find("THICK") then return end
+    for _, L in ipairs(skin.layers or EMPTY) do
+        local c = L.color
+        local lum = 0.3 * c[1] + 0.59 * c[2] + 0.11 * c[3]
+        if lum < 0.3 and (c[4] or 1) >= 0.6 and math.abs(L.x or 0) + math.abs(L.y or 0) >= 1.5 then return end
+    end
+    local layers = {}
+    for i, L in ipairs(skin.layers or EMPTY) do layers[i] = L end
+    if #layers < MAX_LAYERS then layers[#layers + 1] = { x = 1.5, y = -1.5, color = { 0, 0, 0, 0.85 } } end
+    skin.layers = layers
+end
+Engine.EnsureShadow = ensureShadow
+
 function Engine.Spawn(e)
     local db = ns.db
     if not db then return end
     local skin = (e.skin and ns.TierSkin(ns.Skins[e.skin], e.tier)) or ns.CurrentSkin()
+    ensureShadow(skin)
     if #active >= MAX_POPS then release(1) end
     local p = tremove(free) or newPop()
 
@@ -535,8 +556,15 @@ function Engine.Spawn(e)
 
     -- Decor, bursts, rings, particles.
     hideTextures(p)
-    p.decorDef, p.burstDef, p.burst2Def, p.ringDef = nil, nil, nil, nil
+    p.decorDef, p.burstDef, p.burst2Def, p.ringDef, p.glowDef = nil, nil, nil, nil, nil
     if db.effects and e.kind ~= "word" and not e.echo then
+        -- Crit glow: a soft halo in the number's color, behind everything.
+        if crit and e.kind == "dmg" and not skin.noGlow and not skin.ownText then
+            local gs = skin.size or 24
+            p.glowDef = { tex = "glow", size = { gs * 4.6, gs * 2.2 }, color = skin.glowColor or color,
+                          alpha = skin.glowAlpha or 0.3, snap = 0.5, snapTime = 0.18 }
+            setupTexture(p.glow, p.glowDef, 0)
+        end
         -- critReplacesDecor: a crit swaps the everyday decor for its own.
         if skin.decor and not (crit and skin.critReplacesDecor) then
             p.decorDef = skin.decor
@@ -626,7 +654,7 @@ local function animateTexture(tex, d, t, life, rotation, steady)
     end
     tex:SetAlpha(max(0, a))
     local w, h = sizeOf(d.size or 64)
-    local g = 1 + (d.grow or 0) * k
+    local g = 1 + (d.grow or 0) * (1 - (1 - k) * (1 - k))
     if d.snap then
         local snapTime = d.snapTime or 0.15
         if t < snapTime then
@@ -728,6 +756,7 @@ function Engine.Step(p, dt)
     animateTexture(p.burst, p.burstDef, t, p.dur * 0.55, p.burstRot or 0)
     animateTexture(p.burst2, p.burst2Def, t, p.dur * 0.55, p.burst2Rot or 0)
     animateTexture(p.ring, p.ringDef, t, p.dur * 0.45, 0)
+    animateTexture(p.glow, p.glowDef, t, p.dur * 0.7, 0)
 
     -- Particles fly from where the number spawned, not with it.
     for _, part in ipairs(p.parts) do

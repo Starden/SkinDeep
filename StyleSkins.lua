@@ -29,6 +29,8 @@ add("starfall", {
                   gravity = 0, life = { 0.4, 0.8 }, color = { 1, 1, 0.85 }, spin = 3 },
     particles2 = { tex = "star", count = 0, critCount = 4, size = { 8, 12 }, speed = { 120, 200 }, dir = { 200, 250 },
                    gravity = -60, life = { 0.5, 0.9 }, color = { 1, 0.95, 0.7 } },
+    critDecor = { tex = "star", size = 72, color = { 0.62, 0.66, 1 }, alpha = 0.6, spin = 1.2, snap = 0.3, snapTime = 0.15 },
+    critDecor2 = { tex = "burst", size = 120, color = { 0.6, 0.62, 1 }, alpha = 0.4, spin = 0.4 },
 })
 
 add("gearworks", {
@@ -57,6 +59,8 @@ add("murloc", {
                   colors = { { 0.5, 1, 0.8 }, { 1, 1, 1 }, { 0.35, 0.75, 0.95 } }, shadowColor = { 0.02, 0.15, 0.2 } },
     particles = { tex = "bubble", count = 2, critCount = 9, size = { 6, 14 }, speed = { 15, 45 }, dir = { 70, 110 },
                   gravity = 30, life = { 0.6, 1.2 }, color = { 0.75, 0.95, 1 } },
+    critDecor = { tex = "bubble", size = 64, color = { 0.5, 0.95, 1 }, alpha = 0.8, snap = 0.3, snapTime = 0.15 },
+    ring = { size = 60, color = { 0.4, 1, 0.8 }, grow = 1.6, alpha = 0.7 },
 })
 
 add("hallows", {
@@ -70,6 +74,8 @@ add("hallows", {
     critDecor = { tex = "pumpkin", size = 76, y = -4, color = { 0.8, 0.36, 0.04 }, alpha = 0.9, blend = "BLEND", snap = 0.2, snapTime = 0.12 },
     particles = { tex = "bat", count = 1, critCount = 6, size = { 9, 13 }, aspect = 2, speed = { 50, 110 }, dir = { 30, 150 },
                   gravity = 0, life = { 0.6, 1.1 }, color = { 0.25, 0.1, 0.3 }, blend = "BLEND" },
+    critDecor2 = { tex = "moon", size = 38, x = -30, y = 38, color = { 1, 0.92, 0.6 }, alpha = 0.85, blend = "BLEND", snap = 0.5, snapTime = 0.2 },
+    ring = { size = 60, color = { 1, 0.55, 0.1 }, grow = 1.6, alpha = 0.8 },
 })
 
 add("winterveil", {
@@ -82,6 +88,8 @@ add("winterveil", {
     critDecor = { tex = "gift", size = 58, color = { 0.2, 0.6, 0.25 }, alpha = 0.95, blend = "BLEND", snap = 0.2, snapTime = 0.12 },
     particles = { tex = "snowflake", count = 2, critCount = 10, size = { 6, 11 }, speed = { 10, 50 }, dir = { 0, 360 },
                   gravity = -30, life = { 0.8, 1.4 }, color = { 0.95, 0.98, 1 }, spin = 2 },
+    critDecor2 = { tex = "snowflake", size = 96, color = { 0.9, 0.95, 1 }, alpha = 0.45, spin = 0.6 },
+    ring = { size = 60, color = { 1, 0.3, 0.3 }, grow = 1.5, alpha = 0.7 },
 })
 
 add("heartthrob", {
@@ -95,4 +103,6 @@ add("heartthrob", {
     critDecor = { tex = "heart", size = 66, color = { 1, 0.3, 0.5 }, alpha = 0.9, blend = "BLEND", snap = 0.3, snapTime = 0.12 },
     particles = { tex = "heart", count = 1, critCount = 8, size = { 7, 12 }, speed = { 20, 60 }, dir = { 60, 120 },
                   gravity = 20, life = { 0.6, 1.1 }, color = { 1, 0.55, 0.75 }, blend = "BLEND" },
+    critDecor2 = { tex = "burst", size = 110, color = { 1, 0.45, 0.65 }, alpha = 0.45, spin = 0.4 },
+    ring = { size = 56, color = { 1, 0.6, 0.8 }, grow = 1.6, alpha = 0.75 },
 })

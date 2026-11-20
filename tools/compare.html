@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SkinDeep before and after</title>
+<script src="data.js"></script>
+<style>
+  body { margin: 0; background: #0e1013; color: #ddd; font: 13px system-ui, sans-serif; }
+  #log { padding: 8px 12px; }
+  canvas { display: block; margin: 0 auto 12px; max-width: 100%; height: auto; }
+</style>
+</head>
+<body>
+<div id="log">Rendering…</div>
+<div id="out"></div>
+<script>
+// Before/after images (1600x900): each row is one skin's crit, the old
+// version on the left and the new one on the right. ?save=1 saves them.
+const AFTER = window.GALLERY, BEFORE = window.BEFORE;
+const W = 1600, H = 900;
+function prep(G) {
+  G.byId = Object.fromEntries(G.skins.map(s => [s.id, s]));
+  G.tint = new Map();
+}
+prep(AFTER); prep(BEFORE);
+function tinted(G, ti, r, g, b) {
+  const key = ti + ':' + r + ',' + g + ',' + b;
+  if (G.tint.has(key)) return G.tint.get(key);
+  const t = G.textures[ti];
+  if (!t || t.missing) { G.tint.set(key, null); return null; }
+  if (!t.bytes) t.bytes = Uint8Array.from(atob(t.rgba), c => c.charCodeAt(0));
+  const c = document.createElement('canvas'); c.width = t.w; c.height = t.h;
+  const cx = c.getContext('2d'); const img = cx.createImageData(t.w, t.h);
+  for (let i = 0; i < t.bytes.length; i += 4) {
+    const l = t.bytes[i] / 255;
+    img.data[i] = l * r * 255; img.data[i + 1] = l * g * 255; img.data[i + 2] = l * b * 255; img.data[i + 3] = t.bytes[i + 3];
+  }
+  cx.putImageData(img, 0, 0); G.tint.set(key, c); return c;
+}
+function drawItems(G, ctx, cx, cy, items, sc) {
+  for (const e of items || []) {
+    const [kind, x, y, ew, eh, a, rot, r, g, b, ref, mode, size, flags] = e;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1, a));
+    ctx.translate(cx + x * sc, cy - y * sc);
+    if (kind === 0) {
+      const img = tinted(G, ref, r, g, b);
+      if (img) { ctx.rotate(-rot); ctx.globalCompositeOperation = mode === 1 ? 'source-over' : 'lighter'; ctx.drawImage(img, -ew * sc / 2, -eh * sc / 2, ew * sc, eh * sc); }
+    } else {
+      const f = G.fonts[mode];
+      ctx.font = `${size * sc}px ${f ? f.css : 'Georgia'}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+      if (flags) { ctx.lineWidth = (flags === 2 ? 3.4 : 2.2) * sc; ctx.strokeStyle = 'rgba(0,0,0,0.95)'; ctx.strokeText(ref, 0, 0); }
+      ctx.fillStyle = `rgb(${r * 255},${g * 255},${b * 255})`;
+      ctx.fillText(ref, 0, 0);
+    }
+    ctx.restore();
+  }
+}
+function label(ctx, text, x, y, size, color, align = 'left', font = 'Georgia, serif') {
+  ctx.save(); ctx.font = `${size}px ${font}`; ctx.textAlign = align; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  ctx.lineWidth = Math.max(3, size / 6); ctx.strokeStyle = 'rgba(0,0,0,0.9)'; ctx.strokeText(text, x, y);
+  ctx.fillStyle = color; ctx.fillText(text, x, y); ctx.restore();
+}
+function backdrop(ctx) {
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#1b2029'); g.addColorStop(1, '#0d1013');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+// One row: a skin's crit at a few moments, before (left) and after (right).
+const FRAMES = [1, 3, 6];
+function row(ctx, id, y, h) {
+  const b = BEFORE.byId[id], a = AFTER.byId[id];
+  label(ctx, a.name, 40, y + h / 2, 26, '#efe6d6');
+  const colW = (W - 260 - 60) / 2, cellW = (colW - 20) / FRAMES.length;
+  [[BEFORE, b, 260], [AFTER, a, 260 + colW + 40]].forEach(([G, s, x0]) => {
+    FRAMES.forEach((fi, i) => {
+      const x = x0 + i * cellW;
+      ctx.save(); ctx.beginPath(); ctx.roundRect(x + 4, y + 4, cellW - 8, h - 8, 10);
+      ctx.fillStyle = 'rgba(40,46,56,0.65)'; ctx.fill(); ctx.clip();
+      if (s) drawItems(G, ctx, x + cellW / 2, y + h * 0.6, s.crit[fi], 0.72);
+      ctx.restore();
+    });
+  });
+}
+function page(ctx, title, ids) {
+  backdrop(ctx);
+  label(ctx, title, 40, 50, 40, '#ffd27a');
+  const colW = (W - 260 - 60) / 2;
+  label(ctx, 'Before', 260 + colW / 2, 104, 22, '#9d978c', 'center', 'system-ui, sans-serif');
+  label(ctx, 'After', 260 + colW + 40 + colW / 2, 104, 22, '#7fe07f', 'center', 'system-ui, sans-serif');
+  const top = 130, h = (H - top - 20) / ids.length;
+  ids.forEach((id, i) => row(ctx, id, top + i * h, h));
+}
+const IMAGES = [
+  { name: 'compare-styles', title: 'Polish pass: styles', ids: ['classic', 'frost', 'comic', 'arcade', 'starfall'] },
+  { name: 'compare-more', title: 'Polish pass: more upgrades', ids: ['ember', 'hallows', 'priest', 'mage_frost', 'graveyard'] },
+];
+async function main() {
+  for (const G of [AFTER, BEFORE]) for (const f of G.fonts) {
+    if (f.url) { try { const ff = new FontFace(f.family, `url(${f.url})`); await ff.load(); document.fonts.add(ff); } catch (e) {} f.css = `"${f.family}", Georgia, serif`; }
+    else f.css = f.family;
+  }
+  await document.fonts.ready;
+  const save = new URLSearchParams(location.search).get('save') === '1';
+  const log = [];
+  for (const img of IMAGES) {
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    page(c.getContext('2d'), img.title, img.ids);
+    document.getElementById('out').appendChild(c);
+    if (save) {
+      const res = await fetch('/save?name=' + img.name + '.png', { method: 'POST', body: c.toDataURL('image/png') });
+      log.push(img.name + ': ' + (res.ok ? 'saved' : 'failed'));
+    }
+  }
+  document.getElementById('log').textContent = save ? log.join(' · ') : 'Rendered.';
+  window.COMPARE_DONE = true;
+}
+main();
+</script>
+</body>
+</html>
