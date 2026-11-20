@@ -132,7 +132,7 @@ function UnitHonorLevel(u) return 1 end
 pvpRank = 0
 Constants = { CurrencyConsts = { CURRENCY_ID_RENOWN_PVP_RANK = 3001 } }
 C_CurrencyInfo = { GetCurrencyInfo = function(id) if id == 3001 then return { name = "PvP Rank", quantity = pvpRank, maxQuantity = 14, totalEarned = pvpRank } end end }
-function UnitFactionGroup(u) return playerFactionName end
+function UnitFactionGroup(u) return (units[u] and units[u].faction) or playerFactionName end
 -- Addon messages and tooltips (skin sharing).
 units.player = { name = "Shocka", player = true }
 sentAddon, addonPrefixes, tooltipLines, tooltipUnit = {}, {}, {}, nil
@@ -141,6 +141,13 @@ C_ChatInfo = {
   SendAddonMessage = function(prefix, text, channel, target) sentAddon[#sentAddon + 1] = { prefix, text, channel, target }; return true end,
 }
 function IsInRaid() return false end
+ERR_CHAT_PLAYER_NOT_FOUND_S = "No player named '%s' is currently playing."
+chatFilters = {}
+function ChatFrame_AddMessageEventFilter(event, fn) chatFilters[event] = chatFilters[event] or {}; table.insert(chatFilters[event], fn) end
+local function systemLineHidden(msg)
+  for _, fn in ipairs(chatFilters.CHAT_MSG_SYSTEM or {}) do if fn(nil, "CHAT_MSG_SYSTEM", msg) then return true end end
+  return false
+end
 function IsInGuild() return false end
 function UnitExists(u) return units[u] ~= nil end
 function GameTooltip:GetUnit() local u = tooltipUnit; return u and units[u] and units[u].name, u end
@@ -916,6 +923,28 @@ do
   check(#tooltipLines == 0 and lastSent()[2] == "Q1" and lastSent()[4] == "Nia", "an unknown player is asked quietly (no line yet)")
   GameTooltip.scripts.OnTooltipSetUnit(GameTooltip)
   check(#sentAddon == n + 1, "and only asked once a minute")
+  -- Forever: whispers need the full name (first names aren't unique).
+  units.mouseover = { name = "Haze", player = true }
+  local realFull = rawget(_G, "UnitFullName")
+  UnitFullName = function(u) if u == "mouseover" then return "Haze", "Grimm" end return UnitName(u), nil end
+  GameTooltip.scripts.OnTooltipSetUnit(GameTooltip)
+  check(lastSent()[2] == "Q1" and lastSent()[4] == "Haze-Grimm", "requests go to the full First-Surname name (" .. tostring(lastSent()[4]) .. ")")
+  check(systemLineHidden("No player named 'Haze-Grimm' is currently playing."), "the game's not-found line for SkinDeep's request is hidden")
+  n = #sentAddon
+  asked = nil
+  GameTooltip.scripts.OnTooltipSetUnit(GameTooltip)
+  check(#sentAddon == n, "and that player isn't asked again for a while")
+  check(not systemLineHidden("No player named 'Someone' is currently playing."), "your own whispers' not-found lines still show")
+  fire("CHAT_MSG_ADDON", "SkinDeep", "S1|frost|0||0", "WHISPER", "Haze-Grimm")
+  check(S.SkinOf("Haze-Grimm") == "frost" and S.SkinOf("Haze") == "frost", "skins are kept by full name, found by first name when it's unique")
+  fire("CHAT_MSG_ADDON", "SkinDeep", "S1|ember|0||0", "WHISPER", "Haze-Other")
+  check(S.SkinOf("Haze") == nil and S.SkinOf("Haze-Other") == "ember", "two players sharing a first name stay apart")
+  UnitFullName = realFull
+  -- Whispers don't cross factions.
+  units.mouseover = { name = "Grok", player = true, faction = "Horde" }
+  n = #sentAddon
+  GameTooltip.scripts.OnTooltipSetUnit(GameTooltip)
+  check(#sentAddon == n, "players of the other faction aren't asked")
   units.mouseover = { name = "Gnoll", player = false }
   tooltipLines = {}
   GameTooltip.scripts.OnTooltipSetUnit(GameTooltip)
@@ -933,7 +962,7 @@ do
   fire("UNIT_COMBAT", "player", "WOUND", "", 120, 1)
   check(spawned[#spawned].skin == nil, "outside a duel, hits you take use your own skin")
   fire("DUEL_REQUESTED", "Wes-Forever")
-  check(lastSent()[2] == "Q1" and lastSent()[4] == "Wes", "a duel request swaps skins with the opponent")
+  check(lastSent()[2] == "Q1" and lastSent()[4] == "Wes-Forever", "a duel request swaps skins with the opponent (by full name)")
   fire("UNIT_COMBAT", "player", "WOUND", "CRITICAL", 300, 1)
   check(spawned[#spawned].skin == "grandmarshal", "in a duel, their hits on you show in their PvP skin")
   fire("UNIT_COMBAT", "player", "HEAL", "", 50, 2)

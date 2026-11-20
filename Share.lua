@@ -16,8 +16,9 @@ ns.Share = Share
 
 local PREFIX = "SkinDeep"
 local THROTTLE = 5         -- seconds between broadcasts on one channel
-local ASK_AGAIN = 60       -- seconds before asking the same player again
-local peers = {}           -- short name -> { id, tier, pvp, pvpTier, at }
+local ASK_AGAIN = 300      -- seconds before asking the same player again
+local UNREACHABLE = 600    -- a player a request couldn't reach isn't asked again for this long
+local peers = {}           -- full name -> { id, tier, pvp, pvpTier, at }
 Share.peers = peers
 
 local function global(name)
@@ -31,12 +32,36 @@ local function call(fn, ...)
 end
 local function now() return call(global("GetTime")) or 0 end
 
+local function plain(v) return ns.Plain(v, "string") end
+
 -- "Name-Realm" (or "Name-Surname" on Forever) to "Name".
 local function short(name)
-    name = ns.Plain(name, "string")
+    name = plain(name)
     return name and name:match("^([^%-]+)") or nil
 end
-local function myName() return short(call(global("UnitName"), "player")) end
+
+-- A unit's full name, the one whispers reach: on Forever the second part is
+-- the character's surname ("Haze-Grimm"), and a first name alone isn't
+-- unique, so a whisper to it can miss ("No player named ...").
+local function fullName(unit)
+    local first, second = call(global("UnitFullName"), unit)
+    first, second = plain(first), plain(second)
+    if not first then first = plain(call(global("UnitName"), unit)) end
+    if not first then return nil end
+    if second and second ~= "" then return first .. "-" .. second end
+    return first
+end
+Share.FullName = fullName
+
+-- Same character? Exact, or the same first name when one side has no
+-- surname to compare.
+local function sameName(a, b)
+    a, b = plain(a), plain(b)
+    if not a or not b then return false end
+    if a == b then return true end
+    return short(a) == short(b) and not (a:find("-", 1, true) and b:find("-", 1, true))
+end
+local function isMe(name) return sameName(name, fullName("player")) end
 
 local function enabled() return ns.db and ns.db.shareSkins ~= false end
 
@@ -68,12 +93,14 @@ end
 
 local pending = {}        -- channel or "WHISPER:name" -> text, sent after combat
 local lastSent = {}
+local whispered = {}      -- full name -> when SkinDeep last whispered them
 local function send(text, channel, target)
     if not enabled() then return end
     local sendFn = api()
     if not sendFn then return end
     local key = target and ("WHISPER:" .. target) or channel
     if blocked() then pending[key] = text; return end
+    if target then whispered[target] = now() end
     pcall(sendFn, PREFIX, text, channel, target)
     lastSent[key] = now()
 end
@@ -112,23 +139,55 @@ end
 ---------------------------------------------------------------------------
 -- Receiving
 ---------------------------------------------------------------------------
-local asked, answered = {}, {}
+local asked, answered, unreachable = {}, {}, {}
 
--- Asks one player for their skin (at most once a minute).
+-- Asks one player (by full name) for their skin, at most every few minutes,
+-- and not at all for a while once a request couldn't reach them.
 function Share.Ask(name)
-    name = short(name)
-    if not name or name == myName() or not enabled() then return false end
+    name = plain(name)
+    if not name or isMe(name) or not enabled() then return false end
+    if unreachable[name] and now() < unreachable[name] then return false end
     if asked[name] and now() - asked[name] < ASK_AGAIN then return false end
     asked[name] = now()
     send("Q1", "WHISPER", name)
     return true
 end
 
+-- "No player named 'X' is currently playing." for a whisper SkinDeep just
+-- sent (offline, another faction, a first name that isn't unique): hidden
+-- from chat, and that player isn't asked again for a while.
+local notFoundPattern
+local function notFoundName(msg)
+    if not notFoundPattern then
+        local fmt = global("ERR_CHAT_PLAYER_NOT_FOUND_S")
+        if type(fmt) == "string" and fmt:find("%s", 1, true) then
+            notFoundPattern = "^" .. fmt:gsub("([%(%)%.%[%]%*%+%-%?%^%$])", "%%%1"):gsub("%%s", "(.+)")
+        else
+            notFoundPattern = "^No player named '(.+)' is currently playing"
+        end
+    end
+    return msg:match(notFoundPattern)
+end
+function Share.FilterSystemMessage(_, _, msg, ...)
+    msg = plain(msg)
+    local who = msg and notFoundName(msg)
+    if not who then return false end
+    for target, at in pairs(whispered) do
+        if now() - at < 10 and sameName(target, who) then
+            unreachable[target] = now() + UNREACHABLE
+            whispered[target] = nil
+            return true
+        end
+    end
+    return false
+end
+
 local function onMessage(prefix, text, channel, sender)
     if ns.Plain(prefix, "string") ~= PREFIX or not enabled() then return end
     text, channel = ns.Plain(text, "string"), ns.Plain(channel, "string")
-    local who = short(sender)
-    if not text or not who or who == myName() then return end
+    local who = plain(sender)     -- the full name, as the game addresses them
+    if not text or not who or isMe(who) then return end
+    unreachable[who] = nil
     if text == "Q1" then
         if not answered[who] or now() - answered[who] >= THROTTLE then
             answered[who] = now()
@@ -146,10 +205,25 @@ local function onMessage(prefix, text, channel, sender)
 end
 Share.OnMessage = onMessage
 
+-- The record for a name: exact, or the one peer with that first name.
+local function peerOf(name)
+    name = plain(name)
+    if not name then return nil end
+    if peers[name] then return peers[name] end
+    local found
+    for key, p in pairs(peers) do
+        if sameName(key, name) then
+            if found then return nil end   -- two with that first name: can't tell
+            found = p
+        end
+    end
+    return found
+end
+
 -- A player's skin (one this copy has), as id, tier; nil if unknown. pvp:
 -- the skin they use against players, when they set one.
 function Share.SkinOf(name, pvp)
-    local p = peers[short(name) or ""]
+    local p = peerOf(name)
     if not p then return nil end
     if pvp and p.pvp and ns.Skins[p.pvp] then return p.pvp, p.pvpTier end
     if ns.Skins[p.id] then return p.id, p.tier end
@@ -172,10 +246,10 @@ local function addTooltipLine(tip)
     local ok, _, unit = pcall(tip.GetUnit, tip)
     unit = ok and ns.Plain(unit, "string")
     if not unit or not ns.SafeBool(UnitIsPlayer, unit) then return end
-    local name = short(call(global("UnitName"), unit))
+    local name = fullName(unit)
     if not name then return end
     local id, tier
-    if name == myName() then
+    if isMe(name) then
         id = ns.ResolvedSkinID()
         tier = ns.Feats and ns.Feats.SkinTier(id)
     else
@@ -183,7 +257,10 @@ local function addTooltipLine(tip)
         if not id then
             -- Ask quietly; the line appears next time (or right away if the
             -- answer arrives while this tooltip is still up).
-            if not call(global("InCombatLockdown")) then Share.Ask(name) end
+            -- Whispers only reach your own faction.
+            local theirs = plain(call(global("UnitFactionGroup"), unit))
+            local mine = plain(call(global("UnitFactionGroup"), "player"))
+            if theirs and theirs == mine and not call(global("InCombatLockdown")) then Share.Ask(name) end
             return
         end
     end
@@ -214,7 +291,7 @@ Share.OnPeer = function(name)
     if not (tip and tip.IsShown and tip:IsShown() and tip.GetUnit) then return end
     local ok, _, unit = pcall(tip.GetUnit, tip)
     unit = ok and ns.Plain(unit, "string")
-    if unit and short(call(global("UnitName"), unit)) == name and tip.skinDeepLine ~= name then
+    if unit and sameName(fullName(unit), name) and tip.skinDeepLine ~= name then
         addTooltipLine(tip)
         pcall(tip.Show, tip)
     end
@@ -227,8 +304,11 @@ local duelWith, duelAt
 local DUEL_EXPIRY = 300   -- a request nobody answered stops counting after this
 
 local function setOpponent(name)
-    name = short(name)
-    if not name or name == myName() then return end
+    name = plain(name)
+    if not name or isMe(name) then return end
+    -- The request may name them by first name: use your target's full name
+    -- when it's them.
+    if not name:find("-", 1, true) and sameName(fullName("target"), name) then name = fullName("target") end
     duelWith, duelAt = name, now()
     -- Swap skins now, before the fight starts.
     send(Share.Payload(), "WHISPER", name)
@@ -247,7 +327,7 @@ local function hookDuels()
     local hook = global("hooksecurefunc")
     if hook and global("StartDuel") then
         pcall(hook, "StartDuel", function(unit)
-            setOpponent(call(global("UnitName"), unit or "target"))
+            setOpponent(fullName(unit or "target"))
         end)
     end
 end
@@ -268,6 +348,8 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d)
         if register then pcall(register, PREFIX) end
         hookTooltips()
         hookDuels()
+        local addFilter = global("ChatFrame_AddMessageEventFilter")
+        if addFilter then pcall(addFilter, "CHAT_MSG_SYSTEM", Share.FilterSystemMessage) end
     elseif event == "PLAYER_ENTERING_WORLD" then
         broadcastSoon(5)
     elseif event == "GROUP_ROSTER_UPDATE" then
@@ -277,6 +359,7 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d)
         for key, text in pairs(pending) do
             pending[key] = nil
             local target = key:match("^WHISPER:(.+)")
+            if target then whispered[target] = now() end
             if sendFn then pcall(sendFn, PREFIX, text, target and "WHISPER" or key, target) end
         end
     elseif event == "DUEL_REQUESTED" then
