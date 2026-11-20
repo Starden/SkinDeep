@@ -20,6 +20,7 @@ FactionSkins.lua
 PvPSkins.lua
 ProfSkins.lua
 LootSkins.lua
+FunSkins.lua
 Core.lua
 Feats.lua
 Engine.lua

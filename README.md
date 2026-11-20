@@ -68,6 +68,11 @@ users, the hits you take show in your opponent's skin. (The game doesn't say
 who dealt a hit, so a duel, where only your opponent hits you, is the one place
 another player's skin can show on your numbers.)
 
+**Secret skins** (the Fun tab): Natural 20, Synthwave, Glitch, Disco Fever,
+Bunny Hop, Graveyard Shift, Hogger!, Power Surge, Final Move, Sakura Drift,
+Mecha Strike, Bass Drop, Lo-Fi, Karaoke and Power Ballad are each earned by a
+secret feat. The Feats tab shows only a riddle until you find it.
+
 | Faction skins | |
 |---|---|
 | **Crimson Oath** (Scarlet Crusade) | Numbers march up over the crusade's sigil; crits burn with holy fire. Earn it: slay 100 Scarlet Crusade or defeat Whitemane. |
@@ -84,8 +89,8 @@ another player's skin can show on your numbers.)
 
 | PvP skins | |
 |---|---|
-| **Knight · Lieutenant Commander · Grand Marshal** (Alliance) | Blue-and-gold ranks; reach PvP Rank 6, 10 and 14 on an Alliance character. Grand Marshal crowns every crit with a crest, a sunburst, its title and a shower of gold. |
-| **Stone Guard · Champion · High Warlord** (Horde) | Iron-and-blood ranks; reach PvP Rank 6, 10 and 14 on a Horde character. High Warlord crits beat the war drum, split the ground and erupt in fire and skulls. |
+| **Sergeant · Knight-Lieutenant · Lieutenant Commander · Field Marshal · Grand Marshal** (Alliance) | Blue-and-gold ranks at the Legacy ranks: PvP Rank 3, 7, 10, 13 and 14 on an Alliance character. Grand Marshal crowns every crit with a crest, a sunburst, its title and a shower of gold. |
+| **Sergeant · Blood Guard · Champion · Warlord · High Warlord** (Horde) | Iron-and-blood ranks at the Legacy ranks: PvP Rank 3, 7, 10, 13 and 14 on a Horde character. High Warlord crits beat the war drum, split the ground and erupt in fire and skulls. |
 | **Flag Runner** (Warsong Gulch) | Numbers sprint in; crits plant the flag. Win 5 Warsong Gulch battles. |
 | **Five Banners** (Arathi Basin) | Numbers climb around the five nodes. Win 5 Arathi Basin battles. |
 | **Winter Siege** (Alterac Valley) | Frosty numbers slam in with snow. Win 3 Alterac Valley battles. |
