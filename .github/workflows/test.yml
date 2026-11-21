@@ -1,9 +1,10 @@
-# Runs the syntax check and the mock-client test suite on every push and PR.
+# Runs the syntax check and the mock-client test suite on PRs and on pushes
+# to main. Branch pushes are covered by their PR, so tests run once, not twice.
 name: Test
 
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
 
 jobs:
