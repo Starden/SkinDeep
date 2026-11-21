@@ -161,15 +161,23 @@ is tooling (needs Node.js):
 
 ```bash
 npm install
-npm test          # Lua syntax check + mock-client test suite
-npm run assets    # regenerate fonts, textures and the logo
+npm test               # Lua syntax check + mock-client test suite
+npm run assets         # regenerate fonts, textures and the logo
+npm run gallery        # render every skin into tools/gallery (add skin ids to render only those)
+npm run serve          # serve the gallery on http://localhost:5177
+npm run audit          # score every skin against the quality bar
+npm run similar        # list the skins that look most alike
+npm run install-addon  # copy the addon into your WoW: Forever AddOns folder (Windows)
 ```
 
 - `tools/make_fonts.js` and `tools/make_textures.js` generate all fonts and
   textures from code, so every asset is original and MIT-licensed.
 - `tests/` runs the addon in a Lua VM against a mocked WoW API, including
   secret (unreadable) combat values.
-- `tools/install.ps1` copies the addon into your WoW: Forever AddOns folder.
+- `npm run gallery -- rogue mage` renders only those skins; `npm run similar
+  -- --top 10` and `npm run audit -- --json` pass options through.
+- `npm run install-addon` copies to `D:\World of Warcraft\_forever_\Interface\AddOns`;
+  for another folder, run `tools/install.ps1 -AddOns "<path>"`.
 
 Releases: pushing a tag like `v1.2.0` runs the tests, then the
 [BigWigs packager](https://github.com/BigWigsMods/packager) builds the zip and
