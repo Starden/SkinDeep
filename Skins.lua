@@ -20,6 +20,8 @@ local _, ns = ...
 --   critPieces           a crit's choreography: a list of textures, each with its own path and
 --                          timing (from/x/y, rot, pivot, reveal, wobble, turn, hold...; see
 --                          animatePiece in Engine.lua)
+--   hitPieces            the same, played on ordinary (non-crit) damage hits
+--   twin                 two quick sideways jolts for a two-weapon strike: { at, gap, px }
 --   particles            { tex, count, critCount, size = {min,max}, speed = {min,max}, dir = {deg,deg},
 --                          gravity (px/s^2, + is up), life = {min,max}, color, blend, spin,
 --                          origin = {x,y}, spread = {w,h}, delay = s or {min,max}, sway }
