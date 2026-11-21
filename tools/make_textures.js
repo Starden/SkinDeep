@@ -592,17 +592,6 @@ const TEXTURES = {
     return Math.max(al, ring);
   }],
   // --- Rank 13 and secret skins (original designs) ---------------------------
-  // Spiked crown: a band with five points, the middle one tallest.
-  crown: [64, 40, (u, v) => {
-    const band = (Math.abs(u) < 0.9 && v > -0.85 && v < -0.35) ? 1 : 0;
-    let spike = 0;
-    for (let i = 0; i < 5; i++) {
-      const cx = -0.72 + i * 0.36, top = i === 2 ? 0.95 : 0.6;
-      const t = (v + 0.35) / (top + 0.35);
-      if (t >= 0 && t <= 1 && Math.abs(u - cx) < 0.15 * (1 - t)) spike = 1;
-    }
-    return [Math.max(band, spike), band ? 0.75 : 1];
-  }],
   // Laurel wreath: two curved rows of leaves, open at the top.
   laurel: [64, 64, (u, v) => {
     let al = 0;
