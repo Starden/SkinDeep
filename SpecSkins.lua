@@ -45,11 +45,16 @@ variant("warrior_arms", "warrior", "Arms", 1, {
                   gravity = -300, life = { 0.5, 0.9 }, color = { 0.7, 0.05, 0.05 }, blend = "BLEND" },
 })
 variant("warrior_fury", "warrior", "Fury", 2, {
-    name = "Rampage", tagline = "Fury: every hit lands twice in a frenzy; crits blow out in a red-orange burst.",
+    name = "Rampage", tagline = "Fury: every hit jolts twice in a frenzy; crits blow out in a red-orange burst.",
     physColor = { 1, 0.82, 0.55 }, spellColor = { 1, 0.4, 0.15 },
     layers = { { x = 2, y = -2, color = { 0.5, 0.1, 0.02, 1 } } },
     motion = "zap", motionArgs = { speed = 60, step = 0.03, jolt = 2 },
-    echo = { delay = 0.07 }, shake = 8, dur = 0.95, ring = false,
+    twin = { at = 0.05, gap = 0.09, px = 4 }, shake = 8, dur = 0.95, ring = false,
+    -- Each jolt rakes a quick slash, one from each axe.
+    hitPieces = {
+        { tex = "slash", size = { 46, 10 }, x = -22, y = 4, rot = 0.6, delay = 0.05, life = 0.14, color = { 1, 0.45, 0.15 } },
+        { tex = "slash", size = { 46, 10 }, x = 22, y = -4, rot = -0.6, delay = 0.14, life = 0.14, color = { 1, 0.45, 0.15 } },
+    },
     critDecor = { tex = "burst", size = 120, color = { 1, 0.3, 0.1 }, alpha = 0.75, spin = 2 },
     particles = { tex = "flame", count = 0, critCount = 6, size = { 8, 12 }, aspect = 0.5, speed = { 50, 120 }, dir = { 0, 360 },
                   gravity = 0, life = { 0.3, 0.5 }, color = { 1, 0.35, 0.1 }, orient = true },
@@ -291,9 +296,15 @@ variant("shaman_ele", "shaman", "Elemental", 1, {
     particles2 = false,
 })
 variant("shaman_enh", "shaman", "Enhancement", 2, {
-    name = "Stormstrike", tagline = "Enhancement: twin electrified strikes; crits cross two charged slashes.",
+    name = "Stormstrike", tagline = "Enhancement: each hit jolts twice with a crackle of sparks; crits cross two charged slashes.",
     physColor = { 0.85, 0.92, 1 }, spellColor = { 0.35, 0.75, 1 },
-    motion = "dash", motionArgs = { arrive = true, dist = 70, time = 0.2, rise = 18 }, echo = { delay = 0.07 }, shake = 4,
+    motion = "dash", motionArgs = { arrive = true, dist = 70, time = 0.2, rise = 18 }, shake = 4,
+    -- Two strikes, one per weapon: the number jolts twice as it lands, a spark each time.
+    twin = { at = 0.18, gap = 0.09, px = 4 },
+    hitPieces = {
+        { tex = "bolt", size = { 18, 52 }, x = -32, y = 4, rot = 1.1, delay = 0.18, life = 0.2, color = { 0.7, 0.88, 1 } },
+        { tex = "bolt", size = { 18, 52 }, x = 32, y = -4, rot = -1.1, delay = 0.27, life = 0.2, color = { 0.7, 0.88, 1 } },
+    },
     decor = false, ring = false,
     critDecor = { tex = "slash", size = { 140, 30 }, y = -6, rot = 0.35, color = { 0.6, 0.85, 1 }, alpha = 1, snap = 0.1, snapTime = 0.06 },
     critDecor2 = { tex = "slash", size = { 140, 30 }, y = 6, rot = 0.35, color = { 0.6, 0.85, 1 }, alpha = 1, snap = 0.1, snapTime = 0.06, delay = 0.05 },

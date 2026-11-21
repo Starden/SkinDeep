@@ -498,7 +498,7 @@ function Engine.Spawn(e)
     p.dur = (crit and skin.critDur or skin.dur) or 1.1
     p.fade = skin.fade or 0.35
     p.fadeIn = skin.fadeIn or FADE_IN          -- a slow fade-in (numbers out of shadow)
-    p.alphaMul = e.echo and 0.85 or 1
+    p.alphaMul = 1
     p.pop = skin.pop or 0.3
     p.base = (db.scale or 1) * (inc and 0.8 or 1) * (crit and (skin.critScale or 1.5) or 1)
     p.shake = crit and skin.shake or nil
@@ -519,11 +519,6 @@ function Engine.Spawn(e)
     p.ax, p.ay = e.ax or 0, e.ay or 0
     p.ox = (random() - 0.5) * 30
     p.oy = laneOffset(p.anchor, skin.laneStep)
-    if e.echo then
-        -- An echo sits just beside the hit it repeats.
-        p.ox, p.oy = (e.echoX or 0) + 44 * p.dir, (e.echoY or 0) - 26
-        p.base = p.base * 0.8
-    end
     p:SetFrameStrata(e.strata or "LOW")
 
     -- Text and its layers (skins with ownText draw their own).
@@ -568,7 +563,7 @@ function Engine.Spawn(e)
     hideTextures(p)
     p.decorDef, p.burstDef, p.burst2Def, p.ringDef, p.glowDef = nil, nil, nil, nil, nil
     p.pieceDefs = nil
-    if db.effects and e.kind ~= "word" and not e.echo then
+    if db.effects and e.kind ~= "word" then
         -- Crit glow: a soft halo in the number's color, behind everything.
         if crit and e.kind == "dmg" and not skin.noGlow and not skin.ownText then
             local gs = skin.size or 24
@@ -597,9 +592,11 @@ function Engine.Spawn(e)
                           grow = skin.ring.grow, blend = "ADD" }
             setupTexture(p.ring, p.ringDef, 0)
         end
-        if crit and skin.critPieces and e.kind == "dmg" then
-            p.pieceDefs = skin.critPieces
-            for i, d in ipairs(skin.critPieces) do
+        -- Pieces: critPieces on crits, hitPieces on ordinary hits.
+        local pieces = e.kind == "dmg" and (crit and skin.critPieces or not crit and skin.hitPieces) or nil
+        if pieces then
+            p.pieceDefs = pieces
+            for i, d in ipairs(pieces) do
                 local list = d.front and p.frontPieces or p.pieces
                 local tex = list[i]
                 if not tex then
@@ -641,17 +638,6 @@ function Engine.Spawn(e)
     -- Skins with their own machinery (Jackpot.lua) build it here; they may
     -- also adjust p.dur, p.base, p.landAt and friends.
     if skin.onSpawn then skin.onSpawn(p, e, crit) end
-
-    -- Echo: the same hit lands again a moment later, beside the first
-    -- (Rampage, Stormstrike). The echo is a plain number, no effects.
-    if skin.echo and not e.echo and e.kind == "dmg" and C_Timer then
-        local again = {}
-        for k, v in pairs(e) do again[k] = v end
-        again.echo, again.crit = true, false
-        again.skin = skin.id
-        again.echoX, again.echoY = p.ox, p.oy
-        C_Timer.After(skin.echo.delay or 0.07, function() Engine.Spawn(again) end)
-    end
 
     if p.motion.init then p.motion.init(p, p.args) end
     tinsert(active, p)
@@ -695,7 +681,7 @@ local function animateTexture(tex, d, t, life, rotation, steady)
     if tex.SetRotation then tex:SetRotation(rot) end
 end
 
--- Pieces (skin.critPieces): a crit's choreography, one texture each, every
+-- Pieces (skin.critPieces, and hitPieces on ordinary hits): a crit's choreography, one texture each, every
 -- one on its own clock. Beyond the texture options above:
 --   x, y, rot     where it ends up; from = { x, y } and fromRot: where it
 --                 starts. It travels there over `move` seconds (ease "out"
@@ -866,6 +852,14 @@ function Engine.Step(p, dt)
     if p.shake and st >= 0 and st < 0.25 then
         local k = p.shake * (1 - st / 0.25)
         x, y = x + (random() - 0.5) * 2 * k, y + (random() - 0.5) * 2 * k
+    end
+    -- twin: two quick sideways jolts, one per strike of a two-weapon hit.
+    local tw = p.skin.twin
+    if tw then
+        local j, px = t - (tw.at or 0.2), (tw.px or 4) * (p.crit and 1.5 or 1)
+        local gap = tw.gap or 0.09
+        if j >= 0 and j < 0.06 then x = x + px * p.dir
+        elseif j >= gap and j < gap + 0.06 then x = x - px * p.dir end
     end
     p:ClearAllPoints()
     p:SetPoint("CENTER", p.anchor, p.anchorPoint, p.ax + x, p.ay + y)

@@ -36,7 +36,7 @@ for _, id in ipairs(ns.SkinOrder) do
     tex(s.decor), tex(s.critDecor), tex(s.critDecor2),
     (p.count or 0) + (p.critCount or 0) > 0 and tex(p) or "",
     (p2.count or 0) + (p2.critCount or 0) > 0 and tex(p2) or "",
-    tostring(s.ring ~= nil), tostring(s.critTitle ~= nil), tostring(s.echo ~= nil), tostring(s.drum ~= nil),
+    tostring(s.ring ~= nil), tostring(s.critTitle ~= nil), tostring(s.twin ~= nil), tostring(s.drum ~= nil),
     tostring(#(s.layers or {})), tostring(s.critCycle ~= nil), tostring((s.shake or 0) > 0),
     string.format("%.2f,%.2f,%.2f", c[1], c[2], c[3]), string.format("%.2f,%.2f,%.2f", k[1], k[2], k[3]),
     tostring(s.size or 24), tostring(s.ownText == true), pieceTex(s.critPieces),
@@ -63,7 +63,7 @@ const skins = lua.lua_tojsstring(L, -1).split('\n').map(line => {
   const s = {
     id: c[0], name: c[1], group: c[2], base: c[3], motion: c[4], args: c[5], font: short(c[6]), outline: c[7],
     decor: short(c[8]), critDecor: short(c[9]), critDecor2: short(c[10]), parts: short(c[11]), parts2: short(c[12]),
-    ring: c[13] === 'true', title: c[14] === 'true', echo: c[15] === 'true', drum: c[16] === 'true',
+    ring: c[13] === 'true', title: c[14] === 'true', twin: c[15] === 'true', drum: c[16] === 'true',
     layers: +c[17], cycle: c[18] === 'true', shake: c[19] === 'true',
     color: c[20].split(',').map(Number), critColor: c[21].split(',').map(Number), size: +c[22], ownText: c[23] === 'true',
     pieces: c[24] ? c[24].split(',').map(short) : [],
@@ -95,7 +95,7 @@ function sim(a, b) {
     const pu = new Set([...a.pieceSet, ...b.pieceSet]).size;
     if (pi) { score += 1.5 * pi / pu; why.push('pieces ' + [...a.pieceSet].filter(t => b.pieceSet.has(t)).join('+')); }
   } else score += 0.75;
-  const extras = ['ring', 'title', 'echo', 'drum', 'cycle'];
+  const extras = ['ring', 'title', 'twin', 'drum', 'cycle'];
   score += 0.5 * extras.filter(k => a[k] === b[k]).length / extras.length;
   return { score: Math.min(1, score / 11.5), why };
 }
