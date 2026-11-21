@@ -1,5 +1,12 @@
 # SkinDeep
 
+## 1.5.1
+
+- **Stormstrike and Rampage no longer show every hit twice.** The second
+  copy could fly in from the other side and overlap the first. Each hit is
+  now one number that jolts twice, one jolt per weapon: blue sparks for
+  Stormstrike, an orange slash per axe for Rampage.
+
 ## 1.5.0
 
 - **No more look-alikes**: skins that differed only by a shade or one more
