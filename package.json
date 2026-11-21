@@ -5,6 +5,11 @@
   "license": "MIT",
   "scripts": {
     "test": "node tests/check.js && node tests/run.js",
+    "gallery": "node tools/gallery.js",
+    "serve": "node tools/serve.js",
+    "audit": "node tools/audit.js",
+    "similar": "node tools/similarity.js",
+    "install-addon": "powershell -ExecutionPolicy Bypass -File tools/install.ps1",
     "fonts": "node tools/make_fonts.js",
     "textures": "node tools/make_textures.js",
     "logo": "node tools/make_logo.js",
