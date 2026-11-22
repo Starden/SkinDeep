@@ -1,5 +1,39 @@
 # SkinDeep
 
+## 1.6.0
+
+- **Twenty anime skins** on a new **Anime** tab, each earned by a secret
+  feat (the Feats tab shows only a riddle). Original takes on the genre's
+  famous looks:
+  - **Most Wanted**: rubbery numbers; crits slap down a wanted poster with
+    your crit as the bounty.
+  - **Black Crescent**: a blade flick on every hit; crits turn black and red
+    as a crescent wave tears across.
+  - **Shinobi**: smoke puffs and a thrown kunai; crits spin up a spiral orb.
+  - **Menacing**: ominous rumble marks; crits land a punch barrage.
+  - **Gotcha!**: crits vanish into a capsule that wobbles three times and
+    clicks.
+  - **One and Done**: plain little hits, then one colossal punch and a flat
+    "OK."
+  - And Flowing Form, Soot Sprites, Transmute, Final Page (in a new
+    handwriting font), Steam Blades, Seven Stars, Smash!, Moonlit Charm, Hex
+    Barrier, Chain Rev, Pressure Point, Spiral Drill, Link Start and Neon
+    Slide.
+- **Eight race skins** on a new **Race** tab, earned at level 10 on a
+  character of that race: Royal Seal (Human), Hearth Ale (Dwarf), Moonwell
+  (Night Elf), Pocket Rocket (Gnome), Axe and Fury (Orc), Banshee Wail
+  (Undead), Totem Stomp (Tauren) and Berserk (Troll). Characters already past
+  level 10 earn theirs when you log them in.
+- **Skin rotation**, on a new **Rotation** tab (`/skindeep rotate`):
+  - A random skin each fight, or the next skin every 1 to 120 minutes.
+  - It draws from every skin you've unlocked, or only the ones you pick:
+    Ctrl-click skins in the list.
+  - A skin for each kind of place (dungeons, raids, cities, the open world)
+    and for each kind of enemy (Undead, Demons, Dragonkin...).
+  - Which skin a hit gets: your PvP skin first, then the enemy's, then the
+    zone's, then the rotation, then the skin you chose.
+- The skin tabs now sit in two rows, to make room for Race and Anime.
+
 ## 1.5.1
 
 - **Stormstrike and Rampage no longer show every hit twice.** The second
