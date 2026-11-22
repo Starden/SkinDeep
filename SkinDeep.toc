@@ -21,8 +21,11 @@ PvPSkins.lua
 ProfSkins.lua
 LootSkins.lua
 FunSkins.lua
+AnimeSkins.lua
+RaceSkins.lua
 Core.lua
 Feats.lua
+Rotation.lua
 Engine.lua
 Jackpot.lua
 Options.lua

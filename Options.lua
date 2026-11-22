@@ -10,7 +10,8 @@ local _, ns = ...
 
 local floor = math.floor
 local W, H = 660, 620
-local window, previewBox, skinsPage, featsPage
+local window, previewBox, skinsPage, featsPage, rotationPage
+local rotationWidgets = {}
 local previewClock = 0
 local previewId        -- a locked skin being previewed (not equipped)
 local previewTier, previewWho   -- /skindeep peek: their tier and name
@@ -21,13 +22,13 @@ local Feats = ns.Feats
 
 -- Skins and feats are shown one group at a time. The Feats tab adds a Specs
 -- group (spec variants live inside Classes on the Skins tab).
--- Tab widths fit seven tabs beside the preview stage.
-local GROUPS = { { "style", "Styles", 33 }, { "class", "Class", 30 }, { "faction", "Faction", 37 }, { "pvp", "PvP", 24 },
-                 { "prof", "Trades", 34 }, { "loot", "Loot", 26 }, { "fun", "Fun", 24 } }
-local FEAT_GROUPS = { { "style", "Styles" }, { "class", "Classes" }, { "spec", "Specs" }, { "faction", "Factions" }, { "pvp", "PvP" },
-                      { "prof", "Trades" }, { "loot", "Loot" }, { "fun", "Secrets" } }
+-- The skin tabs sit in two rows of five above the list.
+local GROUPS = { { "style", "Styles" }, { "class", "Class" }, { "race", "Race" }, { "faction", "Faction" }, { "pvp", "PvP" },
+                 { "prof", "Trades" }, { "loot", "Loot" }, { "fun", "Fun" }, { "anime", "Anime" } }
+local FEAT_GROUPS = { { "style", "Styles" }, { "class", "Classes" }, { "spec", "Specs" }, { "race", "Races" }, { "faction", "Factions" }, { "pvp", "PvP" },
+                      { "prof", "Trades" }, { "loot", "Loot" }, { "fun", "Secrets" }, { "anime", "Anime" } }
 local CLASS_ORDER = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
-local LIST_ROW, LIST_TOP = 24, -70
+local LIST_ROW, LIST_TOP = 24, -92
 local listGroup, featGroup = "style", "style"
 local expandedClass        -- the class whose spec variants are folded open
 local featSpecClass        -- the class shown in the Feats tab's Specs group
@@ -151,6 +152,8 @@ local function refreshSkins()
                 b.right:SetText("|cff8c8577Locked|r")
             elseif b.id == db.pvpSkin then
                 b.right:SetText("|cffffd84aPvP skin|r")
+            elseif ns.Rotation.IsPicked(b.id) then
+                b.right:SetText("|cff7fd4ffRotation|r")
             else
                 b.right:SetText(b.rightText or "")
             end
@@ -205,6 +208,9 @@ local function refreshSkins()
         notes[#notes + 1] = ("PvP skin: %s, in battlegrounds and against players. Shift-click a skin to change it.")
             :format(ns.Skins[db.pvpSkin].name)
     end
+    if db.rotate ~= "off" or db.zoneRules or db.enemyRules then
+        notes[#notes + 1] = "Rotation is on: your numbers may show other skins. See the Rotation tab."
+    end
     if ns.WorldFontPending() then
         notes[#notes + 1] = "|cffffd84aBlizzard's numbers get the new font after you log out and back in.|r"
     end
@@ -242,10 +248,40 @@ local function refreshFeats()
     for _, c in ipairs(checks) do c:Refresh() end
 end
 
+local function skinLabel(fs, id)
+    local skin = id and ns.Skins[id]
+    if skin then
+        fs:SetText(skin.name .. (ns.Rotation.Usable(id) and "" or "  |cff8c8577(locked)|r"))
+        fs:SetTextColor(skin.color[1], skin.color[2], skin.color[3])
+    else
+        fs:SetText("|cff8c8577none|r")
+        fs:SetTextColor(0.6, 0.6, 0.6)
+    end
+end
+
+local MODE_TEXT = { off = "off", fight = "a new random skin each fight", cycle = "the next skin every %d minutes, between fights" }
+local function refreshRotation()
+    local db, w = ns.db, rotationWidgets
+    if not w.modes then return end
+    for _, m in ipairs(w.modes) do
+        if m.mode == db.rotate then m:LockHighlight() else m:UnlockHighlight() end
+    end
+    w.minutes:SetFormattedText("%d min", db.rotateMinutes)
+    local pool, picked = ns.Rotation.Pool()
+    w.pool:SetText(picked and ("Rotates through the %d skins you picked. Ctrl-click skins on the Skins tab to pick or drop them."):format(#pool)
+        or ("Rotates through all %d skins you've unlocked. Ctrl-click skins on the Skins tab to pick just a few."):format(#pool))
+    local cur = ns.Rotation.Current()
+    w.now:SetText("Rotation: " .. MODE_TEXT[db.rotate]:format(db.rotateMinutes)
+        .. (cur and (".  Now: |cffffd84a" .. ns.Skins[cur].name .. "|r") or "."))
+    for _, r in ipairs(w.zoneRows) do skinLabel(r.skin, db.zoneSkins[r.key]) end
+    for _, r in ipairs(w.enemyRows) do skinLabel(r.skin, db.enemySkins[r.key]) end
+end
+
 local function refresh()
     if not window then return end
     refreshSkins()
     refreshFeats()
+    refreshRotation()
 end
 
 function ns.OnSettingsChanged()
@@ -335,6 +371,7 @@ end
 local function selectTab(name)
     skinsPage:SetShown(name == "skins")
     featsPage:SetShown(name == "feats")
+    rotationPage:SetShown(name == "rotation")
     for _, t in ipairs(tabs) do
         if t.tab == name then t:LockHighlight() else t:UnlockHighlight() end
     end
@@ -351,16 +388,14 @@ local function buildSkins(page)
     -- styles.
     local ordered = { ns.AUTO }
     for _, id in ipairs(ns.SkinOrder) do ordered[#ordered + 1] = id end
-    local x = 14
-    for _, g in ipairs(GROUPS) do
+    for i, g in ipairs(GROUPS) do
         local t = groupTab(page, g[2], function()
             listGroup = g[1]
             layoutSkins()
         end)
         t.group = g[1]
-        t:SetSize(g[3], 20)
-        t:SetPoint("TOPLEFT", x, -44)
-        x = x + g[3] + 1
+        t:SetSize(39, 20)
+        t:SetPoint("TOPLEFT", 14 + ((i - 1) % 5) * 40, -44 - math.floor((i - 1) / 5) * 22)
         skinGroupTabs[#skinGroupTabs + 1] = t
     end
     local mine = ns.Skins[ns.ClassSkinID() or ""]
@@ -411,6 +446,14 @@ local function buildSkins(page)
                 expandedClass = b.class
                 layoutSkins()
             end
+            if IsControlKeyDown and IsControlKeyDown() and id ~= ns.AUTO then
+                -- Ctrl-click: in or out of your rotation.
+                ns.Rotation.TogglePick(id)
+                ns.Print(ns.Rotation.IsPicked(id) and ("%s joins your rotation."):format(skin.name)
+                    or ("%s leaves your rotation."):format(skin.name))
+                refresh()
+                return
+            end
             if IsShiftKeyDown and IsShiftKeyDown() and id ~= ns.AUTO then
                 -- Shift-click: the skin used in battlegrounds and against players.
                 if isLocked(id) then
@@ -449,6 +492,8 @@ local function buildSkins(page)
                 GameTooltip:AddLine(" ")
                 GameTooltip:AddLine(ns.db.pvpSkin == id and "Your PvP skin. Shift-click to turn that off."
                     or "Shift-click: use it in battlegrounds and against players.", 0.6, 0.6, 0.6, true)
+                GameTooltip:AddLine(ns.Rotation.IsPicked(id) and "In your rotation. Ctrl-click to take it out."
+                    or "Ctrl-click: add it to your rotation.", 0.6, 0.6, 0.6, true)
             end
             GameTooltip:Show()
         end)
@@ -639,8 +684,9 @@ local function buildFeats(page)
             layoutFeats()
         end)
         t.group = g[1]
+        t:SetSize(46, 20)
         t:SetPoint("TOPLEFT", x, -106)
-        x = x + 51
+        x = x + 47
         featGroupTabs[#featGroupTabs + 1] = t
     end
 
@@ -722,6 +768,122 @@ local function buildFeats(page)
 end
 
 ---------------------------------------------------------------------------
+-- Rotation page
+---------------------------------------------------------------------------
+-- The skin selected on the Skins tab (Auto: the skin it resolves to).
+local function selectedSkin()
+    local id = ns.db.skin
+    if id == ns.AUTO then id = ns.ResolvedSkinID() end
+    return id
+end
+
+local function buildRotation(page)
+    local w = rotationWidgets
+    local head = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    head:SetPoint("TOPLEFT", 16, -48)
+    head:SetText("Let your skins change by themselves")
+    local help = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    help:SetPoint("TOPLEFT", head, "BOTTOMLEFT", 0, -6)
+    help:SetWidth(W - 32)
+    help:SetJustifyH("LEFT")
+    help:SetText("A random skin each fight, a new one every few minutes, or a skin for where you are and what you're fighting. "
+        .. "Set uses the skin selected on the Skins tab.")
+
+    w.modes = {}
+    local prev
+    for _, m in ipairs({ { "off", "Off", 60 }, { "fight", "Random each fight", 140 }, { "cycle", "Cycle", 70 } }) do
+        local b = button(page, m[2], m[3], 22, function()
+            ns.db.rotate = m[1]
+            if m[1] ~= "off" then ns.Rotation.Advance() end
+            refresh()
+        end)
+        b.mode = m[1]
+        if prev then b:SetPoint("LEFT", prev, "RIGHT", 4, 0) else b:SetPoint("TOPLEFT", 16, -98) end
+        w.modes[#w.modes + 1] = b
+        prev = b
+    end
+    local step = function(d)
+        local m = ns.db.rotateMinutes
+        ns.db.rotateMinutes = math.max(1, math.min(120, m + d * ((m > 10 or (m == 10 and d > 0)) and 5 or 1)))
+        refresh()
+    end
+    local minus = button(page, "-", 24, 20, function() step(-1) end)
+    minus:SetPoint("LEFT", prev, "RIGHT", 14, 0)
+    w.minutes = page:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    w.minutes:SetWidth(60)
+    w.minutes:SetJustifyH("CENTER")
+    w.minutes:SetPoint("LEFT", minus, "RIGHT", 2, 0)
+    local plus = button(page, "+", 24, 20, function() step(1) end)
+    plus:SetPoint("LEFT", w.minutes, "RIGHT", 2, 0)
+    tooltip(minus, "Cycle", "Minutes on each skin before the next. It changes between fights.")
+    tooltip(plus, "Cycle", "Minutes on each skin before the next. It changes between fights.")
+
+    w.now = page:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    w.now:SetPoint("TOPLEFT", 16, -132)
+    w.now:SetWidth(W - 32)
+    w.now:SetJustifyH("LEFT")
+    w.pool = page:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    w.pool:SetPoint("TOPLEFT", w.now, "BOTTOMLEFT", 0, -4)
+    w.pool:SetWidth(W - 32)
+    w.pool:SetJustifyH("LEFT")
+
+    -- A rule row: what it's for, its skin, Set and Clear.
+    local function rule(x, y, label, key, map)
+        local r = CreateFrame("Frame", nil, page)
+        r:SetSize(300, 22)
+        r:SetPoint("TOPLEFT", x, y)
+        r.key = key
+        local name = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        name:SetPoint("LEFT", 0, 0)
+        name:SetWidth(96)
+        name:SetJustifyH("LEFT")
+        name:SetText(label)
+        r.skin = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        r.skin:SetPoint("LEFT", 98, 0)
+        r.skin:SetWidth(110)
+        r.skin:SetJustifyH("LEFT")
+        if r.skin.SetWordWrap then r.skin:SetWordWrap(false) end
+        r.set = button(r, "Set", 42, 20, function()
+            ns.db[map][key] = selectedSkin()
+            refresh()
+        end)
+        r.set:SetPoint("LEFT", 212, 0)
+        tooltip(r.set, label, "Use the skin selected on the Skins tab here.")
+        r.clear = button(r, "Clear", 44, 20, function()
+            ns.db[map][key] = nil
+            refresh()
+        end)
+        r.clear:SetPoint("LEFT", r.set, "RIGHT", 2, 0)
+        return r
+    end
+
+    local zone = checkbox(page, "By zone", "zoneRules", "A skin for each kind of place. In battlegrounds the PvP skin rules.")
+    zone:SetPoint("TOPLEFT", 16, -184)
+    w.zoneRows = {}
+    for i, z in ipairs(ns.Rotation.ZONES) do
+        w.zoneRows[i] = rule(16, -210 - (i - 1) * 26, z[2], z[1], "zoneSkins")
+    end
+
+    local enemy = checkbox(page, "By enemy", "enemyRules", "A skin for each kind of creature you hit. The first time, fitting skins you own are filled in.")
+    enemy:SetPoint("TOPLEFT", 340, -184)
+    enemy:SetScript("OnClick", function()
+        ns.Rotation.SetEnemyRules(not ns.db.enemyRules)
+        ns.OnSettingsChanged()
+    end)
+    w.enemyRows = {}
+    for i, t in ipairs(ns.Rotation.ENEMIES) do
+        w.enemyRows[i] = rule(340, -210 - (i - 1) * 26, t, t, "enemySkins")
+    end
+
+    local foot = page:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    foot:SetPoint("BOTTOMLEFT", 16, 12)
+    foot:SetWidth(W - 32)
+    foot:SetJustifyH("LEFT")
+    foot:SetText("Which skin a hit gets: your PvP skin first, then the enemy's, then the zone's, then the rotation, then the skin you chose. "
+        .. "Rotation changes SkinDeep's numbers only; Blizzard's keep your chosen skin's font.")
+end
+
+---------------------------------------------------------------------------
 -- Window
 ---------------------------------------------------------------------------
 local function build()
@@ -757,7 +919,7 @@ local function build()
 
     -- Tabs.
     local prev
-    for _, t in ipairs({ { "skins", "Skins" }, { "feats", "Feats" } }) do
+    for _, t in ipairs({ { "skins", "Skins" }, { "feats", "Feats" }, { "rotation", "Rotation" } }) do
         local b = button(window, t[2], 80, 22, function() selectTab(t[1]) end)
         b.tab = t[1]
         if prev then b:SetPoint("LEFT", prev, "RIGHT", 4, 0) else b:SetPoint("LEFT", title, "RIGHT", 18, 0) end
@@ -769,9 +931,13 @@ local function build()
     skinsPage:SetAllPoints()
     featsPage = CreateFrame("Frame", nil, window)
     featsPage:SetAllPoints()
+    rotationPage = CreateFrame("Frame", nil, window)
+    rotationPage:SetAllPoints()
     buildSkins(skinsPage)
     buildFeats(featsPage)
+    buildRotation(rotationPage)
     featsPage:Hide()
+    rotationPage:Hide()
     -- Open on the group of the skin in use, with your class folded open.
     listGroup = groupOf(ns.db.skin)
     expandedClass = (ns.Skins[ns.db.skin] and ns.Skins[ns.db.skin].class) or myClass()
@@ -964,6 +1130,49 @@ SlashCmdList.SKINDEEP = function(msg)
             end
         end
         refresh()
+    elseif cmd == "rotate" or cmd == "rotation" then
+        -- /skindeep rotate [off | fight | cycle [minutes]]
+        local mode, mins = rest:lower():match("^(%a*)%s*(%d*)")
+        if mode == "" then
+            ns.OpenWindow("rotation")
+        elseif mode == "off" or mode == "fight" or mode == "cycle" then
+            ns.db.rotate = mode
+            if tonumber(mins) then ns.db.rotateMinutes = math.max(1, math.min(120, tonumber(mins))) end
+            if mode ~= "off" then ns.Rotation.Advance() end
+            ns.Print(mode == "off" and "rotation off." or mode == "fight" and "rotation: a new random skin each fight."
+                or ("rotation: the next skin every %d minutes."):format(ns.db.rotateMinutes))
+        else
+            ns.Print("/skindeep rotate [off | fight | cycle <minutes>]")
+        end
+        refresh()
+    elseif cmd == "zone" or cmd == "enemy" then
+        -- /skindeep zone <dungeon|raid|city|world> <skin|off>, /skindeep enemy <type> <skin|off>
+        local key, what = rest:match("^(%S+)%s*(.-)$")
+        local valid
+        if key and cmd == "zone" then
+            for _, z in ipairs(ns.Rotation.ZONES) do if z[1] == key:lower() then valid = z[1] end end
+        elseif key then
+            for _, t in ipairs(ns.Rotation.ENEMIES) do if t:lower() == key:lower() then valid = t end end
+        end
+        local map = cmd == "zone" and "zoneSkins" or "enemySkins"
+        if not valid then
+            ns.Print(cmd == "zone" and "/skindeep zone <dungeon | raid | city | world> <skin | off>"
+                or "/skindeep enemy <Beast | Demon | Dragonkin | Elemental | Giant | Humanoid | Mechanical | Undead> <skin | off>")
+        elseif what == "" or what:lower() == "off" then
+            ns.db[map][valid] = nil
+            ns.Print(("%s: no skin of its own."):format(valid))
+        else
+            local id = findSkin(what)
+            if id == ns.AUTO then id = ns.ResolvedSkinID() end
+            if not id then
+                ns.Print("no skin called '" .. what .. "'. /skindeep list")
+            else
+                ns.db[map][valid] = id
+                if cmd == "zone" then ns.db.zoneRules = true else ns.Rotation.SetEnemyRules(true) end
+                ns.Print(("%s: %s."):format(valid, ns.Skins[id].name))
+            end
+        end
+        refresh()
     elseif cmd == "list" then
         ns.Print(("|cffffd84aauto|r  Auto: my class (%s)%s"):format(ns.Skins[ns.ResolvedSkinID()].name,
             ns.db.skin == ns.AUTO and "  (current)" or ""))
@@ -996,6 +1205,6 @@ SlashCmdList.SKINDEEP = function(msg)
         ns.Engine.SetUnlocked(cmd == "unlock")
         refresh()
     else
-        ns.Print("/skindeep [test | feats | list | skin <name> | pvp <name|off> | rank | welcome | on | off | restore | unlock | lock]")
+        ns.Print("/skindeep [test | feats | list | skin <name> | pvp <name|off> | rotate | zone | enemy | rank | welcome | on | off | restore | unlock | lock]")
     end
 end

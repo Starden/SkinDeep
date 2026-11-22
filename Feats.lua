@@ -52,6 +52,21 @@ local LIST = {
     { id = "jackpot", skin = "jackpot", text = "Land 777 critical hits",       counter = "crits",  goal = 777 },
 }
 
+-- Race skins (RaceSkins.lua): level 10 on a character of that race, the
+-- best level seen per race (UnitRace's English token).
+local RACES = { { "Human", "a Human" }, { "Dwarf", "a Dwarf" }, { "NightElf", "a Night Elf" }, { "Gnome", "a Gnome" },
+                { "Orc", "an Orc" }, { "Scourge", "an Undead" }, { "Tauren", "a Tauren" }, { "Troll", "a Troll" } }
+Feats.RACES = RACES
+for _, id in ipairs(ns.SkinOrder) do
+    local race = ns.Skins[id].race
+    if race then
+        local who
+        for _, r in ipairs(RACES) do if r[1] == race then who = r[2] end end
+        LIST[#LIST + 1] = { id = "race_" .. id, skin = id, counter = "race" .. race, goal = 10, raceLevel = true,
+                            text = ("Reach level 10 on %s character"):format(who or race) }
+    end
+end
+
 for _, token in ipairs({ "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }) do
     local skinId = token:lower()
     LIST[#LIST + 1] = { id = "class_" .. skinId, skin = skinId, classLevel = token, goal = 10,
@@ -193,6 +208,54 @@ for _, f in ipairs(FUN) do
     LIST[#LIST + 1] = f
 end
 
+-- Anime skins (AnimeSkins.lua): secret feats too, on their own tab.
+local ANIME = {
+    { id = "mostwanted",    counter = "rares",       goal = 10,  hint = "Every head has a price.",
+      text = "Slay 10 rare creatures" },
+    { id = "blackcrescent", counter = "swordCrits",  goal = 500, hint = "Know your blade's name.",
+      text = "Land 500 critical hits with a sword equipped" },
+    { id = "shinobi",       counter = "meals",       goal = 100, hint = "A ninja never skips a meal.",
+      text = "Eat food 100 times" },
+    { id = "menacing",      counter = "flexes",      goal = 100, hint = "Strike a pose.",
+      text = "/flex 100 times" },
+    { id = "flowingform",   counter = "swimHits",    goal = 100, hint = "Breathe with the tide.",
+      text = "Land 100 hits while swimming" },
+    { id = "gotcha",        counter = "kinds",       goal = 151, hint = "One of every kind.",
+      text = "Defeat 151 different kinds of creatures" },
+    { id = "sootsprites",   counter = "sleeps",      goal = 50,  hint = "Take a long nap.",
+      text = "/sleep 50 times" },
+    { id = "transmute",     counter = "crafts",      goal = 100, hint = "Equivalent exchange.",
+      text = "Craft 100 items with a profession" },
+    { id = "finalpage",     counter = "letters",     goal = 25,  hint = "Write it down.",
+      text = "Send 25 letters by mail" },
+    { id = "steamblades",   counter = "giant",       goal = 50,  hint = "Beyond the walls, giants roam.",
+      text = "Slay 50 Giants" },
+    { id = "sevenstars",    counter = "gems",        goal = 7,   hint = "Gather all seven.",
+      text = "Loot 7 different kinds of gems" },
+    { id = "smash",         counter = "quests",      goal = 100, hint = "A hero answers every call.",
+      text = "Complete 100 quests" },
+    { id = "moonlitcharm",  counter = "curtseys",    goal = 50,  hint = "Curtsy to the moon.",
+      text = "/curtsey 50 times" },
+    { id = "hexbarrier",    counter = "defends",     goal = 500, hint = "No one gets through.",
+      text = "Block, parry or dodge 500 attacks" },
+    { id = "chainrev",      counter = "demon",       goal = 100, hint = "Hunt the devils.",
+      text = "Slay 100 Demons" },
+    { id = "pressurepoint", counter = "unarmedHits", goal = 100, hint = "Fight with bare hands.",
+      text = "Land 100 hits with no weapon equipped" },
+    { id = "spiraldrill",   counter = "flights",     goal = 50,  hint = "Pierce the heavens.",
+      text = "Take 50 flight paths" },
+    { id = "linkstart",     counter = "loginDays",   goal = 30,  hint = "Log in, never log out.",
+      text = "Log in on 30 different days" },
+    { id = "neonslide",     counter = "mounts",      goal = 500, hint = "Ride into the neon night.",
+      text = "Summon your mount 500 times" },
+    { id = "oneanddone",    counter = "trains",      goal = 100, hint = "100 every day.",
+      text = "/train 100 times" },
+}
+for _, f in ipairs(ANIME) do
+    f.skin, f.secret = f.id, true
+    LIST[#LIST + 1] = f
+end
+
 -- Loot skins (LootSkins.lua): loot an item of that quality or better
 -- (2 Uncommon, 3 Rare, 4 Epic, 5 Legendary), or wear a whole item set.
 local LOOT_FEATS = {
@@ -264,7 +327,8 @@ local NAME_PREFIX = {
 local NAME_CONTAINS = {
     Murloc = "murloc", Gurubashi = "gurubashi", Hakkari = "gurubashi", Silithid = "silithid", Qiraji = "silithid",
 }
-local CREATURE_TYPE = { Undead = "undead", Dragonkin = "dragonkin", Mechanical = "mechanical", Elemental = "elemental" }
+local CREATURE_TYPE = { Undead = "undead", Dragonkin = "dragonkin", Mechanical = "mechanical", Elemental = "elemental",
+                        Giant = "giant", Demon = "demon" }
 
 ---------------------------------------------------------------------------
 -- State
@@ -281,6 +345,9 @@ function Feats.InitDB(d)
     d.profSkill = d.profSkill or {}     -- best skill seen per profession (skill line id)
     d.feats = d.feats or {}
     d.hkChars = d.hkChars or {}
+    d.kinds = d.kinds or {}             -- creatures defeated, by name (Gotcha!)
+    d.gems = d.gems or {}               -- gems looted, by item id (Seven Stars)
+    d.loginDays = d.loginDays or {}     -- days logged in, as YYYYMMDD (Link Start)
 end
 
 function Feats.Mode()
@@ -319,6 +386,7 @@ function Feats.ProgressText(f, short)
     local cur, goal = Feats.Progress(f)
     if f.money then return ("%d / %d gold"):format(floor(cur / GOLD), floor(goal / GOLD)) end
     if f.spec then return ("%d / %d points"):format(cur, goal) end
+    if f.raceLevel then return ("Level %d / %d"):format(cur, goal) end
     if f.classLevel then
         if short then return ("Level %d / %d"):format(cur, goal) end
         return ("Best %s: level %d / %d"):format(className(f.classLevel), cur, goal)
@@ -460,9 +528,15 @@ function Feats.BossKilled(name)
     Feats.Check(BY_BOSS[name])
 end
 
--- A mob you fought died.
-function Feats.Killed(name, creatureType)
+-- A mob you fought died. rare: a rare (or rare elite) creature.
+function Feats.Killed(name, creatureType, rare)
     if name == "Hogger" then raise("hogger", 1) end
+    if rare then bump("rares") end
+    -- Gotcha!: every kind of creature, by name, once.
+    if name and not db().kinds[name] then
+        db().kinds[name] = true
+        bump("kinds")
+    end
     -- Each counter at most once per kill ("Gurubashi Hakkari" is one troll).
     local hit = {}
     if name then
@@ -533,6 +607,8 @@ local function engage(u)
     local rec = engaged[u] or {}
     rec.name = ns.Plain(call(UnitName, u), "string")
     rec.ctype = ns.Plain(call(UnitCreatureType, u), "string")
+    local class = ns.Plain(call(rawget(_G, "UnitClassification"), u), "string")
+    rec.rare = class == "rare" or class == "rareelite"
     engaged[u] = rec
 end
 
@@ -544,7 +620,7 @@ local function checkDead(u)
     for other in pairs(engaged) do
         if ns.SafeBool(UnitIsUnit, u, other) then engaged[other] = nil end
     end
-    Feats.Killed(rec.name, rec.ctype)
+    Feats.Killed(rec.name, rec.ctype, rec.rare)
 end
 Feats.CheckDead = checkDead
 
@@ -702,6 +778,16 @@ end
 ---------------------------------------------------------------------------
 -- Loot and item sets
 ---------------------------------------------------------------------------
+-- An item's class and subclass ids (2 = weapon; 7, 8 = one- and two-handed
+-- swords; 3 = gem).
+local function itemClass(item)
+    local info = rawget(_G, "GetItemInfoInstant") or (C_Item and C_Item.GetItemInfoInstant)
+    if not item or type(info) ~= "function" then return nil end
+    local ok, _, _, _, _, _, classID, subclassID = pcall(info, item)
+    if not ok then return nil end
+    return ns.Plain(classID, "number"), ns.Plain(subclassID, "number")
+end
+
 -- "You receive loot: %s." as a pattern (any client language).
 local function lootPattern(fmt)
     if type(fmt) ~= "string" then return nil end
@@ -709,7 +795,7 @@ local function lootPattern(fmt)
     p = p:gsub("%%s", "(.+)"):gsub("%%d", "%%d+")
     return "^" .. p
 end
-local lootPatterns
+local lootPatterns, createPatterns
 
 local HEX_QUALITY = { ["9d9d9d"] = 0, ["ffffff"] = 1, ["1eff00"] = 2, ["0070dd"] = 3, ["a335ee"] = 4, ["ff8000"] = 5, ["e6cc80"] = 6 }
 
@@ -741,9 +827,27 @@ function Feats.OnLootMessage(msg)
         end
         if #lootPatterns == 0 then lootPatterns[1] = "^You receive loot: (.+)" end
     end
+    if not createPatterns then
+        createPatterns = {}
+        for _, key in ipairs({ "LOOT_ITEM_CREATED_SELF_MULTIPLE", "LOOT_ITEM_CREATED_SELF" }) do
+            local p = lootPattern(rawget(_G, key))
+            if p then createPatterns[#createPatterns + 1] = p end
+        end
+        if #createPatterns == 0 then createPatterns[1] = "^You create: (.+)" end
+    end
+    -- Transmute: something you made ("You create: [Linen Bandage].").
+    for _, p in ipairs(createPatterns) do
+        if msg:match(p) then bump("crafts"); return end
+    end
     for _, p in ipairs(lootPatterns) do
         local item = msg:match(p)
         if item then
+            -- Seven Stars: each kind of gem, once.
+            local itemID = tonumber(item:match("|Hitem:(%d+)") or "")
+            if itemID and not db().gems[itemID] and itemClass(itemID) == 3 then
+                db().gems[itemID] = true
+                bump("gems")
+            end
             local q = Feats.LinkQuality(item)
             if q then
                 raise("lootBest", min(q, 5))
@@ -886,9 +990,25 @@ Feats.ScanProfessions = scanProfessions
 
 local recentCrits = {}   -- times of your latest crits (Final Move)
 
+-- What's in your main hand: "sword", "other", or nil (bare hands).
+local function mainHand()
+    local link = ns.Plain(call(rawget(_G, "GetInventoryItemLink"), "player", 16), "string")
+    if not link then return nil end
+    local classID, sub = itemClass(link)
+    return (classID == 2 and (sub == 7 or sub == 8)) and "sword" or "other"
+end
+Feats.MainHand = mainHand
+
+-- Blocks, parries and dodges against you (Hex Barrier).
+local DEFEND = { BLOCK = true, PARRY = true, DODGE = true }
+
 function Feats.OnCombat(unit, action, flags, amount, school)
     if not db() then return end
     local u = ns.Plain(unit, "string")
+    if u == "player" then
+        if DEFEND[ns.Plain(action, "string") or ""] then bump("defends") end
+        return
+    end
     if not u or (u ~= "target" and not u:find("^nameplate%d")) then return end
     if ns.SafeBool(UnitCanAttack, "player", u) == false then return end
     if ns.Plain(action, "string") ~= "WOUND" then return end
@@ -899,8 +1019,12 @@ function Feats.OnCombat(unit, action, flags, amount, school)
     bump("hits")
     local mc = MONTH_COUNTER[Feats.Month() or 0]
     if mc then bump(mc) end
+    if ns.SafeBool(rawget(_G, "IsSwimming")) then bump("swimHits") end
+    local hand = mainHand()
+    if not hand then bump("unarmedHits") end
     if CRIT[ns.Plain(flags, "string") or ""] then
         bump("crits")
+        if hand == "sword" then bump("swordCrits") end
         if Feats.IsNight() then bump("nightCrits") end
         local okTime, hour, minute = pcall(GetGameTime)
         if okTime and ns.Plain(hour, "number") == 0 and ns.Plain(minute, "number") == 0 then raise("midnightCrit", 1) end
@@ -929,6 +1053,10 @@ local function level(newLevel)
     local d = db()
     if cls and (d.classLevels[cls] or 0) < lvl then d.classLevels[cls] = lvl end
     if (d.counters.maxLevel or 0) < lvl then d.counters.maxLevel = lvl end
+    -- Race skins: the best level per race.
+    local okRace, _, race = pcall(UnitRace, "player")
+    race = okRace and ns.Plain(race, "string")
+    if race and (d.counters["race" .. race] or 0) < lvl then d.counters["race" .. race] = lvl end
     Feats.Check()
 end
 
@@ -1093,6 +1221,32 @@ function Feats.OnHonorMessage(msg)
 end
 
 local lastForm
+-- Neon Slide: each time you go from on foot to mounted.
+local wasMounted
+local function checkMount(quiet)
+    local m = ns.SafeBool(rawget(_G, "IsMounted")) == true
+    if m and wasMounted == false and not quiet then bump("mounts") end
+    wasMounted = m
+end
+
+-- Shinobi: a meal is the "Food" channel (any food).
+local function spellName(id)
+    local spell = rawget(_G, "C_Spell")
+    local get = (spell and spell.GetSpellName) or rawget(_G, "GetSpellInfo")
+    return ns.Plain(call(get, id), "string")
+end
+
+-- Link Start: each day you log in, once.
+local function loginDay()
+    local t = call(date, "*t")
+    if type(t) ~= "table" or not t.year then return end
+    local key = t.year * 10000 + (t.month or 0) * 100 + (t.day or 0)
+    if not db().loginDays[key] then
+        db().loginDays[key] = true
+        bump("loginDays")
+    end
+end
+
 local events = CreateFrame("Frame")
 local wasAfk
 for _, e in ipairs({ "PLAYER_FLAGS_CHANGED", "PLAYER_DEAD", "CHAT_MSG_TEXT_EMOTE", "CHAT_MSG_LOOT", "PLAYER_EQUIPMENT_CHANGED", "UPDATE_SHAPESHIFT_FORM", "SKILL_LINES_CHANGED", "CHAT_MSG_SKILL", "CHAT_MSG_COMBAT_HONOR_GAIN", "PLAYER_PVP_KILLS_CHANGED", "PLAYER_TALENT_UPDATE",
@@ -1100,7 +1254,8 @@ for _, e in ipairs({ "PLAYER_FLAGS_CHANGED", "PLAYER_DEAD", "CHAT_MSG_TEXT_EMOTE
                      "TRAIT_CONFIG_UPDATED",
                      "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "UNIT_COMBAT", "UNIT_HEALTH", "PLAYER_TARGET_CHANGED",
                      "NAME_PLATE_UNIT_REMOVED", "ENCOUNTER_END", "BOSS_KILL", "PLAYER_MONEY", "PLAYER_LEVEL_UP",
-                     "PLAYER_PVP_RANK_CHANGED", "CURRENCY_DISPLAY_UPDATE", "PVP_MATCH_COMPLETE", "CHAT_MSG_SYSTEM" }) do
+                     "PLAYER_PVP_RANK_CHANGED", "CURRENCY_DISPLAY_UPDATE", "PVP_MATCH_COMPLETE", "CHAT_MSG_SYSTEM",
+                     "UNIT_SPELLCAST_SUCCEEDED", "PLAYER_MOUNT_DISPLAY_CHANGED", "MAIL_SEND_SUCCESS", "QUEST_TURNED_IN" }) do
     pcall(events.RegisterEvent, events, e)
 end
 events:SetScript("OnEvent", function(_, event, a, b, c, d, e)
@@ -1168,10 +1323,29 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d, e)
                 bump("sings")
             elseif lower:find("cheer", 1, true) then
                 bump("cheers")
+            elseif lower:find("flex", 1, true) then
+                bump("flexes")
+            elseif lower:find("asleep", 1, true) then
+                bump("sleeps")
+            elseif lower:find("curts", 1, true) then
+                bump("curtseys")
+            elseif lower:find("train", 1, true) or lower:find("choo", 1, true) then
+                bump("trains")
             end
         end
     elseif event == "CHAT_MSG_LOOT" then
         Feats.OnLootMessage(a)
+    elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
+        if ns.Plain(a, "string") ~= "player" then return end
+        local name = spellName(ns.Plain(c, "number"))
+        if name == "Food" or (name and name:find("^Food ")) then bump("meals") end
+        checkMount()
+    elseif event == "PLAYER_MOUNT_DISPLAY_CHANGED" then
+        checkMount()
+    elseif event == "MAIL_SEND_SUCCESS" then
+        bump("letters")
+    elseif event == "QUEST_TURNED_IN" then
+        bump("quests")
     elseif event == "PLAYER_EQUIPMENT_CHANGED" then
         scanSetsSoon()
     elseif event == "SKILL_LINES_CHANGED" then
@@ -1199,8 +1373,14 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d, e)
         if hook and jump and not Feats.jumpHooked then
             Feats.jumpHooked = pcall(hook, "JumpOrAscendStart", function() bump("jumps") end)
         end
+        -- Flight paths: taking one calls TakeTaxiNode.
+        if hook and rawget(_G, "TakeTaxiNode") and not Feats.taxiHooked then
+            Feats.taxiHooked = pcall(hook, "TakeTaxiNode", function() bump("flights") end)
+        end
+        loginDay()
     elseif event == "PLAYER_ENTERING_WORLD" then
         if b == true then bump("reloads") end   -- isReloadingUi
+        checkMount(true)   -- already mounted when you log in doesn't count
         lastMoney = nil
         money()
         pvpRank()
