@@ -13,6 +13,7 @@ local _, ns = ...
 --   motion, motionArgs   path the number takes (see Engine.lua MOTIONS)
 --   dur, critDur         seconds on screen; fade = share of that spent fading out
 --   critScale, pop       crit size multiplier; pop = how much bigger it starts before settling
+--   critScaleKeys        a crit's size over time: { { seconds, scale }, ... } (a wind-up, a vanishing act)
 --   shake, shakeAt       crit screen-shake in pixels; shakeAt delays it to an impact (seconds)
 --   decor, critDecor     textures behind the number: { tex, size, color, alpha, spin, grow, blend, rot }
 --   ring                 crit shockwave ring: { size, color, grow, alpha }. Kept for skins whose
@@ -34,6 +35,7 @@ local F = {
     led   = FONTS .. "SkinDeepLED.ttf",
     shard = FONTS .. "SkinDeepShard.ttf",
     slash = FONTS .. "SkinDeepSlash.ttf",
+    script = FONTS .. "SkinDeepScript.ttf",
     friz     = "Fonts\\FRIZQT__.TTF",
     morpheus = "Fonts\\MORPHEUS.TTF",
     skurri   = "Fonts\\SKURRI.TTF",

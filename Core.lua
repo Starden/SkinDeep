@@ -49,6 +49,14 @@ local DEFAULTS = {
     -- "collector" (earn skins through feats) or "all"
     worldFont = true,       -- give Blizzard's numbers the skin's font (next login)
     worldMotion = true,     -- give Blizzard's numbers the skin's motion preset
+    -- Rotation (Rotation.lua): skins that change by themselves.
+    rotate = "off",         -- "off", "fight" (new random skin each fight), "cycle"
+    rotateMinutes = 10,     -- cycle: minutes per skin
+    rotatePicks = {},       -- skins picked to rotate through (none: all unlocked)
+    zoneRules = false,      -- a skin per kind of place (zoneSkins)
+    zoneSkins = {},
+    enemyRules = false,     -- a skin per creature type (enemySkins)
+    enemySkins = {},
     scale = 1.0,
     speed = 1.0,
     plateOffset = 30,
@@ -382,7 +390,7 @@ function ns.HandleCombat(unit, action, flags, amount, school)
         return
     end
     e.anchor, e.point, e.ax, e.ay = ns.Engine.AnchorFor(u, side)
-    e.skin = ns.PvPSkinFor(u, side)
+    e.skin = ns.PvPSkinFor(u, side) or (ns.Rotation and ns.Rotation.SkinFor(u, side))
     -- In a duel, the hits you take show in your opponent's skin.
     if side == "inc" and e.kind ~= "heal" and ns.Share then
         local id, tier = ns.Share.IncomingSkin()

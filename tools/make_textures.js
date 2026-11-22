@@ -832,6 +832,296 @@ const TEXTURES = {
   vineright: [64, 128, (u, v) => TEXTURES.vineleft[2](-u, v)],
 };
 
+// --- Anime-inspired skins (original designs) ----------------------------------
+// A polyline's distance (for stroked marks).
+const polyDist = (u, v, pts) => {
+  let d = Infinity;
+  for (let i = 0; i < pts.length - 1; i++) d = Math.min(d, segDist(u, v, pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]));
+  return d;
+};
+// Their own generator (32-bit, mulberry32): rand() above loses precision
+// after many calls, and the older textures must not change.
+let seed2 = 2024;
+const rand2 = () => {
+  seed2 = (seed2 + 0x6D2B79F5) >>> 0;
+  let t = seed2;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+// Lines from the center out, each at its own angle, width and start.
+const radialLines = Array.from({ length: 46 }, () => [rand2() * Math.PI * 2, 0.006 + rand2() * 0.016, 0.42 + rand2() * 0.25]);
+// A jagged comic starburst: ten long points with deep notches between.
+const impactPts = Array.from({ length: 20 }, (_, i) => i % 2 ? 0.3 + rand2() * 0.12 : 0.72 + rand2() * 0.26);
+Object.assign(TEXTURES, {
+  // Wanted poster: ragged parchment, a dark border, a frame for the face
+  // (the number) and lines of small print below.
+  poster: [64, 80, (u, v) => {
+    const ex = 0.9 + 0.04 * Math.sin(v * 23) + 0.03 * Math.sin(u * 31), ey = 0.93 + 0.03 * Math.sin(u * 19);
+    if (Math.abs(u) > ex || Math.abs(v) > ey) return 0;
+    const border = Math.abs(u) > ex - 0.1 || Math.abs(v) > ey - 0.1;
+    const frame = Math.abs(u) < 0.74 && v > -0.52 && v < 0.42 && (Math.abs(u) > 0.68 || v < -0.46 || v > 0.36);
+    const print = v < -0.62 && v > -0.78 && Math.abs(u) < 0.6 && Math.sin(u * 40) > -0.4;
+    return [1, border ? 0.6 : frame || print ? 0.42 : 0.92 + 0.06 * Math.sin(u * 7 + v * 5)];
+  }],
+  // Crescent wave: a moon-shaped blade of energy opening to the left (it
+  // sweeps right), dark inside with a bright leading edge.
+  crescent: [64, 128, (u, v) => {
+    const outer = Math.hypot((u + 0.55) / 1.45, v / 0.95);
+    const inner = Math.hypot((u + 1.15) / 1.45, v / 1.05);
+    const a = (1 - smooth(0.96, 1.0, outer)) * smooth(0.98, 1.02, inner);
+    if (a <= 0) return 0;
+    return [a, 1 - smooth(0.86, 0.95, outer) > 0.5 ? 0.12 : 1];
+  }],
+  // Kunai: a leaf blade with a centre ridge, a wrapped grip and a ring.
+  kunai: [32, 64, (u, v) => {
+    const hw = v < 0.3 ? 0.62 * clamp((v - 0.02) / 0.28) : 0.62 * clamp((0.95 - v) / 0.65);
+    if (v > 0.02 && Math.abs(u) < hw) return [1, u < 0 ? 1 : 0.7];
+    if (Math.abs(u) < 0.16 && v > -0.62 && v <= 0.02) return [1, Math.sin(v * 40) > 0 ? 0.35 : 0.5];
+    const ring = Math.abs(Math.hypot(u / 2, v + 0.78) - 0.13);
+    return ring < 0.035 ? [1, 0.75] : 0;
+  }],
+  // Spiral orb: three arms swirling into a bright core.
+  spiralorb: [128, 128, (u, v) => {
+    const [r, a] = polar(u, v);
+    if (r > 0.95) return 0;
+    const arms = Math.pow(0.5 + 0.5 * Math.sin(a * 3 - r * 9), 3);
+    return clamp((arms * 0.8 + (1 - smooth(0, 0.45, r))) * (1 - smooth(0.7, 0.95, r)));
+  }],
+  // Rumble mark: a heavy zigzag stroke with two dots, drifting beside an
+  // ominous number.
+  rumble: [64, 64, (u, v) => {
+    const d = polyDist(u, v, [[-0.3, 0.86], [0.32, 0.52], [-0.32, 0.16], [0.32, -0.2], [-0.32, -0.56], [0.2, -0.88]]);
+    const dots = Math.min(Math.hypot(u - 0.62, v - 0.78), Math.hypot(u - 0.82, v - 0.56));
+    return Math.max(1 - smooth(0.1, 0.14, d), 1 - smooth(0.08, 0.11, dots));
+  }],
+  // Woodblock wave: a curling crest over a striped swell, foam lines
+  // running along the curl.
+  wavecurl: [128, 128, (u, v) => {
+    let best = 0, lum = 0.5;
+    const [r, a] = polar(u - 0.05, v + 0.05);
+    const base = ((Math.PI - a) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+    for (let k = 0; k < 2; k++) {
+      const th = base + k * Math.PI * 2;
+      if (th > Math.PI * 2.6) continue;
+      const R = 0.84 * Math.exp(-0.2 * th), w = 0.2 * Math.exp(-0.2 * th);
+      const q = (r - R) / w;
+      if (Math.abs(q) < 1) {
+        const al = 1 - smooth(0.85, 1, Math.abs(q));
+        if (al > best) { best = al; lum = Math.sin(q * Math.PI * 2.5) > 0.3 ? 1 : 0.5; }
+      }
+    }
+    const swell = -0.55 + 0.08 * Math.sin(u * 8);
+    if (v < swell && v > -0.98) { best = 1; lum = Math.sin(v * 40) > 0.4 ? 1 : 0.5; }
+    return best > 0 ? [best, lum] : 0;
+  }],
+  // Monster capsule, two halves (tinted apart in game): a dark rim, a
+  // band between them and a button in the middle.
+  capsuletop: [64, 64, (u, v) => {
+    const r = Math.hypot(u, v);
+    if (r > 0.86 || v < 0.07) return 0;
+    const b = Math.hypot(u, v - 0.0);
+    if (b < 0.26) return b < 0.15 ? [1, 0.95] : [1, 0.18];
+    return [1, r > 0.78 ? 0.2 : 0.8 + 0.2 * clamp(1 - Math.hypot(u + 0.35, v - 0.5) * 2)];
+  }],
+  capsulebot: [64, 64, (u, v) => {
+    const r = Math.hypot(u, v);
+    if (r > 0.86 || v > 0.07) return 0;
+    const b = Math.hypot(u, v);
+    if (b < 0.26) return b < 0.15 ? [1, 0.95] : [1, 0.18];
+    return [1, r > 0.78 || v > -0.07 ? 0.2 : 0.95];
+  }],
+  // Soot sprite: a spiky fuzzball with two big eyes.
+  soot: [64, 64, (u, v) => {
+    const [r, a] = polar(u, v);
+    const edge = 0.62 + 0.09 * Math.sin(a * 13) + 0.05 * Math.sin(a * 29 + 1);
+    const body = 1 - smooth(edge - 0.04, edge + 0.02, r);
+    if (body <= 0) return 0;
+    const eye = Math.min(Math.hypot(u + 0.24, v - 0.06), Math.hypot(u - 0.24, v - 0.06)) < 0.17;
+    const pupil = Math.hypot(u + 0.2, v + 0.0) < 0.075 || Math.hypot(u - 0.28, v + 0.0) < 0.075;
+    return [body, pupil ? 0 : eye ? 1 : 0.07];
+  }],
+  // Transmutation circle: two rings, a square and a triangle inscribed,
+  // a small inner ring and ticks between the rings.
+  alchemy: [128, 128, (u, v) => {
+    const [r, a] = polar(u, v);
+    const line = (d, w) => 1 - smooth(w * 0.6, w, d);
+    let al = Math.max(line(Math.abs(r - 0.92), 0.03), line(Math.abs(r - 0.78), 0.022), line(Math.abs(r - 0.3), 0.02));
+    const sq = [0, 1, 2, 3, 0].map(i => [Math.cos(Math.PI / 4 + i * Math.PI / 2) * 0.78, Math.sin(Math.PI / 4 + i * Math.PI / 2) * 0.78]);
+    const tri = [0, 1, 2, 0].map(i => [Math.cos(Math.PI / 2 + i * Math.PI * 2 / 3) * 0.78, Math.sin(Math.PI / 2 + i * Math.PI * 2 / 3) * 0.78]);
+    al = Math.max(al, line(polyDist(u, v, sq), 0.02), line(polyDist(u, v, tri), 0.02));
+    const tick = ((a / (Math.PI * 2) * 16) % 1 + 1) % 1;
+    if (r > 0.8 && r < 0.9 && Math.abs(tick - 0.5) < 0.06) al = 1;
+    return al;
+  }],
+  // Notebook page: ruled lines, a margin, a torn bottom edge.
+  notepage: [128, 64, (u, v, w, h) => {
+    if (Math.abs(u) > 0.97) return 0;
+    const tear = -0.78 + 0.24 * Math.abs(((u + 1) * 7) % 1 - 0.5) + 0.03 * Math.sin(u * 41);
+    if (v < tear || v > 0.92) return 0;
+    const py = (v + 1) * h / 2;
+    const rule = Math.abs((py % 10) - 5) < 0.6 && v < 0.75;
+    return [1, Math.abs(u + 0.72) < 0.012 ? 0.5 : rule ? 0.7 : 0.97];
+  }],
+  // Wish orb: a shaded sphere with a darker star inside and a highlight.
+  starorb: [64, 64, (u, v) => {
+    const [r, a] = polar(u, v);
+    if (r > 0.86) return 0;
+    const pts = 0.15 + 0.24 * Math.pow(Math.abs(Math.cos(2.5 * (a - Math.PI / 2))), 6);
+    const shine = clamp(1 - Math.hypot(u + 0.32, v - 0.36) * 3);
+    return [1 - smooth(0.82, 0.86, r), r < pts ? 0.35 : 0.72 + 0.28 * shine];
+  }],
+  // Barrier hexagon: a bright edge over a faint fill.
+  hex: [64, 64, (u, v) => {
+    const d = Math.max(Math.abs(u), Math.abs(u) * 0.5 + Math.abs(v) * 0.866);
+    if (d > 0.92) return 0;
+    return Math.max(0.18, 1 - smooth(0.04, 0.08, Math.abs(d - 0.86)));
+  }],
+  // Saw ring: a hollow blade with raked teeth.
+  sawring: [128, 128, (u, v) => {
+    const [r, a] = polar(u, v);
+    const tooth = ((a / (Math.PI * 2) * 24) % 1 + 1) % 1;
+    const out = 0.76 + 0.18 * tooth;
+    if (r > out || r < 0.58) return 0;
+    return [1 - smooth(out - 0.02, out, r), r > 0.76 ? 1 : (r < 0.62 ? 0.4 : 0.75)];
+  }],
+  // Drill: a cone with spiral flutes.
+  drill: [64, 128, (u, v) => {
+    const t = (v + 0.92) / 1.85;
+    if (t < 0 || t > 1) return 0;
+    const hw = 0.92 * (1 - t);
+    if (Math.abs(u) > hw) return 0;
+    const flute = ((v * 4 + u / Math.max(0.05, hw) * 0.6) % 1 + 1) % 1;
+    return [1, (flute < 0.5 ? 1 : 0.5) * (0.75 + 0.25 * (u < 0 ? 1 : 0.4))];
+  }],
+  // HP bar frame: a thin rounded outline (the fill is a stretched pixel).
+  hpframe: [128, 16, (u, v, w, h) => {
+    const d = roundBox(u * w / 2, v * h / 2, w / 2 - 1.5, h / 2 - 1.5, 3);
+    return 1 - smooth(0.6, 1.4, Math.abs(d));
+  }],
+  // Polygon shard: a triangle with a lighter edge.
+  tri: [32, 32, (u, v) => {
+    const d = Math.max(-v - 0.7, (v * 0.5 + Math.abs(u) * 0.866) - 0.45);
+    if (d > 0) return 0;
+    return [1, d > -0.1 ? 1 : 0.7];
+  }],
+  // Ribbon twirl: a wave of ribbon that twists, front and back shaded.
+  twirl: [128, 64, (u, v) => {
+    const y = 0.45 * Math.sin(u * Math.PI * 1.25);
+    const w = 0.16 + 0.16 * Math.abs(Math.cos(u * Math.PI * 2.5));
+    const d = Math.abs(v - y);
+    if (d > w || Math.abs(u) > 0.96) return 0;
+    return [1 - smooth(w * 0.7, w, d), Math.cos(u * Math.PI * 2.5) > 0 ? 1 : 0.6];
+  }],
+  // Speed lines bursting out from an empty centre.
+  radial: [128, 128, (u, v) => {
+    const [r, a] = polar(u, v);
+    if (r > 1) return 0;
+    let al = 0;
+    for (const [ang, w, start] of radialLines) {
+      const da = Math.abs((((a - ang) % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI);
+      if (r > start && da < w * (1 + r)) al = Math.max(al, smooth(start, start + 0.15, r) * (1 - smooth(0.85, 1, r)));
+    }
+    return al;
+  }],
+  // Comic impact: a jagged ten-point starburst.
+  impact: [64, 64, (u, v) => {
+    const [r, a] = polar(u, v);
+    const f = (a / (Math.PI * 2) * 20 % 20 + 20) % 20, i = Math.floor(f), q = f - i;
+    const R = impactPts[i] * (1 - q) + impactPts[(i + 1) % 20] * q;
+    return [1 - smooth(R - 0.04, R, r), r < R * 0.5 ? 1 : 0.8];
+  }],
+  // Stone spikes bursting from the ground, lit from the left.
+  stonespikes: [128, 64, (u, v) => {
+    for (const [x, hgt, w] of [[-0.62, 0.55, 0.2], [-0.25, 0.95, 0.24], [0.12, 0.7, 0.22], [0.5, 0.88, 0.24], [0.8, 0.45, 0.16]]) {
+      const t = (v + 0.95) / (hgt + 0.95);
+      if (t >= 0 && t <= 1 && Math.abs(u - x) < w * (1 - t)) return [1, u < x ? 0.95 : 0.6];
+    }
+    return 0;
+  }],
+});
+
+// --- Race skins (original designs) ----------------------------------------------
+Object.assign(TEXTURES, {
+  // Wax seal: a lumpy disc of wax with a raised ring and a rosette pressed in.
+  waxseal: [64, 64, (u, v) => {
+    const [r, a] = polar(u, v);
+    const edge = 0.86 + 0.05 * Math.sin(a * 7 + 1) + 0.03 * Math.sin(a * 13);
+    if (r > edge) return 0;
+    const ring = Math.abs(r - 0.62) < 0.05;
+    const petals = r < 0.42 && r > 0.12 && Math.cos(a * 6) > 0.3 - r;
+    const shine = clamp(1 - Math.hypot(u + 0.35, v - 0.35) * 2.2);
+    return [1 - smooth(edge - 0.04, edge, r), ring || petals ? 1 : 0.62 + 0.25 * shine];
+  }],
+  // Tankard: a banded body, a handle on the right and a foamy head.
+  mug: [64, 64, (u, v) => {
+    const body = Math.abs(u + 0.12) < 0.48 && v > -0.82 && v < 0.42;
+    const handle = Math.abs(Math.hypot((u - 0.42) / 0.9, (v + 0.2) / 1.1) - 0.3) < 0.07 && u > 0.36;
+    // A head of foam: overlapping puffs, one spilling over the rim.
+    const foam = [[-0.48, 0.46, 0.2], [-0.22, 0.56, 0.24], [0.08, 0.52, 0.22], [0.3, 0.44, 0.17], [-0.5, 0.3, 0.12]]
+      .some(([x, y, r]) => Math.hypot(u - x, v - y) < r) || (Math.abs(u + 0.12) < 0.52 && v >= 0.36 && v < 0.5);
+    if (foam) return [1, 1];
+    if (!body && !handle) return 0;
+    const band = Math.abs(v - 0.2) < 0.06 || Math.abs(v + 0.6) < 0.06;
+    return [1, handle || band ? 0.4 : 0.66 + 0.12 * (u < -0.1 ? 1 : 0)];
+  }],
+  // Pocket rocket: a nose cone, a porthole and two fins.
+  rocket: [32, 64, (u, v) => {
+    const nose = v > 0.4 && Math.abs(u) < 0.5 * (0.95 - v) / 0.55;
+    const body = v > -0.55 && v <= 0.4 && Math.abs(u) < 0.5;
+    const fin = v > -0.9 && v < -0.2 && Math.abs(u) >= 0.5 && Math.abs(u) < 0.5 + 0.45 * (-0.2 - v) / 0.7;
+    if (!nose && !body && !fin) return 0;
+    const port = Math.hypot(u * 0.5, v - 0.05) < 0.12;
+    return [1, nose || fin ? 0.5 : port ? 0.3 : (u < 0 ? 1 : 0.8)];
+  }],
+  // Throwing axe: a haft with a bearded blade at the top.
+  throwaxe: [64, 64, (u, v) => {
+    const haft = Math.abs(u + 0.1) < 0.07 && v > -0.92 && v < 0.75;
+    // A bearded blade: edges curving out from the haft to a rounded cutting edge.
+    const bx = u + 0.04, by = v - 0.36;
+    const blade = bx > -0.06 && Math.abs(by) < 0.16 + 1.2 * Math.pow(Math.max(0, bx), 1.5) && Math.hypot(bx + 0.12, by * 0.72) < 0.92;
+    if (haft) return [1, 0.38];
+    if (!blade) return 0;
+    return [1, bx > 0.6 ? 1 : 0.72];
+  }],
+  // Totem: three carved faces stacked, wings at the top.
+  totem: [32, 96, (u, v) => {
+    const post = Math.abs(u) < 0.62 && v > -0.98 && v < 0.62;
+    const wing = v > 0.42 && v < 0.62 + (Math.abs(u) - 0.6) * 0.5 && Math.abs(u) < 0.98 && Math.abs(u) >= 0.62;
+    const cap = v >= 0.62 && v < 0.82 && Math.abs(u) < 0.62 - (v - 0.62) * 1.5;
+    if (!post && !wing && !cap) return 0;
+    if (!post) return [1, 0.7];
+    const seg = ((v + 1) / 0.54) % 1;
+    const eyes = seg > 0.55 && seg < 0.72 && Math.abs(Math.abs(u) - 0.26) < 0.14;
+    const mouth = seg > 0.2 && seg < 0.3 && Math.abs(u) < 0.34;
+    const groove = seg < 0.06;
+    return [1, eyes || mouth ? 0.25 : groove ? 0.45 : 0.75 + 0.2 * (u < 0 ? 1 : 0)];
+  }],
+  // Tusk: a curved horn, broad at the base, curling up to a point (left side;
+  // mirrored with a half-turn rotation for the right).
+  tusk: [32, 64, (u, v) => {
+    const t = (v + 0.9) / 1.8;
+    if (t < 0 || t > 1) return 0;
+    const cx = 0.45 * Math.sin(t * Math.PI * 0.9) - 0.1, w = 0.42 * (1 - t) + 0.03;
+    const d = Math.abs(u - cx);
+    if (d > w) return 0;
+    return [1 - smooth(w * 0.8, w, d), u < cx ? 1 : 0.75];
+  }],
+  // The same tusk and tankard, facing the other way.
+  tuskright: [32, 64, (u, v) => TEXTURES.tusk[2](-u, v)],
+  mugleft: [64, 64, (u, v) => TEXTURES.mug[2](-u, v)],
+  // Sound waves: three arcs out to each side.
+  soundwave: [128, 64, (u, v) => {
+    let al = 0;
+    for (const side of [-1, 1]) {
+      const [r, a] = polar((u * side) + 0.1, v * 2);
+      if (Math.abs(a) > 0.9) continue;
+      for (const R of [0.45, 0.68, 0.9]) al = Math.max(al, (1 - smooth(0.03, 0.06, Math.abs(r - R))) * (1 - Math.abs(a) / 0.9));
+    }
+    return al;
+  }],
+});
+
 const outDir = process.argv[2] || path.join(__dirname, '..', 'Media', 'Textures');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [name, [w, h, fn, ss]] of Object.entries(TEXTURES)) {

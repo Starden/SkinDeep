@@ -215,6 +215,14 @@ MOTIONS.lurch = {
     end,
 }
 
+-- Rubbery: overshoots its size and jiggles back while it rises.
+MOTIONS.boing = {
+    update = function(p, t, dt, a)
+        p.ms = 1 + (a.amp or 0.4) * exp(-t * (a.decay or 6)) * cos(t * (a.freq or 22))
+        p.my = (a.speed or 24) * t
+    end,
+}
+
 -- Pops up from below, then rises.
 MOTIONS.sneak = {
     update = function(p, t, dt, a)
@@ -697,6 +705,12 @@ end
 --   turn          spin about the vertical axis (rad/s): a gem showing its
 --                 facets.
 --   jitter = { px, seconds }  shakes in place (a roar).
+--   rock = { at, n, gap, amp }  n separate tilts, side to side, one every
+--                 `gap` seconds from `at` (a capsule rocking before it clicks).
+--   trail         x (and from's x) point away from the number's motion (a
+--                 tail light behind a sliding number).
+--   steady        keeps its size and place while critScaleKeys shrink or
+--                 swell the number (a capsule the number vanishes into).
 --   hold          stays until the number fades; otherwise it lives `life`
 --                 seconds (half the pop's time by default) and fades over
 --                 the last 40% of that.
@@ -712,7 +726,9 @@ local function animatePiece(tex, d, t, p)
     local e = d.ease == "in" and m * m or d.ease == "linear" and m or 1 - (1 - m) * (1 - m) * (1 - m)
     local x1, y1 = d.x or 0, d.y or 0
     local from = d.from or EMPTY
-    local x = (from[1] or x1) + (x1 - (from[1] or x1)) * e
+    local fx = from[1] or x1
+    if d.trail then x1, fx = -p.dir * x1, -p.dir * fx end
+    local x = fx + (x1 - fx) * e
     local y = (from[2] or y1) + (y1 - (from[2] or y1)) * e
     local r0, r1 = d.fromRot or d.rot or 0, d.rot or 0
     local rot = r0 + (r1 - r0) * e + (d.spin or 0) * k0
@@ -721,6 +737,16 @@ local function animatePiece(tex, d, t, p)
         rot = rot + d.wobble[1] * sin(w * (d.wobble[2] or 40)) * exp(-w * (d.wobble[3] or 5))
     end
     if d.flap then rot = rot + d.flap[1] * sin(k0 * (d.flap[2] or 8)) end
+    if d.rock then
+        local r = d.rock
+        local gap = r.gap or 0.25
+        local j = k0 - (r.at or 0)
+        local i = j >= 0 and floor(j / gap) or -1
+        if i >= 0 and i < (r.n or 3) then
+            local f = (j - i * gap) / (gap * 0.6)
+            if f < 1 then rot = rot + (r.amp or 0.3) * sin(f * pi) * (i % 2 == 0 and 1 or -1) end
+        end
+    end
     if d.jitter and k0 < (d.jitter[2] or 0.4) then
         x, y = x + (random() - 0.5) * 2 * d.jitter[1], y + (random() - 0.5) * 2 * d.jitter[1]
     end
@@ -766,6 +792,10 @@ local function animatePiece(tex, d, t, p)
             tex:SetTexCoord(1 - r, 1, 0, 1); x = x + w * (1 - r) / 2; w = w * r
         end
     end
+    if d.steady and p.keyScale then
+        local q = 1 / max(0.02, p.keyScale)
+        w, h, x, y = w * q, h * q, x * q, y * q
+    end
     tex:SetSize(max(0.1, w * tw), max(0.1, h))
     tex:ClearAllPoints()
     tex:SetPoint("CENTER", tex:GetParent(), "CENTER", x, y)
@@ -792,6 +822,25 @@ function Engine.Step(p, dt)
     end
     local fadeStart = p.dur * (1 - p.fade)
     if t > fadeStart then s = s * (1 - 0.12 * (t - fadeStart) / (p.dur - fadeStart)) end
+    -- critScaleKeys: a crit's size over time, { { t, scale }, ... } eased
+    -- between keys (a wind-up, a vanishing act, a delayed blow).
+    local keys = p.crit and p.skin.critScaleKeys
+    p.keyScale = nil
+    if keys then
+        local k = keys[#keys][2]
+        for i = 1, #keys - 1 do
+            local a, b = keys[i], keys[i + 1]
+            if t < a[1] then k = a[2]; break end
+            if t < b[1] then
+                local q = (t - a[1]) / max(0.001, b[1] - a[1])
+                q = q * q * (3 - 2 * q)
+                k = a[2] + (b[2] - a[2]) * q
+                break
+            end
+        end
+        s = s * k
+        p.keyScale = k
+    end
     -- War drum: a few hard pulses in a row on crits.
     if p.drum then
         local gap = p.drum.gap or 0.13

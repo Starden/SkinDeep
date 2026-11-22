@@ -169,11 +169,15 @@ function IsInInstance() return inInstanceKind ~= "none", inInstanceKind end
 function GetInstanceInfo() return instanceName end
 function GetBattlefieldArenaFaction() return arenaFaction end
 function IsShiftKeyDown() return false end
+ctrlDown, resting = false, false
+function IsControlKeyDown() return ctrlDown end
+function IsResting() return resting end
 DUEL_WINNER_KNOCKOUT = "%1$s has defeated %2$s in a duel"
 COMBATLOG_HONORAWARD = "You have been awarded %d honor points."
 gameHour, monthNow, lifetimeHK = 12, 6, 0
 function GetGameTime() return gameHour, 0 end
-function date(fmt) return { month = monthNow, day = 1, year = 2026 } end
+dayNow = 1
+function date(fmt) return { month = monthNow, day = dayNow, year = 2026 } end
 function GetRealmName() return "Forever" end
 function GetPVPLifetimeStats() return lifetimeHK, 0, 0 end
 playerLevel, money = 12, 5000
@@ -223,6 +227,23 @@ C_TooltipInfo = { GetInventoryItem = function(unit, slot)
   for _, t in ipairs(g[2] or {}) do lines[#lines + 1] = { leftText = t } end
   return { lines = lines }
 end }
+-- Anime feats: crafted items, item classes (weapons, gems), swimming,
+-- mounts, rare mobs, flight paths and the Food channel.
+LOOT_ITEM_CREATED_SELF = "You create: %s."
+itemClasses = { [1001] = { 2, 7 }, [1002] = { 2, 4 }, [3001] = { 3, 0 }, [3002] = { 3, 1 }, [3003] = { 3, 2 }, [3004] = { 3, 3 },
+                [3005] = { 3, 4 }, [3006] = { 3, 5 }, [3007] = { 3, 6 }, [4001] = { 7, 0 } }
+function GetItemInfoInstant(item)
+  local id = type(item) == "number" and item or tonumber(tostring(item):match("item:(%d+)") or "")
+  local c = id and itemClasses[id]
+  if not c then return id end
+  return id, "", "", "", 0, c[1], c[2]
+end
+swimming, mounted = false, false
+function IsSwimming() return swimming end
+function IsMounted() return mounted end
+function UnitClassification(u) return units[u] and units[u].class or "normal" end
+function TakeTaxiNode(i) end
+function GetSpellInfo(id) return id == 433 and "Food" or (id == 434 and "Drink" or "Fireball") end
 -- Professions: slots 1-2 primary (Forever: 3 First Aid, 4 Fishing, 5 Cooking).
 profList = { { "Blacksmithing", 0, 164 }, { "Mining", 0, 186 } }
 function GetProfessions() return profList[1] and 1 or nil, profList[2] and 2 or nil, nil, nil, nil end
@@ -232,6 +253,8 @@ function GetProfessionInfo(i)
 end
 function AbbreviateLargeNumbers(v) if issecretvalue(v) then return v end return tostring(v) end
 function HideUIPanel() end
+playerRace = "Gnome"
+function UnitRace(u) return playerRace, playerRace, 7 end
 function UnitClass(u) return playerClassFile:sub(1, 1) .. playerClassFile:sub(2):lower(), playerClassFile, 8 end
 C_AddOns = { GetAddOnMetadata = function(name, key) if key == "Version" then return "@project-version@" end end }
 C_StringUtil = { TruncateWhenZero = function(v) return v end }
@@ -288,7 +311,7 @@ end
 
 -- Load the addon like the client: each file gets (addonName, ns).
 local ns = {}
-for _, file in ipairs({ "Skins.lua", "StyleSkins.lua", "ClassSkins.lua", "SpecSkins.lua", "FactionSkins.lua", "PvPSkins.lua", "ProfSkins.lua", "LootSkins.lua", "FunSkins.lua", "Core.lua", "Feats.lua", "Engine.lua", "Jackpot.lua", "Options.lua", "Welcome.lua", "Share.lua" }) do
+for _, file in ipairs({ "Skins.lua", "StyleSkins.lua", "ClassSkins.lua", "SpecSkins.lua", "FactionSkins.lua", "PvPSkins.lua", "ProfSkins.lua", "LootSkins.lua", "FunSkins.lua", "AnimeSkins.lua", "RaceSkins.lua", "Core.lua", "Feats.lua", "Rotation.lua", "Engine.lua", "Jackpot.lua", "Options.lua", "Welcome.lua", "Share.lua" }) do
   local chunk, err = loadfile(ADDON_DIR .. "/" .. file)
   if not chunk then error(err) end
   chunk("SkinDeep", ns)
@@ -315,7 +338,13 @@ for _, id in ipairs(ns.SkinOrder) do
 end
 local nPvP = 0
 for _, id in ipairs(ns.SkinOrder) do if ns.Skins[id].group == "pvp" then nPvP = nPvP + 1; if not ns.Feats.FeatForSkin(id) then unpaired[#unpaired + 1] = id end end end
-check(#ns.SkinOrder == 115 and nClass == 37 and nFaction == 11 and nPvP == 19, "115 skins: 37 class (9 + 28 spec), 11 faction, 19 PvP, 12 profession, 5 loot, 15 fun (" .. #ns.SkinOrder .. ", " .. nClass .. ", " .. nFaction .. ", " .. nPvP .. ")")
+local nAnime = 0
+for _, id in ipairs(ns.SkinOrder) do if ns.Skins[id].group == "anime" then nAnime = nAnime + 1; if not ns.Feats.FeatForSkin(id) then unpaired[#unpaired + 1] = id end end end
+check(nAnime == 20, "20 anime skins, each with its feat (" .. nAnime .. ")")
+local nRace = 0
+for _, id in ipairs(ns.SkinOrder) do if ns.Skins[id].group == "race" then nRace = nRace + 1; if not ns.Feats.FeatForSkin(id) then unpaired[#unpaired + 1] = id end end end
+check(nRace == 8, "8 race skins, each with its feat (" .. nRace .. ")")
+check(#ns.SkinOrder == 143 and nClass == 37 and nFaction == 11 and nPvP == 19, "143 skins: 37 class (9 + 28 spec), 8 race, 11 faction, 19 PvP, 12 profession, 5 loot, 15 fun, 20 anime (" .. #ns.SkinOrder .. ", " .. nClass .. ", " .. nFaction .. ", " .. nPvP .. ")")
 local styleUnpaired = {}
 for _, id in ipairs(ns.SkinOrder) do local sk = ns.Skins[id]; if not sk.group and id ~= "classic" and not ns.Feats.FeatForSkin(id) then styleUnpaired[#styleUnpaired + 1] = id end end
 check(#styleUnpaired == 0, "every style skin but Classic+ has a feat" .. (#styleUnpaired > 0 and (": missing " .. table.concat(styleUnpaired, ", ")) or ""))
@@ -473,6 +502,9 @@ for _, f in ipairs(frames) do
 end
 ns.ToggleWindow()
 check(not win.shown, "window closes")
+-- That clicked the Rotation page's buttons too: back to no rotation.
+SkinDeepDB.rotate, SkinDeepDB.zoneRules, SkinDeepDB.enemyRules = "off", false, false
+SkinDeepDB.zoneSkins, SkinDeepDB.enemySkins, SkinDeepDB.rotatePicks = {}, {}, {}
 run(4)
 
 print("== slash")
@@ -597,7 +629,7 @@ for i = 1, 250 do
 end
 check(SkinDeepDB.counters.undead == 250, "Undead kills are counted (250)")
 check(not F.IsDone(F.ByID.scourge), "a feat whose skin is not released does not complete")
-check(#F.Visible() == 136, "unreleased feats are not listed (136 of 138 shown while two skins are held back)")
+check(#F.Visible() == 164, "unreleased feats are not listed (164 of 166 shown while two skins are held back)")
 local alive = { name = "Defias Pillager", ctype = "Humanoid" }
 units.nameplate2 = alive
 fire("UNIT_COMBAT", "nameplate2", "WOUND", "", 30, 1)
@@ -1089,6 +1121,120 @@ do
   check(F.IsDone(F.ByID.karaoke), "50 songs earn Karaoke")
   for _ = 1, 100 do fire("CHAT_MSG_TEXT_EMOTE", "You cheer!", me) end
   check(F.IsDone(F.ByID.powerballad), "100 cheers earn Power Ballad")
+  -- Anime.
+  local animeIds = {}
+  for _, id in ipairs(ns.SkinOrder) do if ns.Skins[id].group == "anime" then animeIds[#animeIds + 1] = id; SkinDeepDB.feats[id] = nil end end
+  for _, c in ipairs({ "rares", "swordCrits", "meals", "flexes", "swimHits", "kinds", "sleeps", "crafts", "letters", "giant", "gems",
+                       "quests", "curtseys", "defends", "demon", "unarmedHits", "flights", "loginDays", "mounts", "trains" }) do
+    SkinDeepDB.counters[c] = nil
+  end
+  SkinDeepDB.kinds, SkinDeepDB.gems, SkinDeepDB.loginDays = {}, {}, {}
+  check(F.DisplayText(F.ByID.mostwanted) == "Secret: Every head has a price.", "an anime feat shows only its riddle")
+  local function killPlate(name, ctype, class)
+    units.nameplate4 = { name = name, ctype = ctype, class = class }
+    fire("UNIT_COMBAT", "nameplate4", "WOUND", "", 30, 1)
+    units.nameplate4.dead = true
+    fire("UNIT_HEALTH", "nameplate4")
+  end
+  killPlate("Forest Spider", "Beast", "normal")
+  killPlate("Elite Guard", "Humanoid", "elite")
+  check((SkinDeepDB.counters.rares or 0) == 0, "normal and elite kills aren't rares")
+  for i = 1, 9 do killPlate("Rare Beast " .. i, "Beast", "rare") end
+  check(not F.IsDone(F.ByID.mostwanted), "9 rares: not yet")
+  killPlate("Rare Brute", "Giant", "rareelite")
+  check(F.IsDone(F.ByID.mostwanted), "the 10th rare (a rare elite) earns Most Wanted")
+  -- Kinds: 12 so far (the spider, the guard and 10 rares).
+  for i = 1, 138 do F.Killed("Kind " .. i, "Humanoid") end
+  F.Killed("Kind 1", "Humanoid")
+  check(not F.IsDone(F.ByID.gotcha) and SkinDeepDB.counters.kinds == 150, "the same kind twice counts once (150 kinds)")
+  F.Killed("Kind 139", "Humanoid")
+  check(F.IsDone(F.ByID.gotcha), "the 151st kind earns Gotcha!")
+  for _ = 1, 48 do F.Killed("Mountain Giant", "Giant") end
+  check(not F.IsDone(F.ByID.steamblades), "49 Giants (one of them the rare): not yet")
+  F.Killed("Mountain Giant", "Giant")
+  check(F.IsDone(F.ByID.steamblades), "50 Giants earn Steam Blades")
+  for _ = 1, 99 do F.Killed("Felhound", "Demon") end
+  check(not F.IsDone(F.ByID.chainrev), "99 Demons: not yet")
+  F.Killed("Imp", "Demon")
+  check(F.IsDone(F.ByID.chainrev), "100 Demons earn Chain Rev")
+  -- Weapons: crits with a sword, hits with bare hands.
+  gear[16] = { "|cffffffff|Hitem:1002::|h[Mace]|h|r" }
+  SkinDeepDB.counters.swordCrits, SkinDeepDB.counters.unarmedHits = 499, nil
+  fire("UNIT_COMBAT", "target", "WOUND", "CRITICAL", 900, 1)
+  check(SkinDeepDB.counters.swordCrits == 499 and (SkinDeepDB.counters.unarmedHits or 0) == 0, "a mace crit is neither a sword crit nor a bare-handed hit")
+  gear[16] = { "|cffffffff|Hitem:1001::|h[Sword]|h|r" }
+  fire("UNIT_COMBAT", "target", "WOUND", "", 900, 1)
+  check(not F.IsDone(F.ByID.blackcrescent), "a plain sword hit isn't a crit")
+  fire("UNIT_COMBAT", "target", "WOUND", "CRITICAL", 900, 1)
+  check(F.IsDone(F.ByID.blackcrescent), "the 500th sword crit earns Black Crescent")
+  gear[16] = nil
+  for _ = 1, 100 do fire("UNIT_COMBAT", "target", "WOUND", "", 50, 1) end
+  check(F.IsDone(F.ByID.pressurepoint), "100 bare-handed hits earn Pressure Point")
+  check(not F.IsDone(F.ByID.flowingform), "hits on dry land don't count as swimming")
+  swimming = true
+  for _ = 1, 100 do fire("UNIT_COMBAT", "target", "WOUND", "", 50, 1) end
+  swimming = false
+  check(F.IsDone(F.ByID.flowingform), "100 hits while swimming earn Flowing Form")
+  run(3)
+  -- Blocks, parries and dodges against you; a wound isn't one.
+  fire("UNIT_COMBAT", "player", "WOUND", "", 40, 1)
+  check((SkinDeepDB.counters.defends or 0) == 0, "a hit you take isn't a block")
+  for i = 1, 500 do fire("UNIT_COMBAT", "player", ({ "BLOCK", "PARRY", "DODGE" })[i % 3 + 1], "", 0, 1) end
+  check(F.IsDone(F.ByID.hexbarrier), "500 blocks, parries and dodges earn Hex Barrier")
+  run(3)
+  -- Emotes.
+  for _ = 1, 100 do fire("CHAT_MSG_TEXT_EMOTE", "You flex your muscles. Oooooh so strong!", me) end
+  for _ = 1, 50 do fire("CHAT_MSG_TEXT_EMOTE", "You fall asleep. Zzzzzzz.", me) end
+  for _ = 1, 50 do fire("CHAT_MSG_TEXT_EMOTE", "You curtsey.", me) end
+  fire("CHAT_MSG_TEXT_EMOTE", "Wes flexes. Oooooh so strong!", "Wes")
+  for _ = 1, 100 do fire("CHAT_MSG_TEXT_EMOTE", "You let off a train whistle.", me) end
+  check(SkinDeepDB.counters.flexes == 100, "others' flexes don't count")
+  check(F.IsDone(F.ByID.menacing) and F.IsDone(F.ByID.sootsprites) and F.IsDone(F.ByID.moonlitcharm) and F.IsDone(F.ByID.oneanddone),
+        "/flex, /sleep, /curtsey and /train earn Menacing, Soot Sprites, Moonlit Charm and One and Done")
+  run(3)
+  -- Meals (the Food channel, not drinks or a party member's), mounts.
+  fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast", 434)
+  fire("UNIT_SPELLCAST_SUCCEEDED", "party1", "cast", 433)
+  check((SkinDeepDB.counters.meals or 0) == 0, "drinks and others' meals don't count")
+  for _ = 1, 100 do fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast", 433) end
+  check(F.IsDone(F.ByID.shinobi), "100 meals earn Shinobi")
+  for _ = 1, 499 do
+    mounted = true; fire("PLAYER_MOUNT_DISPLAY_CHANGED")
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast", 1)
+    mounted = false; fire("PLAYER_MOUNT_DISPLAY_CHANGED")
+  end
+  check(not F.IsDone(F.ByID.neonslide) and SkinDeepDB.counters.mounts == 499, "each mount-up counts once (499)")
+  mounted = true; fire("PLAYER_ENTERING_WORLD", false, false); mounted = false; fire("PLAYER_MOUNT_DISPLAY_CHANGED")
+  check(SkinDeepDB.counters.mounts == 499, "loading in already mounted doesn't count")
+  mounted = true; fire("PLAYER_MOUNT_DISPLAY_CHANGED"); mounted = false
+  check(F.IsDone(F.ByID.neonslide), "the 500th mount-up earns Neon Slide")
+  run(3)
+  -- Letters, quests, flight paths, crafts, gems, days.
+  for _ = 1, 25 do fire("MAIL_SEND_SUCCESS") end
+  for _ = 1, 100 do fire("QUEST_TURNED_IN", 1, 0, 0) end
+  for _ = 1, 50 do TakeTaxiNode(3) end
+  check(F.IsDone(F.ByID.finalpage) and F.IsDone(F.ByID.smash) and F.IsDone(F.ByID.spiraldrill),
+        "25 letters, 100 quests and 50 flights earn Final Page, Smash! and Spiral Drill")
+  local best = SkinDeepDB.counters.lootBest
+  for _ = 1, 100 do fire("CHAT_MSG_LOOT", "You create: |cffffffff|Hitem:1251::|h[Linen Bandage]|h|r.") end
+  check(F.IsDone(F.ByID.transmute) and SkinDeepDB.counters.lootBest == best, "100 crafts earn Transmute (and aren't loot)")
+  fire("CHAT_MSG_LOOT", "You receive loot: |cffffffff|Hitem:4001::|h[Copper Bar]|h|r.")
+  for id = 3001, 3006 do fire("CHAT_MSG_LOOT", "You receive loot: |cff1eff00|Hitem:" .. id .. "::|h[Gem]|h|r.") end
+  fire("CHAT_MSG_LOOT", "You receive loot: |cff1eff00|Hitem:3001::|h[Gem]|h|r.")
+  check(not F.IsDone(F.ByID.sevenstars) and SkinDeepDB.counters.gems == 6, "a bar isn't a gem, and the same gem counts once (6)")
+  fire("CHAT_MSG_LOOT", "Wes receives loot: |cff1eff00|Hitem:3007::|h[Gem]|h|r.")
+  check(SkinDeepDB.counters.gems == 6, "a party member's gem doesn't count")
+  fire("CHAT_MSG_LOOT", "You receive loot: |cff1eff00|Hitem:3007::|h[Gem]|h|r.")
+  check(F.IsDone(F.ByID.sevenstars), "a 7th kind of gem earns Seven Stars")
+  for d = 1, 29 do dayNow = d; fire("PLAYER_LOGIN") end
+  fire("PLAYER_LOGIN")
+  check(not F.IsDone(F.ByID.linkstart) and SkinDeepDB.counters.loginDays == 29, "two logins on one day count once (29 days)")
+  dayNow = 30; fire("PLAYER_LOGIN"); dayNow = 1
+  check(F.IsDone(F.ByID.linkstart), "a 30th day earns Link Start")
+  run(3)
+  local missing = {}
+  for _, id in ipairs(animeIds) do if not F.IsDone(F.ByID[id]) then missing[#missing + 1] = id end end
+  check(#missing == 0, "every anime feat can be earned" .. (#missing > 0 and (": missing " .. table.concat(missing, ", ")) or ""))
   -- The Legacy rank ladder.
   check(F.ByID.sergeant_a.goal == 3 and F.ByID.knight.goal == 7 and F.ByID.fieldmarshal.goal == 13
         and F.ByID.warlord.goal == 13 and F.ByID.stoneguard.goal == 7, "rank feats sit at the Legacy ranks 3, 7, 10, 13, 14")
@@ -1159,6 +1305,109 @@ do
   run(2)
   _G.SkinDeepConfig:Hide()
   SkinDeepDB.unlockMode = "all"
+end
+
+print("== race skins")
+do
+  local F = ns.Feats
+  for _, f in ipairs(F.ALL) do if f.raceLevel then SkinDeepDB.feats[f.id] = nil end end
+  for _, r in ipairs(F.RACES) do SkinDeepDB.counters["race" .. r[1]] = nil end
+  local saveRace, saveLevel = playerRace, playerLevel
+  playerRace, playerLevel = "Tauren", 9
+  fire("PLAYER_LOGIN")
+  check(SkinDeepDB.counters.raceTauren == 9 and not F.IsDone(F.ByID.race_totemstomp), "a level 9 Tauren: not yet")
+  check(F.ProgressText(F.ByID.race_totemstomp) == "Level 9 / 10", "race feats show the level reached")
+  fire("PLAYER_LEVEL_UP", 10)
+  check(F.IsDone(F.ByID.race_totemstomp), "level 10 on a Tauren earns Totem Stomp")
+  check(not F.IsDone(F.ByID.race_berserk), "other races' skins stay locked")
+  playerRace, playerLevel = "Scourge", 30
+  fire("PLAYER_LOGIN")
+  check(F.IsDone(F.ByID.race_bansheewail) and F.ByID.race_bansheewail.text == "Reach level 10 on an Undead character",
+        "logging in an Undead past level 10 earns Banshee Wail")
+  playerRace, playerLevel = "Orc", 4
+  fire("PLAYER_LOGIN")
+  check(SkinDeepDB.counters.raceScourge == 30, "a low character doesn't lower another race's best")
+  playerRace, playerLevel = saveRace, saveLevel
+  run(3)
+end
+
+print("== rotation")
+do
+  local R = ns.Rotation
+  SkinDeepDB.unlockMode = "all"
+  SkinDeepDB.pvpSkin = nil
+  ns.SetSkin("warrior")
+  units.target = { name = "Kobold Miner", ctype = "Humanoid" }
+  local spawned = {}
+  local spawn = ns.Engine.Spawn
+  ns.Engine.Spawn = function(e) spawned[#spawned + 1] = e.skin or ns.ResolvedSkinID(); return spawn(e) end
+  local function hitSkin(unit)
+    fire("UNIT_COMBAT", unit or "target", "WOUND", "", 50, 1)
+    return spawned[#spawned]
+  end
+  check(SkinDeepDB.rotate == "off" and R.Current() == nil and hitSkin() == "warrior", "rotation is off by default: hits use your skin")
+  -- Random each fight, from the skins you picked.
+  for _, id in ipairs({ "mage", "rogue", "druid" }) do R.TogglePick(id) end
+  R.TogglePick("comic"); R.TogglePick("comic")
+  local pool, picked = R.Pool()
+  check(picked and #pool == 3, "picked skins make the pool (a skin picked twice is dropped again)")
+  SlashCmdList.SKINDEEP("rotate fight")
+  local seen, repeats, last = {}, 0, nil
+  for _ = 1, 40 do
+    fire("PLAYER_REGEN_DISABLED")
+    local id = hitSkin()
+    seen[id] = true
+    if id == last then repeats = repeats + 1 end
+    last = id
+  end
+  check(seen.mage and seen.rogue and seen.druid and not seen.warrior, "each fight brings a random skin from the picks")
+  check(repeats == 0, "never the same skin two fights in a row")
+  -- Cycle: the next skin once the minutes are up, only as a fight starts.
+  SlashCmdList.SKINDEEP("rotate cycle 2")
+  check(SkinDeepDB.rotate == "cycle" and SkinDeepDB.rotateMinutes == 2, "slash: rotate cycle 2")
+  local first = hitSkin()
+  clock = clock + 90; fire("PLAYER_REGEN_DISABLED")
+  check(hitSkin() == first, "cycle: same skin before the minutes are up")
+  clock = clock + 40
+  check(hitSkin() == first, "cycle: no change in the middle of a fight")
+  fire("PLAYER_REGEN_DISABLED")
+  local second = hitSkin()
+  check(second ~= first, "cycle: the next skin at the next fight once time is up")
+  -- All unlocked skins when nothing is picked.
+  for _, id in ipairs({ "mage", "rogue", "druid" }) do R.TogglePick(id) end
+  local all, anyPicked = R.Pool()
+  check(not anyPicked and #all == #ns.SkinOrder, "nothing picked: every unlocked skin rotates (" .. #all .. ")")
+  -- Zone and enemy skins.
+  SlashCmdList.SKINDEEP("zone dungeon frost")
+  check(SkinDeepDB.zoneRules and SkinDeepDB.zoneSkins.dungeon == "frost", "slash: zone dungeon Frostbite")
+  check(hitSkin() ~= "frost", "the dungeon skin waits for a dungeon")
+  inInstanceKind = "party"
+  check(hitSkin() == "frost", "in a dungeon, hits use the dungeon skin over the rotation")
+  SlashCmdList.SKINDEEP("enemy undead bloodmoon")
+  units.nameplate3 = { name = "Rotting Ghoul", ctype = "Undead" }
+  check(hitSkin("nameplate3") == "blood" and hitSkin() == "frost", "an Undead enemy gets its own skin; the Kobold keeps the dungeon's")
+  SkinDeepDB.pvpSkin = "duelist"
+  units.nameplate3.player = true
+  check(hitSkin("nameplate3") == "duelist", "the PvP skin beats every rule")
+  SkinDeepDB.pvpSkin = nil
+  units.nameplate3 = nil
+  SkinDeepDB.enemyRules, SkinDeepDB.enemySuggested, SkinDeepDB.enemySkins = false, nil, {}
+  R.SetEnemyRules(true)
+  check(SkinDeepDB.enemySkins.Demon == "chainrev" and SkinDeepDB.enemySkins.Giant == "steamblades", "turning enemy skins on fills in fitting ones")
+  inInstanceKind = "none"
+  -- Locked skins never rotate in.
+  SkinDeepDB.unlockMode = "collector"
+  local lockedIn = 0
+  for _, id in ipairs(R.Pool()) do if not ns.Feats.IsUnlocked(id) then lockedIn = lockedIn + 1 end end
+  check(lockedIn == 0, "Collector: only unlocked skins rotate")
+  SkinDeepDB.unlockMode = "all"
+  ns.OpenWindow("rotation"); run(0.2)
+  check(true, "the Rotation page builds")
+  _G.SkinDeepConfig:Hide()
+  SlashCmdList.SKINDEEP("rotate off")
+  SkinDeepDB.zoneRules, SkinDeepDB.enemyRules = false, false
+  check(hitSkin() == "warrior", "rotation off: back to your skin")
+  ns.Engine.Spawn = spawn
 end
 
 print("== version")

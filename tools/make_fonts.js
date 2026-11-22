@@ -89,7 +89,65 @@ const SHAPES = {
   },
 };
 
-function glyphContours(rows, shape) {
+// Clockwise (y up): TrueType fills clockwise outer contours.
+function clockwise(pts) {
+  let area = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const [x1, y1] = pts[i], [x2, y2] = pts[(i + 1) % pts.length];
+    area += x1 * y2 - x2 * y1;
+  }
+  return area > 0 ? pts.slice().reverse() : pts;
+}
+
+// Script: a slanted, slightly shaky pen stroke through the bitmap's
+// skeleton (each lit pixel joined to its lit neighbours), like a scrawled
+// handwritten note. Every glyph keeps its own wobble from its character.
+function scriptContours(rows, ch) {
+  let h = 0;
+  for (const c of ch) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const noise = (r, c, k) => {
+    let s = (h ^ (r * 73856093) ^ (c * 19349663) ^ (k * 83492791)) >>> 0;
+    s = (s * 1103515245 + 12345) >>> 0;
+    return (s % 1000) / 1000 - 0.5;
+  };
+  const on = (r, c) => r >= 0 && r < ROWS && c >= 0 && c < COLS && rows[r][c] === '#';
+  const SLANT = 0.24;
+  const at = (r, c) => {
+    const x = c * CELL + 100 + noise(r, c, 1) * 26, y = (ROWS - 1 - r) * CELL + 50 + noise(r, c, 2) * 22;
+    return [x + y * SLANT, y];
+  };
+  const contours = [];
+  const segment = (a, b, hw) => {
+    const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len * hw, ny = dx / len * hw;
+    contours.push(clockwise([[a[0] + nx, a[1] + ny], [b[0] + nx, b[1] + ny], [b[0] - nx, b[1] - ny], [a[0] - nx, a[1] - ny]]
+      .map(p => [Math.round(p[0]), Math.round(p[1])])));
+  };
+  const dot = (p, r) => {
+    const pts = [];
+    for (let i = 0; i < 8; i++) {
+      const a = (112.5 - i * 45) * Math.PI / 180;
+      pts.push([Math.round(p[0] + r * Math.cos(a)), Math.round(p[1] + r * Math.sin(a))]);
+    }
+    contours.push(pts);
+  };
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (!on(r, c)) continue;
+      const p = at(r, c), hw = 40 + noise(r, c, 3) * 12;
+      dot(p, hw);
+      if (on(r, c + 1)) segment(p, at(r, c + 1), hw);
+      if (on(r + 1, c)) segment(p, at(r + 1, c), hw);
+      // Diagonals only where no corner already joins the two.
+      if (on(r + 1, c + 1) && !on(r, c + 1) && !on(r + 1, c)) segment(p, at(r + 1, c + 1), hw);
+      if (on(r + 1, c - 1) && !on(r, c - 1) && !on(r + 1, c)) segment(p, at(r + 1, c - 1), hw);
+    }
+  }
+  return contours;
+}
+
+function glyphContours(rows, shape, ch) {
+  if (shape === 'script') return scriptContours(rows, ch);
   const contours = [];
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
@@ -129,7 +187,7 @@ function buildFont(family, shape, advanceExtra) {
   cmap.set(32, 1);
   for (const ch of chars) {
     const gi = glyphs.length;
-    glyphs.push({ name: ch, contours: glyphContours(GLYPHS[ch], shape) });
+    glyphs.push({ name: ch, contours: glyphContours(GLYPHS[ch], shape, ch) });
     cmap.set(ch.charCodeAt(0), gi);
     if (/[A-Z]/.test(ch)) cmap.set(ch.toLowerCase().charCodeAt(0), gi); // lowercase shares the caps
   }
@@ -269,6 +327,7 @@ const families = [
   ['SkinDeep LED', 'led', 0, 'SkinDeepLED.ttf'],
   ['SkinDeep Shard', 'shard', 20, 'SkinDeepShard.ttf'],
   ['SkinDeep Slash', 'slash', 160, 'SkinDeepSlash.ttf'],
+  ['SkinDeep Script', 'script', 120, 'SkinDeepScript.ttf'],
 ];
 for (const [fam, shape, extra, file] of families) {
   const buf = buildFont(fam, shape, extra);

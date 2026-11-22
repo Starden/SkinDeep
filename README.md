@@ -4,9 +4,10 @@
 
 SkinDeep replaces the numbers that pop over your enemies with animated, themed
 "damage skins": custom fonts, motion, colors, crit bursts and particles. It ships
-with 51 skins, including one for every class, eleven faction skins, fifteen PvP
-skins (up to Grand Marshal and High Warlord), seasonal skins, and a slot-machine
-skin that rolls every hit and hits the JACKPOT on crits.
+with 143 skins, including one for every class, talent tree and race, eleven faction
+skins, nineteen PvP skins (up to Grand Marshal and High Warlord), seasonal skins,
+twenty anime-inspired skins, and a slot-machine skin that rolls every hit and
+hits the JACKPOT on crits.
 
 Type `/skindeep` to open the skin picker with a live preview.
 
@@ -50,6 +51,11 @@ Combat earns both Shred and Ironbark; Auto uses Ironbark in Bear Form). On the
 Skins tab, click a class to fold out its specs. `/skindeep talents` shows the
 points SkinDeep reads.
 
+**Race skins** (the Race tab): Royal Seal (Human), Hearth Ale (Dwarf), Moonwell
+(Night Elf), Pocket Rocket (Gnome), Axe and Fury (Orc), Banshee Wail (Undead),
+Totem Stomp (Tauren) and Berserk (Troll). Reach level 10 on a character of that
+race to earn its skin.
+
 **Profession skins** grow with your skill: reach 150 in a profession to
 unlock its skin (Journeyman), 225 to upgrade it to Expert and 300 to Artisan.
 Philter (Alchemy), Anvilstrike (Blacksmithing), Runethread (Enchanting),
@@ -72,6 +78,14 @@ another player's skin can show on your numbers.)
 Bunny Hop, Graveyard Shift, Hogger!, Power Surge, Final Move, Sakura Drift,
 Mecha Strike, Bass Drop, Lo-Fi, Karaoke and Power Ballad are each earned by a
 secret feat. The Feats tab shows only a riddle until you find it.
+
+**Anime skins** (the Anime tab): twenty original takes on the genre's famous
+looks, each earned by a secret feat. Most Wanted (a wanted poster with your crit
+as the bounty), Black Crescent, Shinobi, Menacing, Flowing Form, Gotcha!, Soot
+Sprites, Transmute, Final Page, Steam Blades, Seven Stars, Smash!, Moonlit Charm,
+Hex Barrier, Chain Rev, Pressure Point, Spiral Drill, Link Start, Neon Slide and
+One and Done (plain little hits, then one colossal punch). They borrow a show's
+feel, never its characters, symbols or lines.
 
 | Faction skins | |
 |---|---|
@@ -118,6 +132,23 @@ battlegrounds and against players.
 | **Murloc Mayhem** | Bubbling numbers; crits shout MRGLGL! |
 | **Hallow's End · Winter Veil · Heartthrob** | Seasonal: bats and a jack-o'-lantern, snow and a gift, hearts. Earned by playing in October, December and February. |
 
+## Rotation
+
+The **Rotation** tab (`/skindeep rotate`) lets your skins change by themselves:
+
+- **Random each fight**: a new skin every time combat starts, never the same
+  one twice in a row.
+- **Cycle**: the next skin every few minutes (1 to 120), changing between
+  fights.
+- **By zone**: a skin for dungeons, raids, cities and inns, and the open world.
+- **By enemy**: a skin for each creature type you hit (Undead, Demon,
+  Dragonkin...). The first time you turn it on, fitting skins you own are
+  filled in, such as Chain Rev for Demons and Steam Blades for Giants.
+
+It rotates through every skin you've unlocked, or only the ones you pick:
+Ctrl-click skins in the list. Which skin a hit gets: your PvP skin first, then
+the enemy's, then the zone's, then the rotation, then the skin you chose.
+
 ## Colors
 
 Physical and spell damage always read apart, like Blizzard's white and yellow:
@@ -139,7 +170,9 @@ Physical and spell damage always read apart, like Blizzard's white and yellow:
 Slash commands: `/skindeep test`, `/skindeep feats`, `/skindeep list`,
 `/skindeep skin <name>`, `/skindeep welcome`, `/skindeep on`, `/skindeep off`,
 `/skindeep restore`, `/skindeep unlock`, `/skindeep peek [name]`, `/skindeep pvp`,
-`/skindeep rank`, `/skindeep talents`, `/skindeep loot`.
+`/skindeep rank`, `/skindeep talents`, `/skindeep loot`,
+`/skindeep rotate [off | fight | cycle <minutes>]`, `/skindeep zone <place> <skin | off>`,
+`/skindeep enemy <type> <skin | off>`.
 
 ## Good to know
 
