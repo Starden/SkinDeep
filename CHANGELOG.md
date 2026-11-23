@@ -1,5 +1,31 @@
 # SkinDeep
 
+## 1.7.0
+
+- **Twelve Pop skins** on a new **Pop** tab: homages to fairytale films and
+  the phones in your pocket (never a studio's or brand's names, logos or
+  characters). Each is earned by a secret feat.
+  - **Wishing Star**: a shooting star arcs over a castle, then fireworks.
+  - **Midnight Chime**: a clock sweeps to twelve and a glass slipper glints.
+  - **Rubber Hose**: an old black-and-white cartoon that bounces on the beat
+    and closes with an iris-out.
+  - **Toy Box**: crits drop a row of letter blocks that wobble, then topple.
+  - **Island Alert**: a black notification pill stretches open, spins a
+    loader and ticks it done.
+  - **Read Receipt**: typing dots, then your crit lands in a blue bubble:
+    Delivered.
+  - And Snow Queen, Savanna Sunrise, Frosted Glass, Edge Glow, Fast Charge
+    and Ring Closer.
+- **Eight more anime skins** (28 in all), each earned by a secret feat:
+  - **Power Level**: a scouter reads your crit, flashes red and cracks.
+  - **Face-Down Card**: a card drops face down, flips, and your crit is on
+    its face.
+  - **Isekai'd**: headlights, a white flash, and the number comes back
+    through a portal at level 99.
+  - **Iaido**: the sword slides home, the guard clicks, and the number falls
+    in two.
+  - And Cursed Domain, Bounty Jazz, Overflow and Anger Vein.
+
 ## 1.6.0
 
 - **Twenty anime skins** on a new **Anime** tab, each earned by a secret
