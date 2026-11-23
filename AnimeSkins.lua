@@ -560,3 +560,348 @@ add("oneanddone", {
     critTitle = { text = "OK.", x = 44, y = -20, size = 11, font = F.arialn, pop = 0.1, delay = 0.8,
                   colors = { PLAIN }, shadowColor = { 0, 0, 0 } },
 })
+
+---------------------------------------------------------------------------
+-- Power Level: a scouter reads every hit; a crit climbs past its limit,
+-- flashes red and cracks the lens.
+---------------------------------------------------------------------------
+local SCAN, OVER = { 0.5, 1, 0.58 }, { 1, 0.22, 0.2 }
+local scanCycle = {}
+for i = 1, 22 do scanCycle[i] = i <= 6 and SCAN or OVER end
+add("powerlevel", {
+    group = "anime", listNote = "Secret",
+    name = "Power Level", tagline = "A scouter lens reads every hit; crits climb past its limit, flash red and crack the lens.",
+    font = F.led, size = 26, outline = "OUTLINE",
+    color = { 0.6, 1, 0.66 }, physColor = { 0.78, 1, 0.8 }, spellColor = { 0.42, 1, 0.86 },
+    layers = { { x = 2, y = -2, color = { 0, 0.2, 0.06, 1 } } },
+    motion = "rise", motionArgs = { speed = 14 },
+    fadeIn = 0.12,
+    dur = 1.2, critDur = 1.85, critScale = 1.45, pop = 0, shake = 6, shakeAt = 0.62,
+    critCycle = scanCycle, cyclePeriod = 0.1,
+    hitPieces = {
+        { tex = "scouter", size = { 96, 48 }, rot = -0.06, snap = 1.15, snapTime = 0.1, life = 0.85, color = SCAN, alpha = 0.6 },
+        { tex = "reticle", size = 18, x = 40, y = 10, spin = 3, life = 0.5, color = SCAN, alpha = 0.85 },
+    },
+    critPieces = {
+        { tex = "glow", size = { 170, 100 }, delay = 0.08, grow = 0.25, life = 1.1, color = { 1, 0.88, 0.3 }, alpha = 0.45 },
+        { tex = "scouter", size = { 132, 66 }, rot = -0.06, snap = 1.15, snapTime = 0.1, jitter = { 1.6, 0.62 }, hold = true, color = SCAN, alpha = 0.75 },
+        { tex = "crack", size = 96, x = 14, y = 4, delay = 0.62, snap = 0.4, snapTime = 0.08, hold = true, front = true, color = WHITE, alpha = 0.85 },
+        { tex = "impact", size = 70, x = 14, y = 4, delay = 0.62, snap = 0.5, snapTime = 0.08, life = 0.25, color = OVER, alpha = 0.9 },
+    },
+    critTitle = { text = "OFF THE SCALE!", y = 44, size = 11, font = F.led, pop = 1.2, delay = 0.64,
+                  colors = { OVER, WHITE, SCAN }, shadowColor = { 0.15, 0, 0 } },
+    glowColor = SCAN, glowAlpha = 0.25,
+    particles = { tex = "shard", count = 0, critCount = 12, size = { 5, 10 }, speed = { 70, 150 }, dir = { 0, 360 },
+                  origin = { 14, 4 }, delay = 0.62, gravity = -200, life = { 0.4, 0.7 }, color = { 0.7, 1, 0.75 }, spin = 6 },
+    -- The power climbing: energy rising off the number until the lens goes.
+    particles2 = { tex = "spark", count = 0, critCount = 14, size = { 4, 8 }, aspect = 0.4, speed = { 50, 90 }, dir = { 85, 95 },
+                   spread = { 70, 10 }, delay = { 0.05, 0.55 }, gravity = 40, life = { 0.3, 0.5 }, color = { 1, 0.9, 0.35 }, drag = 0 },
+})
+
+---------------------------------------------------------------------------
+-- Cursed Domain: black sparks flicker round each hit; crits spread a dark
+-- domain, then strike black-and-red lightning.
+---------------------------------------------------------------------------
+local CURSE, VOID = { 1, 0.12, 0.2 }, { 0.04, 0, 0.02 }
+local cursedCycle = { CURSE, CURSE, CURSE, CURSE, VOID, CURSE, VOID }
+for i = #cursedCycle + 1, 24 do cursedCycle[i] = CURSE end
+local function curseBolt(x, y, rot, delay, black)
+    return { tex = "bolt", size = black and { 14, 52 } or { 10, 46 }, x = x, y = y, rot = rot, delay = delay, life = 0.32, flicker = true,
+             front = not black, color = black and VOID or CURSE, alpha = 1, blend = black and "BLEND" or nil }
+end
+add("curseddomain", {
+    group = "anime", listNote = "Secret",
+    name = "Cursed Domain", tagline = "Black sparks crackle round each hit; crits spread a dark domain, then strike black-and-red lightning.",
+    font = F.skurri, size = 27, outline = "THICKOUTLINE",
+    color = { 1, 0.26, 0.32 }, physColor = { 1, 0.62, 0.64 }, spellColor = { 0.78, 0.38, 1 },
+    layers = { { x = 2, y = -2, color = { 0, 0, 0, 1 } }, { x = -1, y = 1, color = { 0.32, 0, 0.08, 1 } } },
+    motion = "rise", motionArgs = { speed = 18 },
+    dur = 1.15, critDur = 1.8, critScale = 1.5, pop = 0.15, shake = 6, shakeAt = 0.35,
+    critCycle = cursedCycle, cyclePeriod = 0.08,
+    hitPieces = {
+        { tex = "bolt", size = { 12, 30 }, x = -36, y = 4, rot = 0.5, life = 0.24, flicker = true, color = VOID, alpha = 1, blend = "BLEND" },
+        { tex = "bolt", size = { 8, 26 }, x = -32, y = 6, rot = 0.4, life = 0.22, flicker = true, color = CURSE, alpha = 1 },
+    },
+    critPieces = {
+        { tex = "domain", size = 196, snap = 0.05, snapTime = 0.38, hold = true, color = { 0.55, 0.06, 0.14 }, alpha = 0.92, blend = "BLEND" },
+        { tex = "ring", size = 196, snap = 0.05, snapTime = 0.38, hold = true, color = CURSE, alpha = 0.7 },
+        { tex = "impact", size = 96, delay = 0.35, snap = 0.5, snapTime = 0.08, life = 0.22, color = CURSE, alpha = 1 },
+        curseBolt(-48, 10, 0.6, 0.35, true), curseBolt(-44, 8, 0.5, 0.36),
+        curseBolt(46, -8, -0.7, 0.4, true), curseBolt(44, -6, -0.6, 0.41),
+        curseBolt(10, 34, 1.5, 0.46, true), curseBolt(6, 30, 1.4, 0.47),
+    },
+    glowColor = CURSE, glowAlpha = 0.45,
+    particles = { tex = "spark", count = 1, critCount = 14, size = { 4, 8 }, aspect = 0.4, speed = { 80, 170 }, dir = { 0, 360 },
+                  delay = 0.35, gravity = 0, life = { 0.3, 0.55 }, color = CURSE, orient = true },
+    particles2 = { tex = "shard", count = 0, critCount = 8, size = { 6, 10 }, speed = { 50, 100 }, dir = { 0, 360 },
+                   delay = 0.35, gravity = -60, life = { 0.4, 0.7 }, color = VOID, blend = "BLEND", spin = 6 },
+})
+
+---------------------------------------------------------------------------
+-- Bounty Jazz: hits slide in on a bold color bar; crits snap together a
+-- jazzy title card of color blocks, then slide it away.
+---------------------------------------------------------------------------
+local BRASS, JRED, JBLUE = { 0.98, 0.76, 0.14 }, { 0.86, 0.22, 0.16 }, { 0.16, 0.36, 0.86 }
+local function jazzBlock(size, x, y, fromX, delay, offAt, offX, color)
+    return { tex = "pixel", size = size, x = x, y = y, from = { fromX, y }, move = 0.18, delay = delay, hold = true,
+             after = { at = offAt, move = 0.24, x = offX, ease = "in" }, color = color, alpha = 1, blend = "BLEND" }
+end
+add("bountyjazz", {
+    group = "anime", listNote = "Secret",
+    name = "Bounty Jazz", tagline = "Hits slide in on a bold color bar; crits snap together a jazzy title card of color blocks, then slide it away.",
+    font = F.friz, size = 26, outline = "THICKOUTLINE",
+    color = { 1, 0.96, 0.86 }, physColor = { 1, 0.98, 0.92 }, spellColor = { 1, 0.82, 0.3 },
+    layers = { { x = 2, y = -2, color = { 0.04, 0.04, 0.07, 1 } } },
+    motion = "rise", motionArgs = { speed = 12 },
+    dur = 1.15, critDur = 1.8, critScale = 1.45, pop = 0.1, noGlow = true,
+    hitPieces = {
+        { tex = "pixel", size = { 92, 16 }, y = -2, from = { -150, -2 }, move = 0.15, life = 0.6, color = BRASS, alpha = 0.9, blend = "BLEND" },
+        { tex = "pixel", size = { 70, 3 }, y = -13, from = { 150, -13 }, move = 0.15, delay = 0.05, life = 0.55, color = JRED, alpha = 1, blend = "BLEND" },
+    },
+    critPieces = {
+        jazzBlock({ 176, 44 }, 0, 6, -280, 0, 1.25, 300, BRASS),
+        jazzBlock({ 80, 34 }, -35, -30, -240, 0.08, 1.3, -300, JRED),
+        jazzBlock({ 70, 34 }, 40, -30, 240, 0.12, 1.33, 300, JBLUE),
+        { tex = "pixel", size = { 150, 3 }, y = -12, reveal = "right", move = 0.2, delay = 0.24, hold = true,
+          after = { at = 1.25, move = 0.24, x = 300, ease = "in" }, color = { 0.05, 0.04, 0.03 }, alpha = 1, blend = "BLEND" },
+        { tex = "sax", size = { 22, 44 }, x = 70, y = 6, from = { 130, 6 }, move = 0.2, delay = 0.3, hold = true,
+          after = { at = 1.22, move = 0.24, x = 320, ease = "in" }, color = { 0.1, 0.07, 0.03 }, alpha = 1, blend = "BLEND" },
+    },
+    critTitle = { text = "BOUNTY PAID", y = -30, size = 10, font = F.friz, pop = 0.6, delay = 0.4,
+                  colors = { WHITE, BRASS }, shadowColor = { 0, 0, 0 } },
+    particles = { tex = "note", count = 0, critCount = 6, size = { 9, 14 }, speed = { 20, 45 }, dir = { 70, 110 },
+                  origin = { 50, 30 }, delay = 0.35, gravity = 0, life = { 0.8, 1.2 }, color = BRASS, sway = true, drag = 0, shrink = 0 },
+})
+
+---------------------------------------------------------------------------
+-- Overflow: a meter fills beside each hit; crits fill it to 100% and burst
+-- in rings of every color.
+---------------------------------------------------------------------------
+local PSY = { 0.78, 0.55, 1 }
+local PSY_RAINBOW = { { 1, 0.4, 0.75 }, { 1, 0.85, 0.3 }, { 0.45, 1, 0.5 }, { 0.35, 0.85, 1 }, PSY }
+local overflow = {
+    { tex = "meterframe", size = { 16, 64 }, x = 54, hold = true, color = WHITE, alpha = 0.8 },
+    { tex = "metercells", size = { 16, 64 }, x = 54, reveal = "up", ease = "in", move = 0.45, hold = true, color = PSY, alpha = 1 },
+    { tex = "metercells", size = { 16, 64 }, x = 54, delay = 0.45, life = 0.3, color = WHITE, alpha = 1 },
+    { tex = "glow", size = { 170, 104 }, delay = 0.45, life = 0.5, color = PSY, alpha = 0.32 },
+}
+for i, c in ipairs(PSY_RAINBOW) do
+    overflow[#overflow + 1] = { tex = "psyring", size = 56, rot = i, spin = i % 2 == 0 and 1.2 or -1.2, grow = 2.6, delay = 0.42 + i * 0.07,
+                                life = 0.55, color = c, alpha = 0.6 }
+end
+add("overflow", {
+    group = "anime", listNote = "Secret",
+    name = "Overflow", tagline = "A meter fills beside each hit; crits fill it to 100% and burst out in rings of every color.",
+    font = F.skurri, size = 27, outline = "THICKOUTLINE",
+    color = WHITE, physColor = { 0.96, 0.93, 1 }, spellColor = { 0.84, 0.62, 1 },
+    layers = { { x = 2, y = -2, color = { 0.3, 0.1, 0.5, 1 } } },
+    motion = "rise", motionArgs = { speed = 18 },
+    dur = 1.2, critDur = 1.75, critScale = 1.5, pop = 0, noSpring = true, shake = 5, shakeAt = 0.45,
+    critScaleKeys = { { 0, 0.85 }, { 0.44, 1 }, { 0.5, 1.35 }, { 0.72, 1.1 } },
+    hitPieces = {
+        { tex = "meterframe", size = { 12, 46 }, x = 44, life = 0.85, color = WHITE, alpha = 0.7 },
+        { tex = "metercells", size = { 12, 46 }, x = 44, reveal = "up", ease = "in", move = 1.0, life = 0.85, color = PSY, alpha = 1 },
+    },
+    critPieces = overflow,
+    critTitle = { text = "100%", y = 44, size = 15, font = F.skurri, pop = 1.4, delay = 0.47, cycleFor = 9, period = 0.07,
+                  colors = PSY_RAINBOW, shadowColor = { 0.2, 0.05, 0.35 } },
+    glowColor = PSY,
+    particles = { tex = "twinkle", count = 0, critCount = 14, size = { 7, 12 }, speed = { 70, 150 }, dir = { 0, 360 },
+                  delay = 0.45, gravity = 0, life = { 0.4, 0.8 }, randomColor = true },
+})
+
+---------------------------------------------------------------------------
+-- Face-Down Card: a card spins by each hit; a crit drops a card face down,
+-- flips it, and your crit appears on its face.
+---------------------------------------------------------------------------
+local CARD_BACK, CARD_FACE = { 0.62, 0.34, 0.16 }, { 0.96, 0.8, 0.48 }
+add("facedowncard", {
+    group = "anime", listNote = "Secret",
+    name = "Face-Down Card", tagline = "A card spins past each hit; crits drop a card face down, flip it, and your crit appears on its face.",
+    font = F.friz, size = 25, outline = "THICKOUTLINE",
+    color = { 1, 0.93, 0.72 }, physColor = { 1, 0.97, 0.86 }, spellColor = { 0.78, 0.72, 1 },
+    layers = { { x = 2, y = -2, color = { 0.22, 0.08, 0.02, 1 } } },
+    motion = "rise", motionArgs = { speed = 10 },
+    dur = 1.15, critDur = 1.85, critScale = 1.45, pop = 0, noSpring = true, noFlash = true,
+    critScaleKeys = { { 0, 0.02 }, { 0.52, 0.02 }, { 0.6, 1.2 }, { 0.7, 1 } },
+    hitPieces = {
+        { tex = "cardback", size = { 22, 32 }, x = 44, y = 6, from = { 60, 20 }, move = 0.2, turn = 9, life = 0.6, color = CARD_BACK, alpha = 1, blend = "BLEND" },
+    },
+    critPieces = {
+        { tex = "cardback", size = { 92, 128 }, y = 30, steady = true, from = { 0, 90 }, move = 0.14, snap = 1.25, snapTime = 0.14, hold = true,
+          after = { at = 0.4, move = 0.12, size = { 0.5, 128 }, ease = "in" }, color = CARD_BACK, alpha = 1, blend = "BLEND" },
+        { tex = "glow", size = { 130, 170 }, y = 30, steady = true, delay = 0.52, life = 0.55, color = { 1, 0.85, 0.4 }, alpha = 0.7 },
+        { tex = "cardface", size = { 92, 128 }, y = 30, steady = true, fromSize = { 0.5, 128 }, move = 0.12, delay = 0.52, hold = true,
+          color = CARD_FACE, alpha = 1, blend = "BLEND" },
+    },
+    critTitle = { text = "TRAP CARD!", y = 108, size = 13, font = F.friz, pop = 1.3, delay = 0.62,
+                  colors = { { 0.85, 0.6, 1 }, WHITE, GOLD }, shadowColor = { 0.15, 0.02, 0.25 } },
+    glowColor = GOLD, glowAlpha = 0.2,
+    particles = { tex = "twinkle", count = 0, critCount = 10, size = { 7, 12 }, speed = { 40, 110 }, dir = { 0, 360 },
+                  origin = { 0, 30 }, delay = 0.52, gravity = 0, life = { 0.4, 0.8 }, color = GOLD, altColor = WHITE },
+})
+
+---------------------------------------------------------------------------
+-- Isekai'd: hits chime like a level-up; on a crit, headlights, a flash,
+-- and the number comes back through a portal at level 99.
+---------------------------------------------------------------------------
+local LIGHT, PORTAL = { 1, 0.97, 0.8 }, { 0.4, 0.85, 1 }
+add("isekaid", {
+    group = "anime", listNote = "Secret",
+    name = "Isekai'd", tagline = "Hits chime like a level-up; on crits, headlights, a white flash, and the number returns through a portal at level 99.",
+    font = F.block, size = 23, outline = "OUTLINE",
+    color = WHITE, physColor = WHITE, spellColor = { 0.62, 0.92, 1 },
+    layers = { { x = 2, y = -2, color = { 0.05, 0.1, 0.28, 1 } } },
+    motion = "rise", motionArgs = { speed = 14 },
+    dur = 1.15, critDur = 2.05, critScale = 1.45, pop = 0, noSpring = true, noGlow = true, shake = 6, shakeAt = 0.32,
+    critScaleKeys = { { 0, 1 }, { 0.32, 1.05 }, { 0.36, 0.02 }, { 0.9, 0.02 }, { 1.0, 1.3 }, { 1.15, 1 } },
+    hitPieces = {
+        { tex = "ring", size = 30, grow = 1, life = 0.35, color = GOLD, alpha = 0.8 },
+        { tex = "twinkle", size = 14, x = 30, y = 12, delay = 0.05, snap = 2, snapTime = 0.1, life = 0.3, color = GOLD, alpha = 1 },
+    },
+    critPieces = {
+        { tex = "grille", size = { 66, 32 }, y = -34, steady = true, from = { 0, -60 }, move = 0.28, life = 0.42, color = { 0.42, 0.44, 0.5 }, alpha = 0.95, blend = "BLEND" },
+        { tex = "glow", size = 26, x = -46, y = -32, steady = true, grow = 1.4, life = 0.42, color = LIGHT, alpha = 1 },
+        { tex = "glow", size = 26, x = 46, y = -32, steady = true, grow = 1.4, life = 0.42, color = LIGHT, alpha = 1 },
+        { tex = "glow", size = 260, steady = true, delay = 0.32, life = 0.26, color = WHITE, alpha = 0.8 },
+        { tex = "portal", size = 124, steady = true, spin = 4, delay = 0.42, snap = 0.05, snapTime = 0.3, life = 1.25, color = PORTAL, alpha = 0.95 },
+        { tex = "portal", size = 88, steady = true, spin = -6, delay = 0.46, snap = 0.05, snapTime = 0.3, life = 1.15, color = { 0.78, 0.6, 1 }, alpha = 0.8 },
+    },
+    critTitle = { text = "LEVEL 99!", y = 44, size = 13, font = F.block, pop = 1.4, delay = 1.0,
+                  colors = { GOLD, WHITE, PORTAL }, shadowColor = { 0.05, 0.1, 0.28 } },
+    particles = { tex = "twinkle", count = 1, critCount = 10, size = { 7, 11 }, speed = { 30, 80 }, dir = { 0, 360 },
+                  delay = 0.5, gravity = 0, life = { 0.5, 0.9 }, color = PORTAL, altColor = WHITE },
+    particles2 = { tex = "star", count = 0, critCount = 10, size = { 7, 11 }, speed = { 60, 130 }, dir = { 20, 160 },
+                   delay = 1.0, gravity = -160, life = { 0.5, 0.9 }, color = GOLD, spin = 5 },
+})
+
+---------------------------------------------------------------------------
+-- Anger Vein: a sweat drop and a twitching vein on every hit; crits throb
+-- a huge vein mark and blow off steam.
+---------------------------------------------------------------------------
+local VEIN, SWEAT = { 1, 0.16, 0.16 }, { 0.62, 0.86, 1 }
+add("angervein", {
+    group = "anime", listNote = "Secret",
+    name = "Anger Vein", tagline = "A sweat drop slides and a vein twitches on every hit; crits throb a huge vein mark and blow off steam.",
+    font = F.skurri, size = 28, outline = "THICKOUTLINE",
+    color = { 1, 0.88, 0.82 }, physColor = { 1, 0.94, 0.9 }, spellColor = { 1, 0.55, 0.5 },
+    layers = { { x = 2, y = -2, color = { 0.42, 0.02, 0.02, 1 } } },
+    motion = "rise", motionArgs = { speed = 18 },
+    dur = 1.15, critDur = 1.7, critScale = 1.5, pop = 0.1, shake = 4,
+    drum = { count = 5, gap = 0.16, amp = 0.1 },
+    hitPieces = {
+        { tex = "sweatdrop", size = { 10, 20 }, x = -38, y = 10, from = { -38, 20 }, ease = "in", move = 0.45, life = 0.7,
+          color = SWEAT, alpha = 1, blend = "BLEND" },
+        { tex = "vein", size = 20, x = 40, y = 16, snap = 1.6, snapTime = 0.1, pulse = { 0.25, 22 }, life = 0.6, color = VEIN, alpha = 1, blend = "BLEND" },
+    },
+    critPieces = {
+        { tex = "radial", size = 150, snap = 0.6, snapTime = 0.1, life = 0.35, color = VEIN, alpha = 0.3 },
+        { tex = "vein", size = 46, x = 54, y = 28, snap = 1.8, snapTime = 0.12, pulse = { 0.3, 20 }, hold = true, color = VEIN, alpha = 1, blend = "BLEND" },
+        { tex = "vein", size = 26, x = -52, y = 22, delay = 0.3, snap = 1.8, snapTime = 0.1, pulse = { 0.3, 24 }, hold = true, color = VEIN, alpha = 1, blend = "BLEND" },
+        { tex = "sweatdrop", size = { 14, 28 }, x = -58, y = -4, from = { -58, 8 }, ease = "in", move = 0.6, delay = 0.5, life = 0.8,
+          color = SWEAT, alpha = 1, blend = "BLEND" },
+    },
+    glowColor = VEIN, glowAlpha = 0.3,
+    particles = { tex = "puff", count = 0, critCount = 7, size = { 12, 20 }, speed = { 50, 90 }, dir = { 60, 120 },
+                  origin = { 0, 18 }, spread = { 40, 4 }, delay = 0.12, gravity = 20, life = { 0.5, 0.8 }, color = WHITE, blend = "BLEND", drag = 2 },
+})
+
+---------------------------------------------------------------------------
+-- Iaido: a blade flicks across every hit. A crit is cut in one stroke: the
+-- sword slides home, the guard clicks, and the number falls apart.
+---------------------------------------------------------------------------
+local SPLIT, SPLIT_TIME = 0.62, 0.4
+local IAIDO_SHADOW = { 0, 0, 0, 1 }
+-- The two halves: a FontString (and its shadow) each, in a clipping frame
+-- above and below the cut.
+local function halves(p)
+    local c = ns.Engine.Container(p, "iaido", true)
+    if not c.top then
+        for _, key in ipairs({ "top", "bot" }) do
+            local clip = CreateFrame("Frame", nil, c)
+            clip:SetSize(400, 60)
+            if clip.SetClipsChildren then clip:SetClipsChildren(true) end
+            clip.shadow = clip:CreateFontString(nil, "OVERLAY")
+            clip.shadow:SetDrawLayer("OVERLAY", 1)
+            clip.text = clip:CreateFontString(nil, "OVERLAY")
+            clip.text:SetDrawLayer("OVERLAY", 2)
+            c[key] = clip
+        end
+    end
+    return c
+end
+-- k: 0 together, 1 slid apart along the cut.
+local function placeHalves(c, k)
+    c.top:ClearAllPoints()
+    c.top:SetPoint("CENTER", c, "CENTER", -11 * k, 30 + 4 * k)
+    c.bot:ClearAllPoints()
+    c.bot:SetPoint("CENTER", c, "CENTER", 11 * k, -30 - 4 * k)
+end
+local function iaidoSpawn(p, e, crit)
+    p.iaido = nil
+    if not (crit and e.kind == "dmg") then return end
+    local skin, Engine = p.skin, ns.Engine
+    local c = halves(p)
+    for i, clip in ipairs({ c.top, c.bot }) do
+        local dy = i == 1 and -30 or 30
+        for _, fs in ipairs({ clip.shadow, clip.text }) do
+            Engine.SetFont(fs, skin.font, skin.size, skin.outline)
+            fs:SetShadowOffset(0, 0)
+            Engine.WriteText(fs, e, skin)
+            fs:ClearAllPoints()
+        end
+        clip.text:SetPoint("CENTER", clip, "CENTER", 0, dy)
+        clip.shadow:SetPoint("CENTER", clip, "CENTER", 2, dy - 2)
+        clip.text:SetTextColor(p.color[1], p.color[2], p.color[3], 1)
+        clip.shadow:SetTextColor(IAIDO_SHADOW[1], IAIDO_SHADOW[2], IAIDO_SHADOW[3], 1)
+    end
+    placeHalves(c, 0)
+    c:SetAlpha(0)
+    p.iaido, p.iaidoCut = c, false
+end
+local function iaidoUpdate(p, t)
+    local c = p.iaido
+    if not c or t < SPLIT then return end
+    if not p.iaidoCut then
+        -- The cut: the whole number gives way to its two halves.
+        p.iaidoCut = true
+        c:SetAlpha(1)
+        p.text:Hide()
+        for _, fs in ipairs(p.layers) do fs:Hide() end
+    end
+    local k = math.min(1, (t - SPLIT) / SPLIT_TIME)
+    placeHalves(c, 1 - (1 - k) * (1 - k) * (1 - k))
+end
+local STEEL_W, SCABBARD = { 0.92, 0.94, 0.98 }, { 0.5, 0.08, 0.1 }
+add("iaido", {
+    group = "anime", listNote = "Secret",
+    name = "Iaido", tagline = "A blade flicks across every hit; on crits the sword slides home, the guard clicks, and the number falls in two.",
+    font = F.friz, size = 27, outline = "THICKOUTLINE",
+    color = { 0.97, 0.95, 0.9 }, physColor = { 1, 0.98, 0.94 }, spellColor = { 0.86, 0.8, 1 },
+    layers = { { x = 2, y = -2, color = IAIDO_SHADOW } },
+    motion = "rise", motionArgs = { speed = 8 },
+    dur = 1.1, critDur = 1.9, critScale = 1.5, pop = 0.1, noSpring = true,
+    hitPieces = {
+        { tex = "slash", size = { 96, 7 }, rot = 0.2, from = { -30, -8 }, move = 0.06, life = 0.18, front = true, color = WHITE, alpha = 1 },
+        { tex = "twinkle", size = 14, x = 38, y = 10, delay = 0.06, snap = 2, snapTime = 0.1, life = 0.25, color = WHITE, alpha = 1 },
+    },
+    critPieces = {
+        -- The stroke: a flash along the cut, then a hairline that stays.
+        { tex = "slash", size = { 190, 9 }, x = 30, from = { -70, 0 }, move = 0.08, delay = 0.08, life = 0.22, front = true, color = WHITE, alpha = 1 },
+        { tex = "pixel", size = { 110, 1.2 }, delay = 0.14, life = 0.75, front = true, color = WHITE, alpha = 0.9 },
+        -- The sword slides home and the guard clicks.
+        { tex = "katana", size = { 120, 30 }, x = -16, y = -36, from = { 70, -36 }, ease = "in", move = 0.34, delay = 0.2, hold = true,
+          color = STEEL_W, alpha = 1, blend = "BLEND" },
+        { tex = "saya", size = { 120, 30 }, x = -16, y = -36, delay = 0.12, hold = true, color = SCABBARD, alpha = 1, blend = "BLEND" },
+        { tex = "twinkle", size = 22, x = 0, y = -36, delay = 0.54, snap = 2.4, snapTime = 0.1, life = 0.3, front = true, color = WHITE, alpha = 1 },
+        -- The number gives way.
+        { tex = "slash", size = { 210, 12 }, delay = SPLIT, snap = 0.4, snapTime = 0.1, life = 0.32, front = true, color = { 1, 0.95, 0.85 }, alpha = 0.95 },
+    },
+    critTitle = { text = "click", x = 26, y = -50, size = 9, font = F.friz, pop = 0.2, delay = 0.56,
+                  colors = { { 0.8, 0.8, 0.82 } }, shadowColor = { 0, 0, 0 } },
+    glowColor = WHITE, glowAlpha = 0.2,
+    particles = { tex = "shard", count = 0, critCount = 8, size = { 4, 8 }, speed = { 50, 120 }, dir = { 150, 210 },
+                  delay = SPLIT, gravity = -120, life = { 0.4, 0.7 }, color = WHITE, mirror = true, spin = 6 },
+    onSpawn = iaidoSpawn,
+    onUpdate = iaidoUpdate,
+})

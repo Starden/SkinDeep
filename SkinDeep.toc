@@ -21,6 +21,7 @@ PvPSkins.lua
 ProfSkins.lua
 LootSkins.lua
 FunSkins.lua
+PopSkins.lua
 AnimeSkins.lua
 RaceSkins.lua
 Core.lua

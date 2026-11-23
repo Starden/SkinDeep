@@ -224,6 +224,17 @@ MOTIONS.boing = {
 }
 
 -- Pops up from below, then rises.
+-- A cartoon bounce to a beat: hop after hop, a squash on every landing.
+MOTIONS.beat = {
+    update = function(p, t, dt, a)
+        local period = a.period or 0.3
+        local q = (t % period) / period
+        p.my = (a.speed or 14) * t + (a.height or 12) * 4 * q * (1 - q)
+        local land = min(q, 1 - q) * period
+        p.ms = 1 + (a.squash or 0.12) * max(0, 1 - land / 0.06)
+    end,
+}
+
 MOTIONS.sneak = {
     update = function(p, t, dt, a)
         local rise = a.rise or 0.1
@@ -711,6 +722,12 @@ end
 --                 tail light behind a sliding number).
 --   steady        keeps its size and place while critScaleKeys shrink or
 --                 swell the number (a capsule the number vanishes into).
+--   fromSize      the size it starts at, growing (or shrinking) to size
+--                 over `move` (a pill stretching open, a card turning face up).
+--   after = { at, move, x, y, rot, size, ease }  a second leg: from `at`
+--                 seconds it travels on to these (blocks toppling, a card
+--                 turning away, a title card sliding off).
+--   pulse = { amp, freq }  throbs bigger and back (an anger mark).
 --   hold          stays until the number fades; otherwise it lives `life`
 --                 seconds (half the pop's time by default) and fades over
 --                 the last 40% of that.
@@ -747,6 +764,24 @@ local function animatePiece(tex, d, t, p)
             if f < 1 then rot = rot + (r.amp or 0.3) * sin(f * pi) * (i % 2 == 0 and 1 or -1) end
         end
     end
+    local w, h = sizeOf(d.size or 64)
+    if d.fromSize then
+        local fw, fh = sizeOf(d.fromSize)
+        w, h = fw + (w - fw) * e, fh + (h - fh) * e
+    end
+    local af = d.after
+    if af and k0 > (af.at or 0) then
+        local m2 = min(1, (k0 - (af.at or 0)) / max(0.01, af.move or 0.2))
+        local e2 = af.ease == "in" and m2 * m2 or af.ease == "linear" and m2 or 1 - (1 - m2) * (1 - m2) * (1 - m2)
+        local ax = af.x and (d.trail and -p.dir * af.x or af.x) or x1
+        x = x + (ax - x1) * e2
+        y = y + ((af.y or y1) - y1) * e2
+        rot = rot + ((af.rot or r1) - r1) * e2
+        if af.size then
+            local aw, ah = sizeOf(af.size)
+            w, h = w + (aw - w) * e2, h + (ah - h) * e2
+        end
+    end
     if d.jitter and k0 < (d.jitter[2] or 0.4) then
         x, y = x + (random() - 0.5) * 2 * d.jitter[1], y + (random() - 0.5) * 2 * d.jitter[1]
     end
@@ -759,7 +794,6 @@ local function animatePiece(tex, d, t, p)
     if d.flicker then a = a * (0.25 + 0.75 * random()) end
     tex:SetAlpha(max(0, min(1, a)))
 
-    local w, h = sizeOf(d.size or 64)
     local g = 1 + (d.grow or 0) * (1 - (1 - k) * (1 - k))
     if d.snap then
         local snapTime = d.snapTime or 0.15
@@ -768,6 +802,7 @@ local function animatePiece(tex, d, t, p)
             g = g * (1 + (d.snap - 1) * q * q)
         end
     end
+    if d.pulse then g = g * (1 + d.pulse[1] * max(0, sin(k0 * (d.pulse[2] or 12)))) end
     w, h = w * g, h * g
     local tw = d.turn and max(0.12, math.abs(cos(k0 * d.turn))) or 1
 

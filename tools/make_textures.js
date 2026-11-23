@@ -1122,6 +1122,460 @@ Object.assign(TEXTURES, {
   }],
 });
 
+// --- Pop skins and more anime (original designs) --------------------------------
+// Point in polygon, a piecewise-linear curve, and a stroked distance.
+const pip = (x, y, pts) => {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, yi] = pts[i], [xj, yj] = pts[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+};
+const pl = (pts, x) => {
+  if (x <= pts[0][0]) return pts[0][1];
+  for (let i = 1; i < pts.length; i++) {
+    if (x <= pts[i][0]) { const [x0, y0] = pts[i - 1], [x1, y1] = pts[i]; return y0 + (y1 - y0) * (x - x0) / (x1 - x0); }
+  }
+  return pts[pts.length - 1][1];
+};
+const stroke = (d, w) => 1 - smooth(w * 0.7, w, d);
+// Their own generator, so nothing above changes.
+let seed3 = 4711;
+const rand3 = () => {
+  seed3 = (seed3 + 0x6D2B79F5) >>> 0;
+  let t = seed3;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+const scratchSpecks = Array.from({ length: 16 }, () => [rand3() * 1.8 - 0.9, rand3() * 1.8 - 0.9, 0.01 + rand3() * 0.02]);
+
+// Toy blocks: a cube with a grooved front face and a painted letter.
+const LETTERS = {
+  A: [[[-0.45, -0.55], [0, 0.55], [0.45, -0.55]], [[-0.24, -0.12], [0.24, -0.12]]],
+  B: [[[-0.35, -0.55], [-0.35, 0.55], [0.12, 0.55], [0.34, 0.4], [0.34, 0.17], [0.12, 0.02], [-0.35, 0.02]],
+      [[-0.35, 0.02], [0.18, 0.02], [0.42, -0.16], [0.42, -0.4], [0.18, -0.55], [-0.35, -0.55]]],
+};
+function toyBlock(letter) {
+  const F = [-0.85, 0.42, -0.92, 0.36], dx = 0.42, dy = 0.44;
+  const top = [[F[0], F[3]], [F[1], F[3]], [F[1] + dx, F[3] + dy], [F[0] + dx, F[3] + dy]];
+  const side = [[F[1], F[2]], [F[1] + dx, F[2] + dy], [F[1] + dx, F[3] + dy], [F[1], F[3]]];
+  const face = (u, v) => u > F[0] && u < F[1] && v > F[2] && v < F[3] ? 1 : pip(u, v, top) ? 2 : pip(u, v, side) ? 3 : 0;
+  return (u, v) => {
+    const f = face(u, v);
+    if (!f) return 0;
+    const e = 0.045;
+    if (!face(u + e, v) || !face(u - e, v) || !face(u, v + e) || !face(u, v - e)) return [1, 0.3];
+    if (f === 2) return [1, 1];
+    if (f === 3) return [1, 0.58];
+    const fu = (u - (F[0] + F[1]) / 2) / ((F[1] - F[0]) / 2), fv = (v - (F[2] + F[3]) / 2) / ((F[3] - F[2]) / 2);
+    const edge = Math.max(Math.abs(fu), Math.abs(fv));
+    if (edge > 0.74 && edge < 0.81) return [1, 0.62];
+    let d;
+    if (letter === 'C') {
+      const [r, a] = polar(fu, fv);
+      const ex = 0.48 * Math.cos(0.75), ey = 0.48 * Math.sin(0.75);
+      d = Math.abs(a) < 0.75 ? Math.min(Math.hypot(fu - ex, fv - ey), Math.hypot(fu - ex, fv + ey)) : Math.abs(r - 0.48);
+    } else {
+      d = Math.min(...LETTERS[letter].map(p => polyDist(fu, fv, p)));
+    }
+    return [1, d < 0.13 ? 0.36 : 0.9];
+  };
+}
+
+// Fitness rings: a 30-degree piece of a ring (with a round leading cap)
+// and the dim track it fills. t: the ring's thickness (share of radius).
+const fitSeg = t => (u, v) => {
+  const [r, a] = polar(u, v), rc = 0.96 - t / 2, ht = t / 2;
+  const a0 = Math.PI / 2 - Math.PI / 6, a1 = Math.PI / 2 + 0.02;
+  let d;
+  if (a >= a0 && a <= a1) d = Math.abs(r - rc);
+  else if (a < a0 && a > a0 - 1) d = Math.hypot(u - rc * Math.cos(a0), v - rc * Math.sin(a0));
+  else return 0;
+  return 1 - smooth(ht - 0.025, ht, d);
+};
+const fitTrack = t => (u, v) => {
+  const r = Math.hypot(u, v), rc = 0.96 - t / 2, ht = t / 2;
+  return 1 - smooth(ht - 0.025, ht, Math.abs(r - rc));
+};
+
+// The katana and its scabbard share one gentle curve.
+const bladeCurve = x => x < 16 ? 2.4 * Math.pow((16 - x) / 76, 2) : 0;
+
+Object.assign(TEXTURES, {
+  // Fairytale castle: a crenellated wall, a tall central keep with a spire
+  // and pennant, flanking towers with conical roofs, an arched gate.
+  castle: [128, 128, (u, v) => {
+    const inR = (x0, x1, y0, y1) => u > x0 && u < x1 && v > y0 && v < y1;
+    const cone = (cx, hw, y0, y1) => v > y0 && v < y1 && Math.abs(u - cx) < hw * (1 - (v - y0) / (y1 - y0));
+    const crenel = (x0, x1, y, h, n) => u > x0 && u < x1 && v >= y && v < y + h && Math.floor((u - x0) / (x1 - x0) * n) % 2 === 0;
+    if (Math.abs(u) < 0.012 && v > 0.86 && v < 0.99) return [1, 1];
+    if (u > 0.012 && u < 0.17 && v > 0.9 + u * 0.22 && v < 0.98 - u * 0.22) return [1, 1];
+    const roof = cone(0, 0.15, 0.42, 0.9) || cone(-0.43, 0.15, -0.02, 0.42) || cone(0.43, 0.15, -0.02, 0.42)
+      || cone(-0.73, 0.1, -0.3, 0.0) || cone(0.73, 0.1, -0.3, 0.0);
+    if (roof) return [1, 1];
+    const body = inR(-0.7, 0.7, -0.95, -0.42) || crenel(-0.7, 0.7, -0.42, 0.07, 11)
+      || inR(-0.28, 0.28, -0.95, 0.12) || crenel(-0.28, 0.28, 0.12, 0.07, 5)
+      || inR(-0.11, 0.11, 0.12, 0.42)
+      || inR(-0.53, -0.33, -0.95, -0.02) || inR(0.33, 0.53, -0.95, -0.02)
+      || inR(-0.8, -0.66, -0.95, -0.3) || inR(0.66, 0.8, -0.95, -0.3);
+    if (!body) return 0;
+    if (Math.abs(u) < 0.1 && v < -0.66 + 0.06 * Math.sqrt(Math.max(0, 1 - (u / 0.1) ** 2))) return 0;   // the gate
+    const win = (cx, cy) => Math.abs(u - cx) < 0.028 && v > cy - 0.06 && v < cy + 0.04 + 0.02 * Math.sqrt(Math.max(0, 1 - ((u - cx) / 0.028) ** 2));
+    if (win(-0.12, -0.18) || win(0.12, -0.18) || win(0, 0.26) || win(-0.43, -0.32) || win(0.43, -0.32) || win(-0.43, -0.6) || win(0.43, -0.6)) return [1, 0.32];
+    const shade = (u > 0.02 && u < 0.28) || (u > 0.45 && u < 0.53) || (u > -0.41 && u < -0.33) || u > 0.73;
+    return [1, shade ? 0.66 : 0.8];
+  }],
+  // Shooting star: a bright four-point head trailing a widening tail.
+  shootstar: [128, 32, (u, v) => {
+    const hx = 0.74, du = (u - hx) * 4;
+    const core = 1 - smooth(0.12, 0.5, Math.hypot(du, v));
+    const spikeH = (1 - smooth(0.02, 0.1, Math.abs(v))) * (1 - smooth(0.1, 0.9, Math.abs(du)));
+    const spikeV = (1 - smooth(0.02, 0.09, Math.abs(du))) * (1 - smooth(0.2, 0.95, Math.abs(v)));
+    let tail = 0;
+    if (u < hx) {
+      const t = (u + 1) / (hx + 1), w = 0.08 + 0.32 * t;
+      tail = Math.pow(t, 1.8) * (1 - smooth(w * 0.25, w, Math.abs(v)));
+    }
+    return clamp(Math.max(core, spikeH, spikeV, tail));
+  }],
+  // Firework: dashed rays from a gap in the middle, each ending in a spark.
+  firework: [128, 128, (u, v) => {
+    const [r, a] = polar(u, v);
+    if (r < 0.22 || r > 0.97) return 0;
+    const n = 18, k = ((a / (Math.PI * 2) * n) % 1 + 1) % 1;
+    const across = Math.abs(k - 0.5) * (Math.PI * 2 / n) * r;
+    const ray = 1 - smooth(0.012, 0.028, across);
+    const dash = Math.sin(r * 40) > -0.3 ? 1 : 0.2;
+    const tip = 1 - smooth(0.025, 0.05, Math.hypot(across, r - 0.87));
+    return clamp(Math.max(ray * dash * smooth(0.22, 0.6, r) * 0.85, tip));
+  }],
+  // Clock face: a heavy rim, a fine inner ring, hour ticks (long at the
+  // quarters), minute dots and a hub, over a faint glass face.
+  clockface: [128, 128, (u, v) => {
+    const [r, a] = polar(u, v);
+    if (r > 0.96) return 0;
+    let al = Math.max(stroke(Math.abs(r - 0.9), 0.045), stroke(Math.abs(r - 0.8), 0.016));
+    const step = Math.PI / 6, idx = Math.round(a / step), da = a - idx * step;
+    const quarter = ((idx % 3) + 3) % 3 === 0;
+    const across = Math.abs(r * Math.sin(da));
+    if (r > (quarter ? 0.56 : 0.63) && r < 0.76) al = Math.max(al, stroke(across, quarter ? 0.034 : 0.02));
+    const m = Math.PI / 30, mi = Math.round(a / m);
+    if (Math.abs(r - 0.72) < 0.03) al = Math.max(al, stroke(Math.hypot(r * Math.sin(a - mi * m), r - 0.72), 0.014));
+    if (r < 0.07) al = 1;
+    return al > 0.05 ? [Math.max(al, 0.16), al > 0.4 ? 1 : 0.7] : [0.16, 0.7];
+  }],
+  // Clock hand pointing up from a pivot ring near the bottom, with a
+  // pierced diamond near its spear tip.
+  clockhand: [32, 128, (u, v) => {
+    const x = u * 16, y = v * 64;
+    const ring = Math.hypot(x, y + 51);
+    if (ring < 5.2) return ring < 1.8 ? 0 : 1;
+    const dia = Math.abs(x) / 4.6 + Math.abs(y - 34) / 9;
+    if (dia < 1) return Math.abs(x) / 2.2 + Math.abs(y - 34) / 5 < 1 ? 0 : 1;
+    if (y > 54 && y < 63 && Math.abs(x) < 2.8 * (63 - y) / 9) return 1;
+    if (y > -60 && y < 54) {
+      const hw = y < -51 ? 1.8 : 2.6 - 1.3 * (y + 51) / 105;
+      return Math.abs(x) < hw ? 1 : 0;
+    }
+    return 0;
+  }],
+  // Glass slipper: a high-heeled shoe in profile, a bright rim and a long
+  // highlight over clear glass.
+  slipper: [128, 64, (u, v) => {
+    const TOP = [[-0.88, 0.62], [-0.74, 0.58], [-0.5, 0.12], [-0.1, -0.12], [0.3, -0.06], [0.62, -0.14], [0.86, -0.34], [0.96, -0.6]];
+    const BOT = [[-0.88, 0.1], [-0.62, -0.18], [-0.3, -0.58], [0.1, -0.8], [0.7, -0.84], [0.96, -0.6]];
+    const hx = pl([[0.1, -0.8], [-0.95, -0.72]], v), heel = v < 0.1 && v > -0.95 && u > -0.86 && u < hx * 0 + (-0.86 + 0.12 * (v + 0.95) / 1.05 + 0.07);
+    if (heel && u < -0.62) return [1, u < -0.8 ? 1 : 0.75];
+    if (u < -0.88 || u > 0.96) return 0;
+    const t = pl(TOP, u), b = pl(BOT, u);
+    if (v > t || v < b) return 0;
+    const rim = Math.min(t - v, v - b) < 0.075;
+    const open = u > -0.74 && u < 0.2 && t - v < 0.2;
+    const hi = u > -0.2 && u < 0.75 && Math.abs(v - (b + 0.2)) < 0.035;
+    return rim || hi ? [1, 1] : open ? [0.85, 0.4] : [0.75, 0.62];
+  }],
+  // Ornate snowflake: six arms, each with three pairs of branches, a
+  // diamond tip and a hexagon at the heart.
+  flakeornate: [128, 128, (u, v) => {
+    const [r, a0] = polar(u, v);
+    if (r > 0.98) return 0;
+    const sector = Math.PI / 3;
+    let a = ((a0 % sector) + sector) % sector;
+    if (a > sector / 2) a = sector - a;
+    const x = r * Math.cos(a), y = r * Math.sin(a);
+    let d = segDist(x, y, 0.15, 0, 0.86, 0);
+    for (const [bx, L] of [[0.36, 0.26], [0.56, 0.2], [0.73, 0.12]]) d = Math.min(d, segDist(x, y, bx, 0, bx + L * 0.5, L * 0.866));
+    d = Math.min(d, segDist(x, y, 0.46, 0.1, 0.52, 0.2));
+    let al = stroke(d, 0.03);
+    if (Math.abs(x - 0.88) + Math.abs(y) * 1.8 < 0.08) al = 1;
+    const hex = Math.abs(r * Math.cos(a - Math.PI / 6) - 0.15 * Math.cos(Math.PI / 6));
+    al = Math.max(al, stroke(hex, 0.022), r < 0.05 ? 1 : 0);
+    return al > 0 ? [al, 0.85 + 0.15 * (1 - r)] : 0;
+  }],
+  // Rising sun: a disc with long and short rays between gaps.
+  sundisc: [128, 128, (u, v) => {
+    const [r, a] = polar(u, v);
+    const disc = 1 - smooth(0.46, 0.5, r);
+    const n = 16, f = a / (Math.PI * 2) * n, idx = Math.floor(f), k = f - idx;
+    const len = ((idx % 2) + 2) % 2 ? 0.8 : 0.97;
+    let ray = 0;
+    if (r > 0.56 && r < len) ray = 1 - smooth(0.0, 0.03, Math.abs(k - 0.5) * (Math.PI * 2 / n) * r - 0.045 * (1 - (r - 0.56) / (len - 0.56)));
+    const al = Math.max(disc, ray * 0.75);
+    return al > 0 ? [al, disc > 0.5 ? 1 - 0.22 * r / 0.5 : 0.9] : 0;
+  }],
+  // Rock ledge jutting to the right, with a lit top edge.
+  ledge: [128, 64, (u, v) => {
+    const P = [[-1, -1], [-1, -0.22], [-0.62, -0.06], [-0.26, 0.12], [0.1, 0.3], [0.44, 0.44], [0.64, 0.36], [0.56, 0.2],
+               [0.3, 0.04], [0.16, -0.26], [0.1, -0.62], [0.14, -1]];
+    if (!pip(u, v, P)) return 0;
+    const lit = !pip(u, v + 0.1, P);
+    const crack = Math.abs(v + 0.35 + 0.25 * Math.sin(u * 5)) < 0.02 && u < 0;
+    return [1, lit ? 0.8 : crack ? 0.18 : 0.3];
+  }],
+  // A distant bird in flight.
+  bird: [32, 32, (u, v) => {
+    const d = polyDist(u, v, [[-0.92, 0.22], [-0.5, 0.38], [-0.12, 0.08], [0, -0.06], [0.12, 0.08], [0.5, 0.38], [0.92, 0.22]]);
+    return stroke(d, 0.14 * (1 - Math.abs(u) * 0.7));
+  }],
+  // Iris: a black ring round a round hole, soft at its outer edge.
+  iris: [256, 256, (u, v) => {
+    const r = Math.hypot(u, v);
+    return [smooth(0.34, 0.38, r) * (1 - smooth(0.84, 1, r)), 0.04];
+  }],
+  // Old film: wavering vertical scratches and dust specks.
+  filmscratch: [128, 128, (u, v) => {
+    let al = 0;
+    [-0.62, -0.1, 0.38, 0.71].forEach((x0, i) => {
+      const x = x0 + 0.02 * Math.sin(v * 9 + i * 2);
+      if (Math.sin(v * 3 + i * 2.1) > -0.35) al = Math.max(al, stroke(Math.abs(u - x), 0.009) * 0.9);
+    });
+    for (const [x, y, s] of scratchSpecks) al = Math.max(al, stroke(Math.hypot(u - x, v - y), s));
+    return al;
+  }],
+  // Wooden letter blocks.
+  blockA: [64, 64, toyBlock('A')],
+  blockB: [64, 64, toyBlock('B')],
+  blockC: [64, 64, toyBlock('C')],
+  // Black pill (the notification island).
+  pill: [128, 32, (u, v) => roundBox(u * 64, v * 16, 62, 14, 14) < 0 ? 1 : 0],
+  // Check mark.
+  check: [64, 64, (u, v) => stroke(polyDist(u, v, [[-0.6, 0.02], [-0.18, -0.42], [0.62, 0.46]]), 0.13)],
+  // Loading spinner: an arc that brightens to its leading end (it spins
+  // clockwise).
+  spinner: [64, 64, (u, v) => {
+    const [r, a] = polar(u, v);
+    const s = (((Math.PI / 2 - a) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / (Math.PI * 2);
+    const head = Math.hypot(u - 0.7 * Math.cos(Math.PI / 2 - 0.83 * Math.PI * 2), v - 0.7 * Math.sin(Math.PI / 2 - 0.83 * Math.PI * 2));
+    const arc = s < 0.83 ? stroke(Math.abs(r - 0.7), 0.13) * Math.pow(s / 0.83, 0.8) : 0;
+    return clamp(Math.max(arc, stroke(head, 0.13)));
+  }],
+  // Frosted glass tile: a translucent rounded panel, brighter at the top,
+  // with a crisp rim and a highlight along its top-left edge.
+  glasstile: [128, 64, (u, v) => {
+    const x = u * 64, y = v * 32;
+    const d = roundBox(x, y, 62, 30, 14);
+    if (d > 0) return 0;
+    if (d > -1.6) return [1, 1];
+    if (d > -3.6 && y > 14 && x < 24) return [0.75 * clamp((24 - x) / 40 + 0.4), 1];
+    return [0.4 + 0.16 * clamp((y + 30) / 60), 0.95];
+  }],
+  // A soft slanted band of light (glass sheen).
+  sheen: [64, 64, (u, v) => Math.exp(-Math.pow((u - v * 0.35) / 0.3, 2)) * (1 - smooth(0.8, 1, Math.abs(v)))],
+  // Rounded screen edge: a thin rim over a faint fill.
+  edgeframe: [128, 64, (u, v) => {
+    const d = roundBox(u * 64, v * 32, 61, 29, 16);
+    const rim = 1 - smooth(0.9, 2.1, Math.abs(d));
+    return d < 0 ? [Math.max(rim, 0.1), rim > 0.2 ? 1 : 0.25] : rim > 0 ? [rim, 1] : 0;
+  }],
+  // A comet streak: a bright head at the right, its tail thinning left.
+  streak: [128, 16, (u, v) => {
+    const t = clamp((u + 1) / 1.82);
+    const along = u <= 0.82 ? t * t : 1 - smooth(0.82, 1, u);
+    const w = 0.25 + 0.6 * t;
+    const head = 1 - smooth(0.3, 0.9, Math.hypot((u - 0.82) * 8, v));
+    return clamp(Math.max(along * (1 - smooth(w * 0.4, w, Math.abs(v))), head));
+  }],
+  // Battery outline with its terminal (the charge is a separate fill).
+  battery: [128, 64, (u, v) => {
+    const x = (u + 1) * 64, y = (1 - v) * 32;
+    const b = roundBox(x - 55, y - 32, 49, 20, 8);
+    if (b < 0 && b > -5) return 1;
+    return roundBox(x - 112, y - 32, 6, 10, 3) < 0 && x > 104 ? 1 : 0;
+  }],
+  // Chat bubble with its tail at the bottom right (sent), and its mirror.
+  chatbubble: [128, 64, (u, v) => {
+    const x = (u + 1) * 64, y = (1 - v) * 32;
+    if (roundBox(x - 60, y - 28, 56, 24, 22) < 0) return 1;
+    return pip(x, y, [[96, 44], [114, 34], [117, 50], [126, 61], [106, 56]]) ? 1 : 0;
+  }],
+  chatbubbleL: [128, 64, (u, v) => TEXTURES.chatbubble[2](-u, v)],
+  dot: [32, 32, (u, v) => 1 - smooth(0.78, 0.86, Math.hypot(u, v))],
+  // Three activity rings, each with the same pixel thickness at the sizes
+  // they're drawn (116, 90 and 64 across).
+  fitseg1: [128, 128, fitSeg(0.155)],
+  fitseg2: [128, 128, fitSeg(0.2)],
+  fitseg3: [128, 128, fitSeg(0.28)],
+  fittrk1: [128, 128, fitTrack(0.155)],
+  fittrk2: [128, 128, fitTrack(0.2)],
+  fittrk3: [128, 128, fitTrack(0.28)],
+  // Scouter lens: a slanted pane with scanlines, a rim, corner brackets and
+  // range ticks along the top.
+  scouter: [128, 64, (u, v) => {
+    const y = v * 32, x = u * 64 - y * 0.25;
+    const d = roundBox(x, y, 54, 26, 6);
+    if (d > 1.6) return 0;
+    if (Math.abs(d) < 1.6) return [1, 1];
+    if (d > -5 && d < -2.6 && Math.abs(x) > 40 && Math.abs(y) > 12) return [1, 1];
+    if (y > 17 && y < 21 && Math.abs(x) < 30 && ((x + 64) % 8) < 1.6) return [0.9, 1];
+    return Math.abs(((y + 64) % 4) - 2) < 0.55 ? [0.42, 0.85] : [0.26, 0.75];
+  }],
+  // A dark domain: a disc with faint rings, spokes and ticks.
+  domain: [128, 128, (u, v) => {
+    const [r, a] = polar(u, v);
+    if (r > 0.96) return 0;
+    let lum = 0.07;
+    if (stroke(Math.abs(r - 0.66), 0.012) > 0.5) lum = 0.6;
+    else if (stroke(Math.abs(r - 0.4), 0.01) > 0.5) lum = 0.45;
+    else if (r > 0.4 && r < 0.66 && Math.abs(r * Math.sin(a - Math.round(a / (Math.PI / 4)) * Math.PI / 4)) < 0.006) lum = 0.4;
+    else if (r > 0.78 && r < 0.84 && Math.abs(r * Math.sin(a - Math.round(a / (Math.PI / 12)) * Math.PI / 12)) < 0.008) lum = 0.5;
+    return [1 - smooth(0.88, 0.96, r), lum];
+  }],
+  // Trading card back: a bright border, an inner frame and concentric
+  // ovals round an emblem.
+  cardback: [64, 128, (u, v) => {
+    const x = u * 32, y = v * 64;
+    const d = roundBox(x, y, 30, 61, 4);
+    if (d > 0) return 0;
+    if (d > -4) return [1, 0.95];
+    if (d > -7 && d < -6) return [1, 0.8];
+    const e = Math.hypot(x / 21, y / 40);
+    if (e < 0.18) return [1, 1];
+    if (e < 1 && Math.abs((e * 5) % 1 - 0.5) > 0.36) return [1, 0.72];
+    return [1, 0.4];
+  }],
+  // Card face: a frame, a title bar, an art window with a star emblem and
+  // a pale text box for the number.
+  cardface: [64, 128, (u, v) => {
+    const x = u * 32, y = v * 64;
+    const d = roundBox(x, y, 30, 61, 4);
+    if (d > 0) return 0;
+    if (d > -3.5) return [1, 0.95];
+    if (Math.abs(x) < 25 && y > 42 && y < 56) return [1, y > 47 && y < 51 && x > -20 && x < 6 ? 0.45 : 0.82];
+    if (Math.abs(x) < 24 && y > -6 && y < 38) {
+      const [r, a] = polar(x / 14, (y - 16) / 14);
+      const star = 0.42 + 0.5 * Math.pow(Math.abs(Math.cos(2.5 * (a - Math.PI / 2))), 5);
+      return [1, r < star ? 1 : 0.26 + 0.08 * Math.sin(a * 12)];
+    }
+    if (Math.abs(x) < 25 && y > -56 && y < -12) return [1, 0.88];
+    return [1, 0.6];
+  }],
+  // Portal: spiral arms swirling into a bright core, with a rim.
+  portal: [128, 128, (u, v) => {
+    const [r, a] = polar(u, v);
+    if (r > 0.97) return 0;
+    const arms = Math.pow(0.5 + 0.5 * Math.sin(a * 3 + r * 12), 3) * smooth(0.12, 0.35, r) * (1 - smooth(0.8, 0.94, r));
+    const rim = stroke(Math.abs(r - 0.9), 0.035);
+    const core = (1 - smooth(0.05, 0.3, r)) * 0.85;
+    return clamp(Math.max(arms, rim, core));
+  }],
+  // Truck grille: a rounded frame round horizontal slats.
+  grille: [128, 64, (u, v) => {
+    const x = u * 64, y = v * 32;
+    const d = roundBox(x, y, 60, 26, 8);
+    if (d > 0) return 0;
+    if (d > -4) return [1, 0.75];
+    return [1, Math.abs(((y + 64) % 8) - 4) < 2 ? 0.5 : 0.14];
+  }],
+  // Anger mark: four curved strokes round a cross-shaped gap.
+  vein: [64, 64, (u, v) => {
+    let al = 0;
+    for (const [sx, sy] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      const px = u - sx * 0.52, py = v - sy * 0.52, r = Math.hypot(px, py);
+      const c = (px * -sx + py * -sy) / (Math.SQRT2 * (r || 1));
+      if (c < 0.3) continue;
+      al = Math.max(al, stroke(Math.abs(r - 0.4), 0.03 + 0.12 * (c - 0.3) / 0.7));
+    }
+    return al;
+  }],
+  // Sweat drop: a teardrop with a highlight and darker lower edge.
+  sweatdrop: [32, 64, (u, v) => {
+    const x = u * 16, y = v * 32;
+    const inBall = Math.hypot(x, y + 12) < 11;
+    const inTop = y >= -12 && y < 28 && Math.abs(x) < 11 * Math.pow((28 - y) / 40, 1.3);
+    if (!inBall && !inTop) return 0;
+    if (Math.hypot(x + 4, y + 13) < 3) return [1, 1];
+    return [1, 0.72 + 0.2 * clamp(0.5 - x / 22 + (y + 12) / 60)];
+  }],
+  // Katana: a curved blade (a bright edge, a darker spine), a collar, a
+  // round guard and a wrapped grip.
+  katana: [128, 32, (u, v) => {
+    const x = u * 64, y = v * 16;
+    if (x > -61 && x < 16) {
+      const c = bladeCurve(x);
+      let hw = 3.4;
+      if (x < -50) hw *= (x + 61) / 11;
+      const dy = y - c;
+      if (Math.abs(dy) > hw) return 0;
+      return [1, dy < -hw * 0.35 ? 1 : dy > hw * 0.45 ? 0.68 : 0.86];
+    }
+    if (x >= 16 && x < 19) return Math.abs(y) < 4.2 ? [1, 0.9] : 0;
+    if (x >= 19 && x < 23.5) return Math.hypot((x - 21.2) / 2.3, y / 10) < 1 ? [1, 0.42] : 0;
+    if (x >= 23.5 && x < 60) return Math.abs(y) < 4.4 ? [1, (((x * 0.5 + Math.abs(y)) % 4) + 4) % 4 < 2 ? 0.22 : 0.5] : 0;
+    if (x >= 60 && x < 62.5) return Math.abs(y) < 4.8 ? [1, 0.7] : 0;
+    return 0;
+  }],
+  // Scabbard: lacquered, the same curve, a collar at the mouth and a cord.
+  saya: [128, 32, (u, v) => {
+    const x = u * 64, y = v * 16;
+    if (Math.abs(Math.hypot(x - 6, y + 8) - 3) < 1) return [1, 0.75];
+    if (x < -61 || x > 18) return 0;
+    const dy = y - bladeCurve(x);
+    let hw = 4.8;
+    if (x < -56) hw *= Math.sqrt(Math.max(0, 1 - ((x + 56) / 5) ** 2));
+    if (Math.abs(dy) > hw) return 0;
+    if (x > 13) return [1, 0.88];
+    return [1, dy > hw * 0.45 ? 0.58 : 0.3];
+  }],
+  // Power meter: ten cells (revealed upward as it fills) and its frame.
+  metercells: [32, 128, (u, v) => {
+    const x = u * 16, y = v * 64;
+    if (Math.abs(x) > 8.5 || y < -58 || y > 58) return 0;
+    const cell = (y + 58) / 11.6, k = cell - Math.floor(cell);
+    return k < 0.8 ? [1, 0.82 + 0.18 * (1 - Math.abs(x) / 8.5)] : 0;
+  }],
+  meterframe: [32, 128, (u, v) => {
+    const d = roundBox(u * 16, v * 64, 13, 62, 4);
+    if (d > 1.5) return 0;
+    return Math.abs(d) < 1.5 ? [1, 1] : [0.3, 0.15];
+  }],
+  // Psychic ring: a wobbly glowing band.
+  psyring: [128, 128, (u, v) => {
+    const [r, a] = polar(u, v);
+    const r0 = 0.72 + 0.07 * Math.sin(a * 6) + 0.04 * Math.sin(a * 11 + 1.3);
+    const d = Math.abs(r - r0);
+    return clamp(Math.max(stroke(d, 0.06), (1 - smooth(0, 0.22, d)) * 0.35));
+  }],
+  // Saxophone silhouette: a curved body widening to a flared bell, with
+  // keys down its front.
+  sax: [64, 128, (u, v) => {
+    const x = u * 32, y = v * 64;
+    const P = [[-16, 60, 1.5], [-10, 52, 2], [-8, 32, 2.8], [-10, 4, 3.6], [-12, -24, 4.4], [-10, -44, 5], [-3, -55, 5.4],
+               [6, -51, 5.6], [10, -34, 6], [12, -14, 8], [13, 0, 11]];
+    let inside = false;
+    for (let i = 0; i < P.length - 1; i++) {
+      const [ax, ay, aw] = P[i], [bx, by, bw] = P[i + 1];
+      const dx = bx - ax, dy = by - ay, t = clamp(((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy));
+      if (Math.hypot(x - ax - t * dx, y - ay - t * dy) < aw + (bw - aw) * t) { inside = true; break; }
+    }
+    if (!inside) return 0;
+    if (y > -3 && x > 2) return [1, y > 1 ? 1 : 0.85];
+    for (const [kx, ky] of [[-6, 22], [-7, 10], [-8, -4], [-9, -18], [-8, -32]]) if (Math.hypot(x - kx, y - ky) < 1.8) return [1, 0.35];
+    return [1, x < -9 ? 0.95 : 0.7];
+  }],
+});
+
 const outDir = process.argv[2] || path.join(__dirname, '..', 'Media', 'Textures');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [name, [w, h, fn, ss]] of Object.entries(TEXTURES)) {
