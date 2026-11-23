@@ -29,6 +29,9 @@ function Widget:SetBlendMode(m) base.SetBlendMode(self, m); self.blend = m end
 function Widget:SetFont(path, size, flags) local ok = base.SetFont(self, path, size, flags); self.fontSize, self.flags = size, flags or ""; return ok end
 function Widget:SetTextColor(r, g, b, a) base.SetTextColor(self, r, g, b, a); self.color = { r, g, b, a or 1 } end
 function Widget:SetShadowOffset(x, y) base.SetShadowOffset(self, x, y); self.shadow = { x, y } end
+-- Clipping frames (a slot reel's window, a cut in two): recorded, so the
+-- gallery clips what they hold.
+function Widget:SetClipsChildren(v) self.clips = v and true or nil end
 -- Real frames start shown (the mock starts them hidden): track explicit hides.
 local baseShow, baseHide = Widget.Show, Widget.Hide
 function Widget:Show() baseShow(self); self.hidden = false end
@@ -67,14 +70,27 @@ local function depth(w)
   return d
 end
 
+local function r2(v) return math.floor(v * 100 + 0.5) / 100 end
+-- The nearest clipping frame around w, as { x, y, w, h }, or 0.
+local function clipOf(w)
+  local f = w.parent
+  while f do
+    if f.clips then
+      local x, y = center(f)
+      local s = effScale(f)
+      return { r2(x), r2(y), r2((f.w or 0) * s), r2((f.h or 0) * s) }
+    end
+    f = f.parent
+  end
+  return 0
+end
+
 local fonts, fontIndex = {}, {}
 local texs, texIndex = {}, {}
 local function intern(list, index, v)
   if not index[v] then list[#list + 1] = v; index[v] = #list - 1 end
   return index[v]
 end
-local function r2(v) return math.floor(v * 100 + 0.5) / 100 end
-
 local function snapshot()
   local out = {}
   for _, w in ipairs(frames) do
@@ -88,12 +104,12 @@ local function snapshot()
           local c = w.vc or { 1, 1, 1 }
           out[#out + 1] = { 0, r2(x), r2(y), r2(w.w * s), r2((w.h or w.w) * s), r2(a), r2(w.rot or 0),
                             r2(c[1]), r2(c[2]), r2(c[3]), intern(texs, texIndex, w.tex), w.blend == "BLEND" and 1 or 0, 0, 0, z,
-                            w.tc and { r2(w.tc[1]), r2(w.tc[2]), r2(w.tc[3]), r2(w.tc[4]) } or 0 }
+                            w.tc and { r2(w.tc[1]), r2(w.tc[2]), r2(w.tc[3]), r2(w.tc[4]) } or 0, clipOf(w) }
         elseif w.kind == "FontString" and w.text and w.text ~= "" and w.fontSize then
           local c = w.color or { 1, 1, 1, 1 }
           local flags = (w.flags or ""):find("THICK") and 2 or ((w.flags or ""):find("OUTLINE") and 1 or 0)
           out[#out + 1] = { 1, r2(x), r2(y), 0, 0, r2(a * (c[4] or 1)), 0, r2(c[1]), r2(c[2]), r2(c[3]), w.text,
-                            intern(fonts, fontIndex, w.font or ""), r2(w.fontSize * s), flags, z }
+                            intern(fonts, fontIndex, w.font or ""), r2(w.fontSize * s), flags, z, 0, clipOf(w) }
         end
       end
     end

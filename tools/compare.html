@@ -41,6 +41,8 @@ function drawItems(G, ctx, cx, cy, items, sc) {
   for (const e of items || []) {
     const [kind, x, y, ew, eh, a, rot, r, g, b, ref, mode, size, flags] = e;
     ctx.save();
+    const clip = e[16];
+    if (Array.isArray(clip)) { ctx.beginPath(); ctx.rect(cx + (clip[0] - clip[2] / 2) * sc, cy - (clip[1] + clip[3] / 2) * sc, clip[2] * sc, clip[3] * sc); ctx.clip(); }
     ctx.globalAlpha = Math.max(0, Math.min(1, a));
     ctx.translate(cx + x * sc, cy - y * sc);
     if (kind === 0) {

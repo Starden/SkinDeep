@@ -24,9 +24,9 @@ local Feats = ns.Feats
 -- group (spec variants live inside Classes on the Skins tab).
 -- The skin tabs sit in two rows of five above the list.
 local GROUPS = { { "style", "Styles" }, { "class", "Class" }, { "race", "Race" }, { "faction", "Faction" }, { "pvp", "PvP" },
-                 { "prof", "Trades" }, { "loot", "Loot" }, { "fun", "Fun" }, { "anime", "Anime" } }
+                 { "prof", "Trades" }, { "loot", "Loot" }, { "fun", "Fun" }, { "pop", "Pop" }, { "anime", "Anime" } }
 local FEAT_GROUPS = { { "style", "Styles" }, { "class", "Classes" }, { "spec", "Specs" }, { "race", "Races" }, { "faction", "Factions" }, { "pvp", "PvP" },
-                      { "prof", "Trades" }, { "loot", "Loot" }, { "fun", "Secrets" }, { "anime", "Anime" } }
+                      { "prof", "Trades" }, { "loot", "Loot" }, { "fun", "Secrets" }, { "pop", "Pop" }, { "anime", "Anime" } }
 local CLASS_ORDER = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
 local LIST_ROW, LIST_TOP = 24, -92
 local listGroup, featGroup = "style", "style"
@@ -684,16 +684,16 @@ local function buildFeats(page)
             layoutFeats()
         end)
         t.group = g[1]
-        t:SetSize(46, 20)
+        t:SetSize(43, 20)
         t:SetPoint("TOPLEFT", x, -106)
-        x = x + 47
+        x = x + 44
         featGroupTabs[#featGroupTabs + 1] = t
     end
 
     -- Specs: ‹ Class › steps through the classes; Trades: through the tiers.
     specCycler = CreateFrame("Frame", nil, page)
-    specCycler:SetSize(170, 20)
-    specCycler:SetPoint("TOPLEFT", x + 12, -106)
+    specCycler:SetSize(140, 20)
+    specCycler:SetPoint("TOPLEFT", x + 8, -106)
     local function step(dir)
         if featGroup == "prof" then
             featProfTier = (featProfTier - 1 + dir) % #Feats.PROF_TIERS + 1

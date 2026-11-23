@@ -4,10 +4,10 @@
 
 SkinDeep replaces the numbers that pop over your enemies with animated, themed
 "damage skins": custom fonts, motion, colors, crit bursts and particles. It ships
-with 143 skins, including one for every class, talent tree and race, eleven faction
+with 163 skins, including one for every class, talent tree and race, eleven faction
 skins, nineteen PvP skins (up to Grand Marshal and High Warlord), seasonal skins,
-twenty anime-inspired skins, and a slot-machine skin that rolls every hit and
-hits the JACKPOT on crits.
+twelve pop-culture skins, twenty-eight anime-inspired skins, and a slot-machine
+skin that rolls every hit and hits the JACKPOT on crits.
 
 Type `/skindeep` to open the skin picker with a live preview.
 
@@ -79,13 +79,24 @@ Bunny Hop, Graveyard Shift, Hogger!, Power Surge, Final Move, Sakura Drift,
 Mecha Strike, Bass Drop, Lo-Fi, Karaoke and Power Ballad are each earned by a
 secret feat. The Feats tab shows only a riddle until you find it.
 
-**Anime skins** (the Anime tab): twenty original takes on the genre's famous
-looks, each earned by a secret feat. Most Wanted (a wanted poster with your crit
-as the bounty), Black Crescent, Shinobi, Menacing, Flowing Form, Gotcha!, Soot
-Sprites, Transmute, Final Page, Steam Blades, Seven Stars, Smash!, Moonlit Charm,
-Hex Barrier, Chain Rev, Pressure Point, Spiral Drill, Link Start, Neon Slide and
-One and Done (plain little hits, then one colossal punch). They borrow a show's
-feel, never its characters, symbols or lines.
+**Pop skins** (the Pop tab): twelve homages to fairytale films and the phones in
+your pocket, each earned by a secret feat. Wishing Star (a shooting star over a
+castle, then fireworks), Midnight Chime (a clock strikes twelve and a glass
+slipper glints), Snow Queen, Savanna Sunrise, Rubber Hose (a black-and-white
+cartoon that ends in an iris-out), Toy Box, Island Alert (a notification pill
+that stretches open), Frosted Glass, Edge Glow, Fast Charge, Read Receipt (typing
+dots, then a blue bubble: Delivered) and Ring Closer. They borrow a look, never a
+studio's or brand's names, logos or characters.
+
+**Anime skins** (the Anime tab): twenty-eight original takes on the genre's
+famous looks, each earned by a secret feat. Most Wanted (a wanted poster with
+your crit as the bounty), Black Crescent, Shinobi, Menacing, Flowing Form,
+Gotcha!, Soot Sprites, Transmute, Final Page, Steam Blades, Seven Stars, Smash!,
+Moonlit Charm, Hex Barrier, Chain Rev, Pressure Point, Spiral Drill, Link Start,
+Neon Slide, One and Done (plain little hits, then one colossal punch), Power
+Level (a scouter that cracks), Cursed Domain, Bounty Jazz, Overflow, Face-Down
+Card, Isekai'd, Anger Vein and Iaido (the sword slides home and the number falls
+in two). They borrow a show's feel, never its characters, symbols or lines.
 
 | Faction skins | |
 |---|---|
