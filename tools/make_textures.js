@@ -13,13 +13,14 @@ let seed = 1337;
 const rand = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
 
 // alphaFn(u, v, w, h) gets coordinates in [-1, 1] (v up) and returns either
-// an alpha 0..1 (white texture) or [alpha, luminance] for shaded art that is
-// still tinted in game (luminance multiplies the vertex color).
+// an alpha 0..1 (white texture), [alpha, luminance] for shaded art that is
+// still tinted in game (luminance multiplies the vertex color), or
+// [alpha, r, g, b] for full-color art (the legendary weapons, drawn white).
 function render(w, h, alphaFn, ss = 4) {
   const px = Buffer.alloc(w * h * 4);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      let a = 0, l = 0;
+      let a = 0, l = 0, cr = 0, cg = 0, cb = 0, color = false;
       for (let sy = 0; sy < ss; sy++) for (let sx = 0; sx < ss; sx++) {
         const u = ((x + (sx + 0.5) / ss) / w) * 2 - 1;
         const v = 1 - ((y + (sy + 0.5) / ss) / h) * 2;
@@ -27,13 +28,27 @@ function render(w, h, alphaFn, ss = 4) {
         const al = clamp(Array.isArray(r) ? r[0] : r);
         a += al;
         l += al * clamp(Array.isArray(r) ? r[1] : 1);
+        if (Array.isArray(r) && r.length === 4) {
+          color = true;
+          cr += al * clamp(r[1]); cg += al * clamp(r[2]); cb += al * clamp(r[3]);
+        } else {
+          const k = al * clamp(Array.isArray(r) ? r[1] : 1);
+          cr += k; cg += k; cb += k;
+        }
       }
       const lum = a > 0 ? l / a : 1;
+      const aSum = a;
       a /= ss * ss;
       // TGA stores rows bottom-up; y here counts from the top.
       const i = ((h - 1 - y) * w + x) * 4;
       const c = Math.round(lum * 255);
-      px[i] = c; px[i + 1] = c; px[i + 2] = c; px[i + 3] = Math.round(a * 255);
+      if (color) {
+        const n = aSum > 0 ? aSum : 1;
+        px[i] = Math.round(cb / n * 255); px[i + 1] = Math.round(cg / n * 255); px[i + 2] = Math.round(cr / n * 255);
+      } else {
+        px[i] = c; px[i + 1] = c; px[i + 2] = c;
+      }
+      px[i + 3] = Math.round(a * 255);
     }
   }
   const header = Buffer.alloc(18);
@@ -1573,6 +1588,782 @@ Object.assign(TEXTURES, {
     if (y > -3 && x > 2) return [1, y > 1 ? 1 : 0.85];
     for (const [kx, ky] of [[-6, 22], [-7, 10], [-8, -4], [-9, -18], [-8, -32]]) if (Math.hypot(x - kx, y - ky) < 1.8) return [1, 0.35];
     return [1, x < -9 ? 0.95 : 0.7];
+  }],
+});
+
+// --- World skins (WoW: Forever themes) ---------------------------------------------
+// The legendary weapons are full-color art traced from the game's own models
+// (Wowhead's model viewer, side on): each is drawn in its reference picture's
+// pixel coordinates (y down) and mapped into the texture.
+const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * clamp(t));
+const rgb = (c, k = 1) => c.map(v => clamp(v * k));
+const C = (a, c) => [a, c[0], c[1], c[2]];
+const inTri = (x, y, a, b, c) => pip(x, y, [a, b, c]);
+// Distance to a polygon's edge (for rims and bevels).
+const polyEdge = (x, y, pts) => {
+  let d = Infinity;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length];
+    d = Math.min(d, segDist(x, y, a[0], a[1], b[0], b[1]));
+  }
+  return d;
+};
+let seed4 = 9001;
+const rand4 = () => {
+  seed4 = (seed4 + 0x6D2B79F5) >>> 0;
+  let t = seed4;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+
+// Horn or spike: a triangle shaded light along one side, darker the other.
+function spike(x, y, tip, b1, b2, light, dark) {
+  if (!inTri(x, y, tip, b1, b2)) return null;
+  const mx = (b1[0] + b2[0]) / 2, my = (b1[1] + b2[1]) / 2;
+  const ax = tip[0] - mx, ay = tip[1] - my, len = Math.hypot(ax, ay) || 1;
+  const side = ((x - mx) * -ay + (y - my) * ax) / len;
+  const along = ((x - mx) * ax + (y - my) * ay) / (len * len);
+  return mix(dark, light, 0.5 + side / (Math.hypot(b1[0] - b2[0], b1[1] - b2[1]) * 0.6) * 0.8 + along * 0.25);
+}
+
+// Value noise for organic surfaces (wood grain, hammered metal, smoke, fire).
+const hash2 = (x, y) => {
+  let h = Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+};
+const vnoise = (x, y) => {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+  const s = t => t * t * (3 - 2 * t);
+  const a = hash2(xi, yi), b = hash2(xi + 1, yi), c = hash2(xi, yi + 1), d = hash2(xi + 1, yi + 1);
+  const u = s(xf), w = s(yf);
+  return a + (b - a) * u + (c - a) * w + (a - b - c + d) * u * w;
+};
+const fbm = (x, y, oct = 4) => {
+  let sum = 0, amp = 0.5, f = 1, norm = 0;
+  for (let i = 0; i < oct; i++) { sum += amp * vnoise(x * f + i * 17.3, y * f + i * 9.1); norm += amp; amp *= 0.5; f *= 2; }
+  return sum / norm;
+};
+// A horn or spike with a lit ridge down its middle.
+function spikeR(x, y, tip, b1, b2, light, dark) {
+  if (!inTri(x, y, tip, b1, b2)) return null;
+  const mx = (b1[0] + b2[0]) / 2, my = (b1[1] + b2[1]) / 2;
+  const ax = tip[0] - mx, ay = tip[1] - my, len = Math.hypot(ax, ay) || 1;
+  const half = Math.hypot(b1[0] - b2[0], b1[1] - b2[1]) / 2;
+  const along = clamp(((x - mx) * ax + (y - my) * ay) / (len * len));
+  const side = ((x - mx) * -ay + (y - my) * ax) / len / (half * (1 - along) + 0.5);
+  if (Math.abs(side) < 0.08) return mix(light, [1, 1, 1], 0.35);
+  if (polyEdge(x, y, [tip, b1, b2]) < 1.1) return rgb(dark, 0.7);
+  return mix(dark, light, side > 0 ? 0.85 - along * 0.2 : 0.35 - along * 0.15);
+}
+
+// Thunderfury, Blessed Blade of the Windseeker (reference 670 x 160).
+const TF_LIGHTNING = Array.from({ length: 3 }, () => [rand4() * 6, 0.04 + rand4() * 0.03, 6 + rand4() * 8]);
+function thunderfury(u, v) {
+  const x = (u + 1) * 128 / 0.382, y = 160 - ((v + 1) * 32 - 1.4) / 0.382;
+  const IVORY = [0.99, 0.93, 0.72], IVORY_D = [0.58, 0.45, 0.26], STEEL = [0.3, 0.32, 0.4], NAVY = [0.05, 0.07, 0.18];
+  // The orb: a white core, swirling light, a deep blue rim.
+  const orb = Math.hypot(x - 372, y - 80);
+  if (orb < 30) {
+    const k = orb / 30, ang = Math.atan2(y - 80, x - 372);
+    let c = mix([1, 1, 1], [0.42, 0.56, 1], k * k);
+    if (k > 0.3 && Math.sin(ang * 3 + k * 9) > 0.7) c = mix(c, [0.9, 0.95, 1], 0.55);
+    if (k > 0.9) c = [0.25, 0.4, 0.92];
+    if (Math.hypot(x - 364, y - 72) < 6) c = [1, 1, 1];
+    return C(1, c);
+  }
+  let out = null;
+  const blade = [[322, 80], [294, 22], [336, 20], [662, 80], [336, 140], [294, 138]];
+  if (pip(x, y, blade)) {
+    const hh = x < 336 ? 60 : 60 * (662 - x) / 326;
+    const t = Math.abs(y - 80) / Math.max(1, hh);
+    const top = y < 80;
+    if (x < 338) {
+      // The barbed crystal base: two facets.
+      const facet = (x - 294) / 44 + (Math.abs(y - 80) / 60) * 0.6;
+      out = top ? mix([0.6, 0.72, 0.92], [0.97, 0.98, 1], facet) : mix([0.4, 0.5, 0.75], [0.75, 0.84, 0.97], facet);
+      if (Math.abs(t - 0.55) < 0.04) out = [0.35, 0.45, 0.7];
+    } else if (t > 0.6) {
+      out = top ? mix([0.72, 0.8, 0.93], [0.97, 0.98, 1], (t - 0.6) * 2.5) : mix([0.5, 0.58, 0.76], [0.72, 0.78, 0.9], (t - 0.6) * 2.5);
+      if (top && t > 0.74 && t < 0.8) out = [1, 1, 1];          // a glint along the top edge
+      if (t < 0.64) out = top ? [0.92, 0.96, 1] : [0.62, 0.7, 0.88]; // the bevel catching light
+    } else if (t < 0.1) {
+      out = mix([0.55, 0.74, 1], [0.85, 0.93, 1], 1 - t / 0.1);
+    } else {
+      out = mix([0.04, 0.13, 0.45], [0.15, 0.33, 0.78], (t - 0.1) / 0.5);
+      out = rgb(out, 0.85 + 0.3 * fbm(x * 0.05, y * 0.12));
+      if (x > 380) {
+        for (const [ph, f, a] of TF_LIGHTNING) {
+          const ly = 80 + Math.sin(x * f + ph) * a * (1 - (x - 380) / 300) + Math.sin(x * 0.31 + ph * 3) * 3;
+          const d = Math.abs(y - ly);
+          if (d < 0.7) out = [0.9, 0.96, 1];
+          else if (d < 3) out = mix(out, [0.5, 0.7, 1], (1 - d / 3) * 0.7);
+        }
+      }
+    }
+    if (polyEdge(x, y, blade) < 1.4) out = top ? [1, 1, 1] : [0.35, 0.42, 0.6];
+    return C(1, out);
+  }
+  // The orb's glow, with four faint rays.
+  if (orb < 50) {
+    const ang = Math.atan2(y - 80, x - 372), ray = Math.pow(Math.abs(Math.cos(ang * 2)), 40);
+    return C(clamp((1 - (orb - 30) / 20) * 0.8 + ray * 0.5 * (1 - (orb - 30) / 20)), [0.55, 0.68, 1]);
+  }
+  if (x > 250 && x < 324 && y > 71 && y < 91) {
+    if (Math.abs(x - 266) < 1.5 || Math.abs(x - 300) < 1.5) return C(1, [0.08, 0.12, 0.3]);
+    return C(1, mix([0.1, 0.18, 0.45], [0.36, 0.52, 0.92], Math.sin(Math.PI * (91 - y) / 20)));
+  }
+  out = spikeR(x, y, [229, 33], [213, 64], [229, 64], IVORY, IVORY_D) || spikeR(x, y, [259, 28], [239, 64], [255, 64], IVORY, IVORY_D);
+  if (out) return C(1, out);
+  if (x > 200 && x < 252 && y > 63 && y < 97) {
+    if (Math.hypot(x - 213, y - 80) < 3.6 || Math.hypot(x - 238, y - 80) < 3.6) {
+      return C(1, Math.hypot(x - 212, y - 79) < 1.5 || Math.hypot(x - 237, y - 79) < 1.5 ? [1, 1, 1] : [0.7, 0.72, 0.8]);
+    }
+    if (x < 205 || x > 247) return C(1, rgb(STEEL, 0.6));
+    if (y < 66) return C(1, [0.6, 0.62, 0.72]);
+    return C(1, rgb(STEEL, 0.72 + 0.5 * Math.sin(Math.PI * (97 - y) / 34)));
+  }
+  if (x > 104 && x < 206 && y > 70 && y < 90) {
+    const ph = ((x + (y - 70) * 0.7) % 13 + 13) % 13;
+    const band = ph < 5, lip = ph >= 4 && ph < 5.2;
+    const shade = 0.6 + 0.6 * Math.sin(Math.PI * (90 - y) / 20);
+    return C(1, rgb(lip ? [0.55, 0.7, 1] : band ? [0.22, 0.38, 0.8] : NAVY, shade));
+  }
+  if (x > 58 && x < 106 && y > 66 && y < 94) {
+    if (y < 69) return C(1, [0.62, 0.64, 0.74]);
+    return C(1, rgb(STEEL, 0.7 + 0.5 * Math.sin(Math.PI * (94 - y) / 28)));
+  }
+  out = spikeR(x, y, [69, 124], [72, 92], [90, 92], IVORY, IVORY_D) || spikeR(x, y, [14, 80], [60, 70], [60, 90], IVORY, IVORY_D);
+  return out ? C(1, out) : 0;
+}
+
+// Sulfuras, Hand of Ragnaros (reference 800 x 609, model at full size).
+function sulfuras(u, v) {
+  const x = ((u + 1) * 128 - 12) / 0.35 + 70, y = 458 - (v + 1) * 64 / 0.35;
+  const GOLD_L = [1, 0.9, 0.5], GOLD_D = [0.74, 0.32, 0.04];
+  const spikes = [
+    [[600, 95], [572, 168], [632, 168]], [[606, 452], [576, 390], [636, 390]],
+    [[706, 150], [652, 172], [682, 210]], [[730, 275], [680, 248], [680, 302]],
+    [[706, 388], [682, 342], [652, 384]], [[504, 186], [548, 196], [554, 240]],
+    [[508, 370], [550, 318], [548, 364]],
+    [[74, 285], [182, 263], [182, 307]], [[164, 213], [172, 266], [202, 266]], [[172, 350], [176, 300], [206, 300]],
+  ];
+  for (const s of spikes) { const c = spikeR(x, y, s[0], s[1], s[2], GOLD_L, GOLD_D); if (c) return C(1, c); }
+  // The diamond stud: four facets, a dark rim, a glint.
+  const dx = x - 628, dy = y - 272, dd = Math.abs(dx) + Math.abs(dy);
+  if (dd < 34) {
+    if (dd > 31) return C(1, [0.5, 0.2, 0.02]);
+    if (Math.hypot(dx + 9, dy + 9) < 4) return C(1, [1, 1, 0.9]);
+    const f = dx < 0 ? (dy < 0 ? 1 : 0.68) : (dy < 0 ? 0.84 : 0.5);
+    return C(1, mix(GOLD_D, GOLD_L, f));
+  }
+  const head = [[545, 176], [561, 160], [664, 160], [680, 176], [680, 380], [664, 396], [561, 396], [545, 380]];
+  if (pip(x, y, head)) {
+    const e = polyEdge(x, y, head);
+    if (e < 3) return C(1, [1, 0.62, 0.15]);
+    if (e < 5) return C(1, [0.35, 0.05, 0.01]);
+    const band = (y > 182 && y < 226) || (y > 330 && y < 374);
+    let c = mix([0.66, 0.11, 0.03], [0.3, 0.04, 0.01], (x - 545) / 135);
+    c = rgb(c, 0.85 + 0.3 * fbm(x * 0.06, y * 0.06));       // hammered metal
+    if (band) {
+      c = rgb([0.34, 0.05, 0.02], 0.85 + 0.3 * fbm(x * 0.05, y * 0.05));
+      const by = y < 280 ? 204 : 352;
+      const tri = Math.abs((((x - 552) / 22) % 2 + 2) % 2 - 1) * 2 - 1;
+      const d = Math.abs(y - (by + 13 * tri));
+      if (d < 2.6) c = mix([1, 0.7, 0.2], [1, 0.98, 0.7], 1 - d / 2.6);
+      else if (d < 9) c = mix(c, [1, 0.42, 0.05], (1 - (d - 2.6) / 6.4) * 0.8);
+    }
+    if ((y > 226 && y < 232) || (y > 324 && y < 330)) c = [0.95, 0.5, 0.1];
+    return C(1, c);
+  }
+  // The flared collar, carved with flame glyphs that glow.
+  const collar = [[388, 256], [548, 224], [548, 322], [388, 306]];
+  if (pip(x, y, collar)) {
+    const e = polyEdge(x, y, collar);
+    if (e < 2.5) return C(1, [0.95, 0.5, 0.1]);
+    const cy = 281 + (x - 388) * 0.016;
+    const w = Math.sin((x - 388) * 0.07 + Math.sin((y - cy) * 0.12) * 2.2);
+    const g = Math.abs(w);
+    let c = mix([0.62, 0.11, 0.03], [0.3, 0.04, 0.01], Math.abs(y - cy) / 45);
+    if (Math.abs(y - cy) < 34) {
+      if (g < 0.16) c = mix([1, 0.95, 0.6], [1, 0.62, 0.12], g / 0.16);
+      else if (g < 0.4) c = mix(c, [1, 0.4, 0.05], (1 - (g - 0.16) / 0.24) * 0.6);
+    }
+    return C(1, c);
+  }
+  // The shaft: dark iron split by veins and pools of lava.
+  if (x > 200 && x < 392 && y > 264 && y < 301) {
+    const cyl = Math.sin(Math.PI * (301 - y) / 37);
+    let c = rgb([0.42, 0.07, 0.02], 0.7 + 0.5 * cyl);
+    const vein = Math.abs(fbm(x * 0.05, y * 0.15) - 0.5);
+    if (vein < 0.03) c = mix([1, 0.85, 0.4], [1, 0.4, 0.05], vein / 0.03);
+    for (const cx of [238, 292, 346]) {
+      const e = Math.hypot((x - cx) / 23, (y - 282) / 9);
+      if (e < 1) c = mix([1, 0.97, 0.7], [1, 0.48, 0.06], e);
+      else if (e < 1.4) c = mix(c, [1, 0.4, 0.05], (1.4 - e) / 0.4 * 0.7);
+    }
+    if (Math.abs(x - 265) < 2 || Math.abs(x - 319) < 2) c = [0.2, 0.03, 0.01];
+    return C(1, c);
+  }
+  const hub = Math.hypot(x - 190, y - 284);
+  if (hub < 22) return C(1, hub > 19 ? [0.45, 0.08, 0.02] : mix([1, 0.62, 0.15], [0.42, 0.07, 0.02], Math.hypot(x - 182, y - 276) / 30));
+  return 0;
+}
+
+// Ashbringer (reference 680 x 190).
+const ASH_RUNES = Array.from({ length: 13 }, () => [rand4(), rand4(), rand4()]);
+function ashbringer(u, v) {
+  const x = (u + 1) * 128 / 0.394 + 8, y = 172 - (v + 1) * 32 / 0.394;
+  const GOLD = [0.98, 0.78, 0.3], GOLD_D = [0.58, 0.34, 0.08], RED = [0.76, 0.2, 0.07];
+  // The orb: a warm white core, soft rays, a gold rim.
+  const orb = Math.hypot(x - 498, y - 46);
+  if (orb < 34) {
+    const k = orb / 34, ang = Math.atan2(y - 46, x - 498);
+    let c = mix([1, 1, 0.95], [0.98, 0.8, 0.42], k * k);
+    c = mix(c, [1, 1, 1], Math.pow(Math.abs(Math.cos(ang * 4)), 30) * (1 - k) * 0.6);
+    if (k > 0.9) c = [0.85, 0.6, 0.25];
+    if (Math.hypot(x - 487, y - 36) < 7) c = [1, 1, 1];
+    return C(1, c);
+  }
+  const guardIn = (px, py) => (px > 222 && px < 252 && py > 22 && py < 168) || (px > 222 && px < 304 && py > 20 && py < 40)
+    || (px > 284 && px < 304 && py > 20 && py < 84) || (px > 222 && px < 300 && py > 146 && py < 168)
+    || inTri(px, py, [298, 146], [298, 168], [314, 174]);
+  if (guardIn(x, y)) {
+    const near = r => !guardIn(x - r, y) || !guardIn(x + r, y) || !guardIn(x, y - r) || !guardIn(x, y + r);
+    if (near(1.5)) return C(1, GOLD_D);
+    if (near(5)) return C(1, mix(GOLD, [1, 0.95, 0.75], !guardIn(x, y - 5) || !guardIn(x - 5, y) ? 0.6 : 0));
+    if (near(7)) return C(1, [0.4, 0.08, 0.03]);
+    return C(1, rgb(mix([0.55, 0.12, 0.04], RED, (172 - y) / 150), 0.9 + 0.2 * fbm(x * 0.08, y * 0.08)));
+  }
+  const blade = [[234, 70], [454, 70], [548, 60], [657, 12], [598, 132], [234, 106]];
+  if (pip(x, y, blade) && orb > 40) {
+    const e = polyEdge(x, y, blade);
+    const topEdge = y < 74 || (x > 548 && y < 60 + (x - 548) * -0.44 + 8);
+    let c = mix([0.78, 0.79, 0.83], [0.88, 0.89, 0.92], (106 - y) / 36);
+    if (e < 1.5) c = topEdge ? [1, 1, 1] : [0.42, 0.42, 0.48];
+    else if (e < 8) c = topEdge ? [0.95, 0.96, 0.98] : [0.64, 0.65, 0.7];
+    if (Math.abs(y - 99) < 0.8 && x > 250 && x < 590) c = [0.55, 0.56, 0.6];       // the fuller's groove
+    if (Math.abs(y - 100.6) < 0.7 && x > 250 && x < 590) c = [0.97, 0.97, 1];
+    // Runes engraved along the flat, with a faint holy glow.
+    if (x > 300 && x < 488 && y > 78 && y < 98) {
+      const i = Math.floor((x - 300) / 14.5), lx = (x - 300) % 14.5, ly = y - 81;
+      const [a, b, d] = ASH_RUNES[i] || [0, 0, 0];
+      const dist = Math.min(Math.abs(lx - 3 - a * 3), b > 0.4 ? Math.abs(lx - 3 - (ly / 16) * 8) : 9, d > 0.5 && lx > 3 && lx < 11 ? Math.abs(ly - 8) : 9);
+      if (lx < 12 && ly > 0 && ly < 16) {
+        if (dist < 1.2) c = [0.34, 0.33, 0.38];
+        else if (dist < 3.5) c = mix(c, [1, 0.9, 0.55], (1 - (dist - 1.2) / 2.3) * 0.45);
+      }
+    }
+    return C(1, c);
+  }
+  if (orb < 52) return C((1 - (orb - 34) / 18) * 0.85, [1, 0.86, 0.48]);
+  if (x > 206 && x < 228 && y > 70 && y < 106) {
+    if (x < 209 || x > 225) return C(1, GOLD_D);
+    return C(1, rgb([0.58, 0.14, 0.07], 0.7 + 0.5 * Math.sin(Math.PI * (106 - y) / 36)));
+  }
+  if (x > 60 && x < 212 && y > 77 && y < 100) {
+    const shade = 0.68 + 0.42 * Math.sin(Math.PI * (100 - y) / 23);
+    const red = (x > 112 && x < 128) || (x > 166 && x < 182);
+    const trim = (x > 109 && x < 113) || (x > 127 && x < 131) || (x > 163 && x < 167) || (x > 181 && x < 185);
+    let c = red ? RED : trim ? GOLD : [0.88, 0.87, 0.82];
+    if (!red && !trim && ((x * 0.8 + y) % 7 + 7) % 7 < 1) c = [0.72, 0.71, 0.67];   // the grip's binding
+    return C(1, rgb(c, shade));
+  }
+  if (x > 54 && x < 66 && y > 77 && y < 99) return C(1, rgb(RED, 0.75 + 0.4 * Math.sin(Math.PI * (99 - y) / 22)));
+  const p = Math.hypot(x - 36, y - 88);
+  if (p < 24) {
+    if (Math.hypot(x - 28, y - 79) < 5) return C(1, [1, 0.98, 0.85]);
+    return C(1, mix([1, 0.9, 0.55], GOLD_D, Math.hypot(x - 28, y - 80) / 32));
+  }
+  return 0;
+}
+
+// Atiesh, Greatstaff of the Guardian (reference 800 x 600).
+function atiesh(u, v) {
+  const x = (u + 1) * 128 / 0.385 + 64, y = 392 - ((v + 1) * 64 - 20) / 0.385;
+  const WOOD = [0.58, 0.37, 0.18], RED = [0.78, 0.08, 0.05];
+  const cyl = (y0, y1) => 0.68 + 0.5 * Math.sin(Math.PI * clamp((y1 - y) / (y1 - y0)));
+  // The woven head: each strand shaded round.
+  const he = Math.hypot((x - 680) / 42, (y - 185) / 21);
+  if (he < 1) {
+    const a = (x + y) / 7, b = (x - y) / 7;
+    const over = (Math.floor(a) + Math.floor(b)) % 2 === 0;
+    const f = over ? a - Math.floor(a) : b - Math.floor(b);
+    const strand = Math.sin(Math.PI * f);
+    const base = over ? [0.66, 0.45, 0.24] : [0.46, 0.29, 0.13];
+    return C(1, rgb(base, (0.45 + 0.65 * strand) * (0.55 + 0.6 * (1 - he)) * (y < 190 ? 1.05 : 0.8)));
+  }
+  if (x > 718 && x < 731 && y > 179 && y < 192) return C(1, rgb([0.7, 0.13, 0.08], cyl(179, 192)));
+  const gem = Math.hypot(x - 647, y - 205);
+  if (gem < 8) return C(1, Math.hypot(x - 644, y - 202) < 2.6 ? [0.95, 0.98, 1] : mix([0.4, 0.55, 1], [0.08, 0.15, 0.55], gem / 8));
+  if (x > 621 && x < 641 && y > 170 && y < 201) return C(1, rgb(RED, 0.75 + 0.35 * Math.sin((x - 621) * 0.5)));
+  if (y > 198 && y < 330) {
+    const hw = 6 * (1 - (y - 198) / 140) + 0.8;
+    if (Math.abs(x - 630) < hw) return C(1, rgb(RED, 0.75 + 0.3 * Math.sin((x - 630) / hw * 1.5 + y * 0.08)));
+  }
+  for (const [by, c] of [[338, [0.92, 0.9, 0.82]], [348, RED], [358, [0.92, 0.9, 0.82]], [368, RED], [380, [0.88, 0.72, 0.4]]]) {
+    const d = Math.hypot(x - 630, y - by);
+    if (d < 3.6) return C(1, Math.hypot(x - 629, y - by + 1) < 1.1 ? [1, 1, 1] : c);
+  }
+  if (Math.abs(x - 630) < 0.8 && y >= 330 && y < 384) return C(1, [0.8, 0.75, 0.65]);
+  if (y > 177 && y < 193) {
+    if (x > 70 && x < 146) {
+      const ring = Math.abs(x - 90) < 1.5 || Math.abs(x - 130) < 1.5;
+      return C(1, rgb(ring ? [0.5, 0.52, 0.58] : [0.8, 0.82, 0.88], cyl(177, 193)));
+    }
+    if (x >= 146 && x < 622) {
+      let c;
+      if ((x > 553 && x < 563) || (x > 568 && x < 576)) c = mix([0.7, 0.48, 0.14], [1, 0.85, 0.42], Math.sin(Math.PI * (193 - y) / 16));
+      else if ((x > 333 && x < 339) || (x > 421 && x < 427)) c = [0.32, 0.18, 0.07];
+      else if (x > 339 && x < 421) {
+        const a = (x + y * 1.6) / 9, b = (x - y * 1.6) / 9;
+        const fa = a - Math.floor(a), fb = b - Math.floor(b);
+        c = Math.min(fa, 1 - fa, fb, 1 - fb) < 0.1 ? [0.36, 0.21, 0.09] : rgb([0.66, 0.45, 0.23], 0.85 + 0.3 * (fa - 0.5));
+      } else {
+        const grain = fbm(x * 0.03, y * 0.5);
+        c = rgb(WOOD, 0.75 + 0.5 * grain);
+        if (Math.abs(grain - 0.55) < 0.02) c = rgb(WOOD, 0.6);
+      }
+      return C(1, rgb(c, cyl(177, 193)));
+    }
+  }
+  return 0;
+}
+
+// An item-icon stand-in: weapon fn (aspect w:h) rotated 45 degrees over a
+// dark tile. dy recenters art that sits off the middle of its texture.
+function weaponIcon(fn, aspect, u, v, k, dy = 0) {
+  const a = (u + v) / Math.SQRT2, b = (v - u) / Math.SQRT2;
+  const wu = a * k, wv = b * k * aspect + dy;
+  const bg = mix([0.16, 0.13, 0.2], [0.04, 0.03, 0.06], Math.hypot(u, v) / 1.4);
+  const w = Math.abs(wu) <= 1 && Math.abs(wv) <= 1 ? fn(wu, wv) : 0;
+  if (!w) return C(1, bg);
+  return C(1, mix(bg, [w[1], w[2], w[3]], w[0]));
+}
+
+Object.assign(TEXTURES, {
+  thunderfury: [512, 128, thunderfury, 4],
+  sulfuras: [512, 256, sulfuras, 3],
+  ashbringer: [512, 128, ashbringer, 4],
+  atiesh: [512, 256, atiesh, 3],
+  // Stand-ins for the weapons' own item icons (the game's icons are used in
+  // game; these only show where the client lacks them, and in the gallery):
+  // the weapon laid diagonally across a dark tile.
+  icon_thunderfury: [64, 64, (u, v) => weaponIcon(thunderfury, 4, u, v, 1.25)],
+  icon_sulfuras: [64, 64, (u, v) => weaponIcon(sulfuras, 2, u, v, 1.05)],
+  icon_ashbringer: [64, 64, (u, v) => weaponIcon(ashbringer, 4, u, v, 1.25)],
+  icon_atiesh: [64, 64, (u, v) => weaponIcon(atiesh, 2, u, v, 1.2, 0.56)],
+  // A legendary loot frame: an orange-glowing border round an item icon.
+  legendframe: [64, 64, (u, v) => {
+    const d = Math.max(Math.abs(u), Math.abs(v));
+    if (d > 0.98) return 0;
+    if (d > 0.8) return [1 - smooth(0.9, 0.98, d) * 0.4, d > 0.86 && d < 0.92 ? 1 : 0.75];
+    return 0;
+  }],
+  // A whirlwind: stacked spiral strokes narrowing to the ground.
+  whirlwind: [64, 128, (u, v) => {
+    let al = 0;
+    for (let i = 0; i < 9; i++) {
+      const k = i / 8, cy = -0.88 + k * 1.72, cx = 0.08 * Math.sin(i * 1.7);
+      const rx = 0.14 + 0.8 * Math.pow(k, 1.1), ry = 0.05 + 0.07 * k;
+      const px = (u - cx) / rx, py = (v - cy) / ry;
+      const d = Math.abs(Math.hypot(px, py) - 1) * ry;
+      const front = py < 0;
+      al = Math.max(al, (1 - smooth(0.012, 0.03, d)) * (front ? 1 : 0.3) * (0.45 + 0.55 * k));
+    }
+    return clamp(al);
+  }],
+  // A raven in flight, wings raised.
+  raven: [128, 64, (u, v) => {
+    const body = Math.hypot((u - 0.05) / 0.32, (v + 0.1) / 0.16) < 1;
+    const head = Math.hypot(u - 0.36, v + 0.02) < 0.11;
+    const beak = inTri(u, v, [0.44, 0.02], [0.44, -0.1], [0.6, -0.06]);
+    const tail = inTri(u, v, [-0.25, -0.05], [-0.25, -0.2], [-0.62, -0.28]);
+    const wingL = pip(u, v, [[-0.05, -0.02], [0.2, 0.0], [-0.05, 0.55], [-0.4, 0.92], [-0.38, 0.6], [-0.55, 0.7], [-0.45, 0.42], [-0.62, 0.44]]);
+    const wingR = pip(u, v, [[0.0, -0.05], [0.18, 0.02], [0.42, 0.4], [0.62, 0.88], [0.32, 0.58], [0.28, 0.72], [0.1, 0.42]]);
+    if (head && Math.hypot(u - 0.39, v + 0.0) < 0.025) return [1, 0.8];
+    return body || head || beak || tail || wingL || wingR ? [1, 0.18 + 0.12 * clamp(v + 0.3)] : 0;
+  }],
+  // A green dragon's eye: scaled lids round a gold iris with a slit pupil.
+  dragoneye: [128, 64, (u, v) => {
+    const lid = Math.abs(v) < 0.92 * Math.pow(Math.max(0, 1 - u * u), 0.9);
+    if (!lid) {
+      if (Math.abs(v) < 1.0 * Math.pow(Math.max(0, 1 - u * u * 0.85), 0.7)) return C(1, rgb([0.12, 0.42, 0.22], 0.7 + 0.3 * Math.sin(u * 30) * Math.sin(v * 12)));
+      return 0;
+    }
+    const r = Math.hypot(u * 2, v);
+    if (Math.abs(u * 2) < 0.12 * (1 - Math.abs(v)) + 0.02 && r < 0.95) return C(1, [0.02, 0.04, 0.02]);
+    if (r < 0.95) return C(1, mix([1, 0.92, 0.4], [0.55, 0.62, 0.12], r) .map((c, i) => c * (0.85 + 0.15 * Math.sin(Math.atan2(v, u) * 18))));
+    return C(1, [0.85, 0.96, 0.75]);
+  }],
+  // A sleepy Z.
+  zee: [32, 32, (u, v) => stroke(polyDist(u, v, [[-0.55, 0.6], [0.55, 0.6], [-0.55, -0.6], [0.55, -0.6]]), 0.16)],
+  // A titan disc: a carved stone platter with channels and a hub.
+  titandisc: [128, 128, (u, v) => {
+    const [r, a] = polar(u, v);
+    if (r > 0.96) return 0;
+    let lum = 0.62 + 0.18 * (u - v) * 0.5;
+    if (Math.abs(r - 0.9) < 0.04 || Math.abs(r - 0.55) < 0.03 || Math.abs(r - 0.22) < 0.025) lum = 0.4;
+    const k = ((a / (Math.PI * 2)) * 12 % 1 + 1) % 1;
+    if (r > 0.58 && r < 0.86 && Math.abs(k - 0.5) < 0.05) lum = 0.42;
+    if (r < 0.18) lum = 0.8;
+    return [1 - smooth(0.93, 0.96, r), lum];
+  }],
+  // One twelfth of the disc's ring of glyphs (they light one by one).
+  glyphseg: [128, 128, (u, v) => {
+    const [r, a] = polar(u, v);
+    const a0 = Math.PI / 2 - Math.PI / 6, a1 = Math.PI / 2;
+    if (a < a0 || a > a1 || r < 0.6 || r > 0.84) return 0;
+    const t = (a - a0) / (a1 - a0), m = (r - 0.6) / 0.24;
+    const g = Math.abs(t - 0.5) < 0.07 || (Math.abs(m - 0.5) < 0.1 && Math.abs(t - 0.5) < 0.3) || (Math.abs(t - 0.5 - (m - 0.5) * 0.5) < 0.05 && m > 0.5);
+    return g ? 1 : 0;
+  }],
+  // A skeletal hand reaching up, fingers spread.
+  bonehand: [64, 128, (u, v) => {
+    const x = u * 32, y = v * 64;
+    let d = Infinity;
+    const seg = (a, b, w) => { d = Math.min(d, segDist(x, y, a[0], a[1], b[0], b[1]) - w); };
+    seg([-3, -64], [-3, -24], 3.2); seg([4, -64], [4, -24], 2.6);
+    seg([-9, -24], [9, -24], 2.5); seg([-10, -22], [-8, 0], 2.2); seg([-3, -22], [-2, 2], 2.2); seg([3, -22], [3, 2], 2.2); seg([9, -22], [10, 0], 2.2);
+    seg([-10, -22], [-18, -6], 2.2); seg([-18, -6], [-24, 6], 1.8); seg([-24, 6], [-26, 16], 1.6);
+    seg([-8, 0], [-11, 22], 1.9); seg([-11, 22], [-12, 38], 1.6); seg([-12, 38], [-12, 48], 1.4);
+    seg([-2, 2], [-3, 28], 1.9); seg([-3, 28], [-3, 46], 1.6); seg([-3, 46], [-3, 58], 1.4);
+    seg([3, 2], [5, 26], 1.9); seg([5, 26], [6, 42], 1.6); seg([6, 42], [7, 54], 1.4);
+    seg([10, 0], [14, 18], 1.8); seg([14, 18], [16, 32], 1.5); seg([16, 32], [17, 40], 1.3);
+    if (d > 0.6) return 0;
+    const knuckle = [[-8, 0], [-2, 2], [3, 2], [10, 0], [-11, 22], [-3, 28], [5, 26], [14, 18], [-18, -6], [-24, 6]].some(([kx, ky]) => Math.hypot(x - kx, y - ky) < 3);
+    return [1 - smooth(-0.6, 0.6, d), knuckle ? 1 : 0.82];
+  }],
+  // A hoofprint (two toes) and a charging kodo in silhouette.
+  hoofprint: [32, 32, (u, v) => {
+    const a = Math.hypot((u + 0.32) / 0.3, (v + 0.05) / 0.62), b = Math.hypot((u - 0.32) / 0.3, (v + 0.05) / 0.62);
+    return Math.max(1 - smooth(0.85, 1, a), 1 - smooth(0.85, 1, b));
+  }],
+  kodo: [128, 64, (u, v) => {
+    const body = Math.hypot((u + 0.05) / 0.55, (v - 0.02) / 0.42) < 1;
+    const hump = Math.hypot((u + 0.2) / 0.35, (v - 0.3) / 0.3) < 1;
+    const head = Math.hypot((u - 0.58) / 0.26, (v + 0.05) / 0.28) < 1;
+    const horn = inTri(u, v, [0.6, 0.18], [0.72, 0.12], [0.5, 0.62]) || inTri(u, v, [0.72, 0.1], [0.8, 0.02], [0.92, 0.5]);
+    const legs = [[-0.42, 0.06], [-0.22, 0.06], [0.18, 0.06], [0.34, 0.06]].some(([lx], i) => Math.abs(u - lx - (i % 2 ? 0.04 : -0.04) * (v + 0.4)) < 0.07 && v < -0.2 && v > -0.95);
+    const tail = segDist(u, v, -0.58, 0.15, -0.75, -0.15) < 0.03;
+    if (!(body || hump || head || horn || legs || tail)) return 0;
+    if (horn) return [1, 0.9];
+    return [1, 0.22 + 0.1 * clamp(v + 0.3)];
+  }],
+  // A kobold's candle: a stub of wax with drips and a wick.
+  candle: [32, 64, (u, v) => {
+    const x = u * 16, y = v * 32;
+    if (Math.abs(x) < 1 && y > 10 && y < 15) return C(1, [0.15, 0.1, 0.05]);
+    const drip = (x > 4 && x < 7 && y < 8 && y > 8 - 14 * (0.5 + 0.5 * Math.sin(3))) || (x > -7 && x < -4.5 && y < 8 && y > -4);
+    const body = Math.abs(x) < 8 && y > -30 && y < 10 - 1.5 * Math.cos(x / 3);
+    if (Math.abs(x) < 9.5 && y > -30 && y < -26) return C(1, [0.5, 0.36, 0.2]);
+    if (body || (drip && Math.abs(x) < 9)) return C(1, mix([0.98, 0.94, 0.78], [0.78, 0.7, 0.5], (x + 8) / 16 * 0.8 + (drip ? -0.2 : 0)));
+    return 0;
+  }],
+  // A sheep: puffs of white wool, a dark face and legs.
+  sheep: [64, 64, (u, v) => {
+    const x = u * 32, y = v * 32;
+    const head = Math.hypot((x - 16) / 7, (y - 4) / 8.5) < 1;
+    const ear = Math.hypot((x - 11) / 4, (y - 11) / 2) < 1;
+    if (head || ear) return C(1, Math.hypot(x - 18, y - 6) < 1.6 ? [0.95, 0.95, 0.9] : [0.18, 0.16, 0.16]);
+    for (const [lx] of [[-11], [-4], [5], [11]]) if (Math.abs(x - lx) < 1.7 && y < -6 && y > -19) return C(1, [0.18, 0.16, 0.16]);
+    let best = Infinity;
+    for (const [cx, cy, r] of [[-12, 0, 9], [-3, 5, 10], [6, 2, 9], [-6, -6, 9], [4, -6, 8], [-13, -5, 6], [9, 7, 6]]) best = Math.min(best, Math.hypot(x - cx, y - cy) / r);
+    if (best < 1) return C(1, rgb([0.98, 0.97, 0.93], 0.82 + 0.18 * (1 - best)));
+    return 0;
+  }],
+  // A raptor mid-leap, claws forward.
+  raptor: [128, 64, (u, v) => {
+    const x = u * 64, y = v * 32;
+    const body = Math.hypot((x + 2) / 22, (y - 2) / 10) < 1;
+    const neck = segDist(x, y, 14, 6, 30, 16) < 5;
+    const head = Math.hypot((x - 36) / 10, (y - 17) / 5) < 1;
+    const jaw = inTri(x, y, [30, 14], [50, 12], [32, 10]);
+    const tail = segDist(x, y, -20, 4, -58, 14) < 4.5 - (x < -20 ? (-20 - x) * 0.1 : 0);
+    const leg = segDist(x, y, -6, -4, -14, -18) < 3.5 || segDist(x, y, -14, -18, -6, -28) < 2.2 || segDist(x, y, 4, -4, 12, -16) < 3.2 || segDist(x, y, 12, -16, 22, -22) < 2;
+    const arm = segDist(x, y, 14, 2, 24, -6) < 1.8;
+    const crest = inTri(x, y, [28, 20], [40, 21], [26, 28]);
+    if (!(body || neck || head || jaw || tail || leg || arm || crest)) return 0;
+    if (head && Math.hypot(x - 39, y - 18) < 1.4) return [1, 1];
+    return [1, crest ? 0.55 : 0.22 + 0.08 * clamp(y / 20)];
+  }],
+  // A wisp: a bright core trailing a curled tail, and a ring of five.
+  wisp: [64, 64, (u, v) => {
+    const r = Math.hypot(u - 0.25, v - 0.25);
+    const core = (1 - smooth(0.05, 0.32, r));
+    let tail = 0;
+    for (let i = 0; i < 24; i++) {
+      const t = i / 23, tx = 0.25 - t * 0.9 + 0.1 * Math.sin(t * 6), ty = 0.25 - t * 0.85 + 0.12 * Math.sin(t * 9);
+      tail = Math.max(tail, (1 - smooth(0.0, 0.12 * (1 - t) + 0.02, Math.hypot(u - tx, v - ty))) * (1 - t) * 0.7);
+    }
+    return clamp(Math.max(core, tail, (1 - smooth(0.1, 0.5, r)) * 0.4));
+  }],
+  // A torn page of an old adventure book, and the book itself.
+  page: [32, 64, (u, v) => {
+    const x = u * 16, y = v * 32;
+    const edge = 13 + 1.2 * Math.sin(y * 1.3);
+    if (Math.abs(x) > edge || y > 29 || y < -29 + 2 * Math.sin(x * 1.7)) return 0;
+    const line = y < 22 && y > -22 && ((y + 40) % 5) < 1.1 && Math.abs(x) < 10 - (((Math.floor((y + 40) / 5)) * 7) % 5);
+    return C(1, line ? [0.42, 0.32, 0.2] : mix([0.96, 0.9, 0.72], [0.82, 0.72, 0.5], Math.hypot(x, y) / 34));
+  }],
+  openbook: [128, 64, (u, v) => {
+    const x = u * 64, y = v * 32;
+    const cover = Math.abs(x) < 58 && y > -26 && y < 22 + 3 * Math.cos(x / 20);
+    if (!cover) return 0;
+    const pageArea = Math.abs(x) < 54 && Math.abs(x) > 2 && y > -22 && y < 18 + 6 * Math.cos(x / 28) * (Math.abs(x) / 54 - 1) * -1;
+    if (pageArea) {
+      const line = ((y + 40) % 5) < 1 && Math.abs(Math.abs(x) - 28) < 20 && y < 12 && y > -16;
+      return C(1, line ? [0.45, 0.35, 0.22] : mix([0.98, 0.93, 0.78], [0.8, 0.7, 0.5], 1 - Math.abs(x) / 54));
+    }
+    return C(1, Math.abs(x) < 2.5 ? [0.3, 0.15, 0.06] : [0.48, 0.22, 0.08]);
+  }],
+  // Midsummer: a bonfire's crossed logs, and a juggling torch.
+  bonfire: [128, 64, (u, v) => {
+    const x = u * 64, y = v * 32;
+    const logs = [[-48, -24, 30, 4], [48, -24, -30, 4], [-40, -28, 40, -14], [40, -28, -40, -14], [-20, -30, 12, 18], [20, -30, -12, 18]];
+    let hit = null;
+    logs.forEach(([ax, ay, bx, by], i) => {
+      const d = segDist(x, y, ax, ay, bx, by);
+      if (d < 5) hit = mix([0.42, 0.24, 0.1], [0.22, 0.12, 0.05], d / 5 + (i % 2) * 0.2);
+      if (d < 5 && Math.hypot(x - bx, y - by) < 5) hit = [0.95, 0.5, 0.12];
+    });
+    if (hit) return C(1, hit);
+    for (const [sx, sy] of [[-52, -30], [-36, -32], [-18, -31], [0, -32], [18, -31], [36, -32], [52, -30]]) {
+      if (Math.hypot((x - sx) / 9, (y - sy) / 4) < 1) return C(1, [0.5, 0.48, 0.45]);
+    }
+    return 0;
+  }],
+  torch: [32, 64, (u, v) => {
+    const x = u * 16, y = v * 32;
+    if (Math.abs(x) < 2.6 && y < 8 && y > -30) return C(1, rgb([0.48, 0.28, 0.12], x < 0 ? 1 : 0.75));
+    if (Math.abs(x) < 4.4 && y >= 8 && y < 14) return C(1, [0.35, 0.3, 0.28]);
+    const f = Math.hypot(x / (7 - (y - 14) * 0.22), (y - 18) / 13);
+    if (y > 12 && f < 1) return C(1, mix([1, 0.95, 0.6], [1, 0.4, 0.05], f));
+    return 0;
+  }],
+  // Lunar Festival lantern: a round red paper lantern, gold caps, a tassel.
+  lantern: [32, 64, (u, v) => {
+    const x = u * 16, y = v * 32;
+    if (Math.abs(x) < 6 && ((y > 14 && y < 18) || (y > -16 && y < -12))) return C(1, [1, 0.8, 0.25]);
+    if (Math.abs(x) < 0.8 && y > 18 && y < 30) return C(1, [0.4, 0.3, 0.15]);
+    if (Math.abs(x) < 1.4 && y < -16 && y > -30) return C(1, [1, 0.72, 0.15]);
+    const e = Math.hypot(x / 13, (y - 1) / 14);
+    if (e < 1) {
+      const rib = Math.abs((Math.asin(clamp(x / 13 / Math.sqrt(Math.max(0.01, 1 - ((y - 1) / 14) ** 2)), -1, 1)) * 3) % 1) < 0.08;
+      return C(1, mix([1, 0.72, 0.3], [0.62, 0.04, 0.04], e).map(c => c * (rib ? 0.8 : 1)));
+    }
+    return 0;
+  }],
+  // The Darkmoon high striker: a tall post marked off in steps, a bell on
+  // top; and the puck that rides up it.
+  highstriker: [32, 128, (u, v) => {
+    const x = u * 16, y = v * 64;
+    const bell = Math.hypot(x / 9, (y - 54) / 7) < 1 && y > 50;
+    if (bell || (Math.abs(x) < 10 && y > 48 && y <= 51)) return C(1, mix([1, 0.92, 0.5], [0.8, 0.52, 0.1], Math.hypot(x + 3, y - 57) / 10));
+    if (Math.abs(x) < 4 && y > -62 && y < 48) {
+      const step = Math.floor((y + 62) / 11) % 2 === 0;
+      return C(1, Math.abs(x) < 2.6 ? (step ? [0.95, 0.85, 0.3] : [0.55, 0.2, 0.6]) : [0.35, 0.2, 0.1]);
+    }
+    if (Math.abs(x) < 12 && y < -56 && y > -64) return C(1, [0.4, 0.24, 0.12]);
+    return 0;
+  }],
+  // A painted egg (zigzag bands, dots), its top half, and a chick.
+  egg: [64, 64, (u, v) => {
+    const x = u * 32, y = v * 32;
+    const e = Math.hypot(x / 20, (y + 2) / (y > -2 ? 28 : 24));
+    if (e > 1) return 0;
+    let c = [0.98, 0.72, 0.86];
+    const zz = 4 + 3 * Math.sin(x * 0.7);
+    if (Math.abs(y - zz) < 2.6) c = [0.55, 0.85, 1];
+    if (Math.abs(y + 10 - zz * 0.5) < 2) c = [1, 0.95, 0.55];
+    if ([[-8, 14], [6, 16], [-2, 20], [10, -14], [-10, -12]].some(([dx, dy]) => Math.hypot(x - dx, y - dy) < 2.2)) c = [0.6, 0.85, 0.45];
+    return C(1, rgb(c, 1 - 0.3 * clamp(Math.hypot(x - 8, y - 10) / 30)));
+  }],
+  eggtop: [64, 64, (u, v) => {
+    const r = TEXTURES.egg[2](u, v);
+    if (!r) return 0;
+    const y = v * 32, x = u * 32;
+    const crack = 6 + 3 * (Math.abs((x * 0.35) % 2 - 1));
+    return y > crack ? r : 0;
+  }],
+  eggbottom: [64, 64, (u, v) => {
+    const r = TEXTURES.egg[2](u, v);
+    if (!r) return 0;
+    const y = v * 32, x = u * 32;
+    const crack = 6 + 3 * (Math.abs((x * 0.35) % 2 - 1));
+    return y <= crack ? r : 0;
+  }],
+  chick: [32, 32, (u, v) => {
+    const x = u * 16, y = v * 16;
+    if (inTri(x, y, [7, 3], [7, -1], [12, 1])) return C(1, [1, 0.55, 0.1]);
+    if (Math.hypot(x - 3, y - 3) < 1.5) return C(1, [0.1, 0.08, 0.05]);
+    const head = Math.hypot(x - 1, y - 2) < 7, body = Math.hypot((x + 1) / 10, (y + 7) / 7) < 1;
+    const tuft = segDist(x, y, 0, 8, -1, 12) < 1 || segDist(x, y, 1, 8, 3, 12) < 1;
+    if (head || body || tuft) return C(1, rgb([1, 0.9, 0.35], 0.85 + 0.15 * clamp(y / 10 + 0.5)));
+    return 0;
+  }],
+  // A winged spirit, arms raised (the Spirit Healer's silhouette).
+  angel: [128, 128, (u, v) => {
+    const x = u * 64, y = v * 64;
+    const head = Math.hypot(x, y - 26) < 7;
+    const robe = pip(x, y, [[-6, 18], [6, 18], [16, -56], [-16, -56]]);
+    const arms = segDist(x, y, -5, 14, -18, 34) < 3 || segDist(x, y, 5, 14, 18, 34) < 3;
+    let wing = 0;
+    for (const s of [-1, 1]) {
+      for (let i = 0; i < 6; i++) {
+        const ax = s * 6, ay = 10, bx = s * (26 + i * 6), by = 44 - i * 14;
+        const d = segDist(x, y, ax, ay, bx, by);
+        wing = Math.max(wing, 1 - smooth(4 - i * 0.35, 6.5 - i * 0.4, d));
+      }
+    }
+    if (head || robe || arms) return [1, 1];
+    return wing > 0 ? [wing, 0.8] : 0;
+  }],
+  // One dragon scale: a pointed shield shape with a ridge.
+  dragonscale: [32, 32, (u, v) => {
+    const inside = Math.abs(u) < 0.8 * Math.sqrt(Math.max(0, (v + 1) / 1.9)) && v < 0.85 && v > -0.95 + Math.abs(u) * 0.2;
+    if (!inside) return 0;
+    return [1, Math.abs(u) < 0.08 ? 1 : 0.6 + 0.3 * (u < 0 ? 1 : 0)];
+  }],
+});
+
+// --- Spell effects (World skins) ---------------------------------------------------
+let seed5 = 31337;
+const rand5 = () => {
+  seed5 = (seed5 + 0x6D2B79F5) >>> 0;
+  let t = seed5;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+// Forked lightning: a jagged main channel bottom to top, with branches
+// that split off and thin out (pixel space, 64 x 256).
+const FORK = (() => {
+  const segs = [];
+  let x = 0, y = -124;
+  const main = [[x, y]];
+  for (let i = 1; i <= 14; i++) { x = Math.max(-22, Math.min(22, x + (rand5() - 0.5) * 22)); y = -124 + i * 248 / 14; main.push([x, y]); }
+  for (let i = 0; i < main.length - 1; i++) segs.push([...main[i], ...main[i + 1], 2.2]);
+  for (const at of [3, 6, 9, 11]) {
+    let [bx, by] = main[at];
+    const dir = rand5() < 0.5 ? -1 : 1;
+    for (let j = 0; j < 4; j++) {
+      const nx = Math.max(-30, Math.min(30, bx + dir * (4 + rand5() * 7))), ny = by + 10 + rand5() * 10;
+      segs.push([bx, by, nx, ny, 1.6 - j * 0.3]);
+      bx = nx; by = ny;
+    }
+  }
+  return segs;
+})();
+// A flame tongue in color: white-hot core, yellow, orange, red edges, the
+// edges torn by noise.
+function flameColor(u, v, seed) {
+  const t = (v + 1) / 2;                          // 0 at the base, 1 at the tip
+  const sway = (fbm(t * 3 + seed, seed * 2) - 0.5) * 0.7 * t;
+  const w = 0.62 * Math.pow(Math.max(0, 1 - t), 0.75) * (t < 0.12 ? Math.sqrt(t / 0.12) : 1);
+  const n = fbm(u * 3 + seed, t * 5 - seed, 3);
+  const heat = 1 - Math.abs(u - sway) / Math.max(0.01, w) - (n - 0.5) * 0.6;
+  if (heat <= 0) return 0;
+  const a = clamp(heat * 3);
+  const c = heat > 0.7 ? mix([1, 0.85, 0.4], [1, 1, 0.9], (heat - 0.7) / 0.3)
+    : heat > 0.35 ? mix([1, 0.45, 0.06], [1, 0.85, 0.4], (heat - 0.35) / 0.35)
+    : mix([0.7, 0.08, 0.02], [1, 0.45, 0.06], heat / 0.35);
+  return C(a, c);
+}
+
+Object.assign(TEXTURES, {
+  forkbolt: [64, 256, (u, v) => {
+    const x = u * 32, y = v * 128;
+    let core = 0, glow = 0;
+    for (const [ax, ay, bx, by, w] of FORK) {
+      const d = segDist(x, y, ax, ay, bx, by);
+      core = Math.max(core, 1 - smooth(w * 0.5, w, d));
+      glow = Math.max(glow, Math.exp(-d / 6) * (w / 2.2));
+    }
+    return [clamp(Math.max(core, glow * 0.55)), core > 0.5 ? 1 : 0.75];
+  }],
+  flamecolor: [64, 128, (u, v) => flameColor(u, v, 1.3), 3],
+  flamecolor2: [64, 128, (u, v) => flameColor(u, v, 4.7), 3],
+  // A radiant holy star: four long rays, four short, a soft heart.
+  holystar: [128, 128, (u, v) => {
+    const [r, a] = polar(u, v);
+    const long = Math.pow(Math.abs(Math.cos(a * 2)), 60) * (1 - smooth(0.2, 1, r));
+    const short = Math.pow(Math.abs(Math.cos(a * 2 + Math.PI / 2)), 40) * (1 - smooth(0.1, 0.6, r)) * 0.8;
+    const core = 1 - smooth(0, 0.28, r);
+    const halo = (1 - smooth(0.1, 0.75, r)) * 0.35;
+    return clamp(Math.max(long, short, core, halo));
+  }],
+  // Consecrated ground: a ring of runes seen at an angle, a faint fill.
+  consecrate: [128, 64, (u, v) => {
+    const r = Math.hypot(u, v), a = Math.atan2(v, u);
+    if (r > 0.98) return 0;
+    let al = (1 - smooth(0.6, 0.98, r)) * 0.22;
+    al = Math.max(al, stroke(Math.abs(r - 0.92), 0.035), stroke(Math.abs(r - 0.7), 0.02));
+    if (r > 0.74 && r < 0.88) {
+      const k = ((a / (Math.PI * 2)) * 18 % 1 + 1) % 1, m = (r - 0.74) / 0.14;
+      if (Math.abs(k - 0.5) < 0.06 || (Math.abs(m - 0.5) < 0.12 && Math.abs(k - 0.5) < 0.25) || (Math.abs(k - 0.3 - m * 0.4) < 0.05)) al = 1;
+    }
+    // Eight spokes of light from a small inner ring.
+    const sp = ((a / (Math.PI * 2)) * 8 % 1 + 1) % 1;
+    if (r > 0.2 && r < 0.68) al = Math.max(al, stroke(Math.abs(sp - 0.5) * r * 0.8, 0.012) * 0.75);
+    al = Math.max(al, stroke(Math.abs(r - 0.2), 0.02) * 0.8);
+    return al;
+  }],
+  // A dust shockwave on the ground, seen at an angle.
+  groundring: [128, 64, (u, v) => {
+    const r = Math.hypot(u, v);
+    const ring = Math.exp(-Math.pow((r - 0.8) / 0.11, 2));
+    return clamp(ring * (0.55 + 0.6 * fbm(u * 4, v * 4)) * (1 - smooth(0.92, 1, r)));
+  }],
+  // A frost-nova ring of jagged shards pointing outward.
+  novaring: [128, 128, (u, v) => {
+    const [r, a] = polar(u, v);
+    const n = 18, k = ((a / (Math.PI * 2)) * n % 1 + 1) % 1;
+    const len = 0.78 + 0.16 * hash2(Math.floor((a / (Math.PI * 2)) * n + 50), 3);
+    const half = 0.5 * (1 - (r - 0.62) / (len - 0.62));
+    if (r > 0.62 && r < len && Math.abs(k - 0.5) < half * 0.9) return [1, Math.abs(k - 0.5) < 0.08 ? 1 : 0.7];
+    return r > 0.55 && r < 0.66 ? [0.7, 0.85] : 0;
+  }],
+  // Billowing smoke: a soft blob, broken up.
+  smoke: [64, 64, (u, v) => {
+    const r = Math.hypot(u, v);
+    const n = fbm(u * 2.5 + 3, v * 2.5 + 7);
+    const a = (1 - smooth(0.25, 0.95, r + (n - 0.5) * 0.5)) * (0.55 + 0.45 * n);
+    return a > 0 ? [a, 0.75 + 0.25 * n] : 0;
+  }],
+  // A rising spiral of light (a resurrection), brighter in front.
+  rezspiral: [64, 128, (u, v) => {
+    let al = 0;
+    for (let i = 0; i < 120; i++) {
+      const t = i / 119, ph = t * Math.PI * 4;
+      const x = 0.7 * Math.sin(ph) * (1 - 0.3 * t), y = -0.95 + t * 1.9;
+      const front = Math.cos(ph) > 0 ? 1 : 0.25;
+      const d = Math.hypot(u - x, (v - y) * 0.5);
+      al = Math.max(al, (1 - smooth(0.015, 0.05, d)) * front * (1 - t * 0.5));
+    }
+    return clamp(al);
+  }],
+  // A swirling shadow orb: a dark heart, curling arms, a bright rim.
+  shadoworb: [64, 64, (u, v) => {
+    const [r, a] = polar(u, v);
+    if (r > 0.95) return 0;
+    const arms = Math.pow(0.5 + 0.5 * Math.sin(a * 3 - r * 10), 2);
+    const rim = stroke(Math.abs(r - 0.82), 0.1);
+    return [1 - smooth(0.85, 0.95, r), Math.max(0.12, arms * 0.55 * smooth(0.15, 0.6, r), rim)];
+  }],
+  // A tumbling rock.
+  rock: [32, 32, (u, v) => {
+    const [r, a] = polar(u, v);
+    const edge = 0.72 + 0.16 * Math.sin(a * 3 + 1) + 0.08 * Math.sin(a * 7);
+    if (r > edge) return 0;
+    const lit = clamp(0.5 + (-u + v) * 0.4);
+    return [1, 0.35 + 0.5 * lit * (0.8 + 0.4 * fbm(u * 3, v * 3))];
+  }],
+  // An arcane missile: a bright head.
+  arcorb: [32, 32, (u, v) => {
+    const r = Math.hypot(u, v);
+    return clamp(Math.max(1 - smooth(0.1, 0.35, r), (1 - smooth(0.2, 1, r)) * 0.6));
   }],
 });
 

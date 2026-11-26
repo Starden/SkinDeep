@@ -23,7 +23,9 @@ LootSkins.lua
 FunSkins.lua
 PopSkins.lua
 AnimeSkins.lua
+WorldSkins.lua
 RaceSkins.lua
+Effects.lua
 Core.lua
 Feats.lua
 Rotation.lua

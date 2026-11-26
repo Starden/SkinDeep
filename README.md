@@ -4,10 +4,11 @@
 
 SkinDeep replaces the numbers that pop over your enemies with animated, themed
 "damage skins": custom fonts, motion, colors, crit bursts and particles. It ships
-with 163 skins, including one for every class, talent tree and race, eleven faction
-skins, nineteen PvP skins (up to Grand Marshal and High Warlord), seasonal skins,
-twelve pop-culture skins, twenty-eight anime-inspired skins, and a slot-machine
-skin that rolls every hit and hits the JACKPOT on crits.
+with 183 skins, including one for every class, talent tree and race, eleven faction
+skins, nineteen PvP skins (up to Grand Marshal and High Warlord), twenty skins of
+Azeroth itself (the legendary weapons among them), seasonal skins, twelve
+pop-culture skins, twenty-eight anime-inspired skins, and a slot-machine skin
+that rolls every hit and hits the JACKPOT on crits.
 
 Type `/skindeep` to open the skin picker with a live preview.
 
@@ -87,6 +88,18 @@ cartoon that ends in an iris-out), Toy Box, Island Alert (a notification pill
 that stretches open), Frosted Glass, Edge Glow, Fast Charge, Read Receipt (typing
 dots, then a blue bubble: Delivered) and Ring Closer. They borrow a look, never a
 studio's or brand's names, logos or characters.
+
+**World skins** (the World tab): twenty skins of Azeroth, each earned in the
+world.
+- **Legendaries:** Windseeker (Thunderfury), Hand of Ragnaros (Sulfuras),
+  Ashbringer and Atiesh. Each weapon is drawn from the game's own model, and its
+  crits show the item's real icon and name in legendary orange.
+- **Raids and dungeons:** Corrupted Blood, Chromatic, Emerald Dream, Titan Disc
+  and Bonecraft, earned by defeating the boss behind each.
+- **Creatures:** Kodo Stampede, No Take Candle, Polymorph (your crit turns into
+  a sheep), Raptor Pack, Wisp and Green Hills.
+- **Holidays and the Faire:** Midsummer Blaze, Lunar Lanterns, Egg Hunt, High
+  Striker and Spirit Healer.
 
 **Anime skins** (the Anime tab): twenty-eight original takes on the genre's
 famous looks, each earned by a secret feat. Most Wanted (a wanted poster with

@@ -284,6 +284,9 @@ local sounds = {}
 function PlaySound(id, channel) sounds[#sounds + 1] = id end
 SOUNDKIT = { IG_MAINMENU_OPTION_CHECKBOX_ON = 856, LOOT_WINDOW_COIN_SOUND = 120 }
 function Widget:SetClipsChildren(v) end
+function Widget:SetScrollChild(c) self.scrollChild = c end
+function Widget:SetVerticalScroll(v) self.vscroll = v end
+function Widget:EnableMouseWheel(v) end
 function Widget:SetShadowColor() end
 LOCALIZED_CLASS_NAMES_MALE = { WARRIOR = "Warrior", MAGE = "Mage" }
 local chatLog = {}
@@ -314,7 +317,7 @@ end
 
 -- Load the addon like the client: each file gets (addonName, ns).
 local ns = {}
-for _, file in ipairs({ "Skins.lua", "StyleSkins.lua", "ClassSkins.lua", "SpecSkins.lua", "FactionSkins.lua", "PvPSkins.lua", "ProfSkins.lua", "LootSkins.lua", "FunSkins.lua", "PopSkins.lua", "AnimeSkins.lua", "RaceSkins.lua", "Core.lua", "Feats.lua", "Rotation.lua", "Engine.lua", "Jackpot.lua", "Options.lua", "Welcome.lua", "Share.lua" }) do
+for _, file in ipairs({ "Skins.lua", "StyleSkins.lua", "ClassSkins.lua", "SpecSkins.lua", "FactionSkins.lua", "PvPSkins.lua", "ProfSkins.lua", "LootSkins.lua", "FunSkins.lua", "PopSkins.lua", "AnimeSkins.lua", "WorldSkins.lua", "RaceSkins.lua", "Effects.lua", "Core.lua", "Feats.lua", "Rotation.lua", "Engine.lua", "Jackpot.lua", "Options.lua", "Welcome.lua", "Share.lua" }) do
   local chunk, err = loadfile(ADDON_DIR .. "/" .. file)
   if not chunk then error(err) end
   chunk("SkinDeep", ns)
@@ -347,10 +350,13 @@ check(nAnime == 28, "28 anime skins, each with its feat (" .. nAnime .. ")")
 local nPop = 0
 for _, id in ipairs(ns.SkinOrder) do if ns.Skins[id].group == "pop" then nPop = nPop + 1; if not ns.Feats.FeatForSkin(id) then unpaired[#unpaired + 1] = id end end end
 check(nPop == 12, "12 pop skins, each with its feat (" .. nPop .. ")")
+local nWorld = 0
+for _, id in ipairs(ns.SkinOrder) do if ns.Skins[id].group == "world" then nWorld = nWorld + 1; if not ns.Feats.FeatForSkin(id) then unpaired[#unpaired + 1] = id end end end
+check(nWorld == 20, "20 world skins, each with its feat (" .. nWorld .. ")")
 local nRace = 0
 for _, id in ipairs(ns.SkinOrder) do if ns.Skins[id].group == "race" then nRace = nRace + 1; if not ns.Feats.FeatForSkin(id) then unpaired[#unpaired + 1] = id end end end
 check(nRace == 8, "8 race skins, each with its feat (" .. nRace .. ")")
-check(#ns.SkinOrder == 163 and nClass == 37 and nFaction == 11 and nPvP == 19, "163 skins: 37 class (9 + 28 spec), 8 race, 11 faction, 19 PvP, 12 profession, 5 loot, 15 fun, 12 pop, 28 anime (" .. #ns.SkinOrder .. ", " .. nClass .. ", " .. nFaction .. ", " .. nPvP .. ")")
+check(#ns.SkinOrder == 183 and nClass == 37 and nFaction == 11 and nPvP == 19, "183 skins: 37 class (9 + 28 spec), 8 race, 11 faction, 19 PvP, 12 profession, 5 loot, 15 fun, 12 pop, 28 anime, 20 world (" .. #ns.SkinOrder .. ", " .. nClass .. ", " .. nFaction .. ", " .. nPvP .. ")")
 local styleUnpaired = {}
 for _, id in ipairs(ns.SkinOrder) do local sk = ns.Skins[id]; if not sk.group and id ~= "classic" and not ns.Feats.FeatForSkin(id) then styleUnpaired[#styleUnpaired + 1] = id end end
 check(#styleUnpaired == 0, "every style skin but Classic+ has a feat" .. (#styleUnpaired > 0 and (": missing " .. table.concat(styleUnpaired, ", ")) or ""))
@@ -506,6 +512,29 @@ for _, f in ipairs(frames) do
   local p = f.parent; while p and p ~= win do p = p.parent end
   if p == win and f.kind == "Button" and f.scripts.OnClick then f.scripts.OnClick(f, "LeftButton") end
 end
+-- Long groups scroll: the mouse wheel moves the list, within its length.
+do
+  local scroll
+  for _, f in ipairs(frames) do if f.kind == "ScrollFrame" and f.scrollChild and f.scripts.OnMouseWheel then scroll = f end end
+  check(scroll ~= nil, "the skin list is a scroll frame")
+  local function tab(label)
+    for _, f in ipairs(frames) do
+      if f.kind == "FontString" and f.text == label and f.parent and f.parent.kind == "Button" and f.parent.group and f.parent.parent == scroll.parent then return f.parent end
+    end
+  end
+  local anime, world = tab("Anime"), tab("World")
+  check(anime ~= nil and world ~= nil, "the Anime and World tabs are there")
+  anime.scripts.OnClick(anime, "LeftButton")
+  for _ = 1, 20 do scroll.scripts.OnMouseWheel(scroll, -1) end
+  local nAnimeList = 0
+  for _, id in ipairs(ns.SkinOrder) do if ns.Skins[id].group == "anime" then nAnimeList = nAnimeList + 1 end end
+  check(scroll.vscroll == nAnimeList * 24 - 482, "the Anime list scrolls to its last skin and no further (" .. tostring(scroll.vscroll) .. ")")
+  for _ = 1, 20 do scroll.scripts.OnMouseWheel(scroll, 1) end
+  check(scroll.vscroll == 0, "and back to the top")
+  for _ = 1, 3 do scroll.scripts.OnMouseWheel(scroll, -1) end
+  world.scripts.OnClick(world, "LeftButton")
+  check(scroll.vscroll == 0, "a new tab starts at the top, and a short list doesn't scroll")
+end
 ns.ToggleWindow()
 check(not win.shown, "window closes")
 -- That clicked the Rotation page's buttons too: back to no rotation.
@@ -635,7 +664,7 @@ for i = 1, 250 do
 end
 check(SkinDeepDB.counters.undead == 250, "Undead kills are counted (250)")
 check(not F.IsDone(F.ByID.scourge), "a feat whose skin is not released does not complete")
-check(#F.Visible() == 184, "unreleased feats are not listed (184 of 186 shown while two skins are held back)")
+check(#F.Visible() == 204, "unreleased feats are not listed (204 of 206 shown while two skins are held back)")
 local alive = { name = "Defias Pillager", ctype = "Humanoid" }
 units.nameplate2 = alive
 fire("UNIT_COMBAT", "nameplate2", "WOUND", "", 30, 1)
@@ -1441,6 +1470,81 @@ do
   fire("PLAYER_LOGIN")
   check(SkinDeepDB.counters.raceScourge == 30, "a low character doesn't lower another race's best")
   playerRace, playerLevel = saveRace, saveLevel
+  run(3)
+end
+
+print("== world skins")
+do
+  local F = ns.Feats
+  local worldIds = {}
+  for _, id in ipairs(ns.SkinOrder) do if ns.Skins[id].group == "world" then worldIds[#worldIds + 1] = id; SkinDeepDB.feats[id] = nil end end
+  for _, c in ipairs({ "kodos", "kobolds", "critters", "raptors", "elfDeaths", "stvQuests", "hitsJun", "hitsJan", "hitsMar", "claps", "deaths" }) do
+    SkinDeepDB.counters[c] = nil
+  end
+  SkinDeepDB.bosses = {}
+  check(F.DisplayText(F.ByID.handofragnaros) == "Defeat Ragnaros", "world feats aren't secret")
+  -- Bosses, by name (Hakkar also earns Hexbound).
+  for _, b in ipairs({ "Garr", "Ragnaros", "Highlord Mograine", "Kel'Thuzad", "Hakkar", "Chromaggus", "Taerar", "Archaedas", "Darkmaster Gandling" }) do
+    F.BossKilled(b)
+  end
+  check(F.IsDone(F.ByID.windseeker) and F.IsDone(F.ByID.handofragnaros) and F.IsDone(F.ByID.ashbringer) and F.IsDone(F.ByID.atiesh)
+        and F.IsDone(F.ByID.corruptedblood) and F.IsDone(F.ByID.chromatic) and F.IsDone(F.ByID.emeralddream)
+        and F.IsDone(F.ByID.titandisc) and F.IsDone(F.ByID.bonecraft), "each boss earns its world skin")
+  -- Kills by name and type.
+  for _ = 1, 49 do F.Killed("Kodo Bull", "Beast") end
+  F.Killed("Plainstrider", "Beast")
+  check(not F.IsDone(F.ByID.kodostampede) and SkinDeepDB.counters.kodos == 49, "a plainstrider isn't a kodo (49)")
+  F.Killed("Aged Kodo", "Beast")
+  for _ = 1, 100 do F.Killed("Kobold Vermin", "Humanoid") end
+  for _ = 1, 25 do F.Killed("Rabbit", "Critter") end
+  for _ = 1, 100 do F.Killed("Stranglethorn Raptor", "Beast") end
+  check(F.IsDone(F.ByID.kodostampede) and F.IsDone(F.ByID.notakecandle) and F.IsDone(F.ByID.polymorph) and F.IsDone(F.ByID.raptorpack),
+        "kodos, kobolds, critters and raptors earn their skins")
+  -- Deaths: Wisp counts a Night Elf's only.
+  local saveRace = playerRace
+  playerRace = "Human"
+  for _ = 1, 50 do fire("PLAYER_DEAD"); fire("PLAYER_ALIVE") end
+  check((SkinDeepDB.counters.elfDeaths or 0) == 0, "a Human's deaths aren't a wisp's")
+  playerRace = "NightElf"
+  for _ = 1, 25 do fire("PLAYER_DEAD"); fire("PLAYER_ALIVE") end
+  playerRace = saveRace
+  check(F.IsDone(F.ByID.wisp), "25 Night Elf deaths earn Wisp")
+  for _ = 1, 25 do fire("PLAYER_DEAD"); fire("PLAYER_ALIVE") end
+  check(F.IsDone(F.ByID.spirithealer), "100 deaths earn Spirit Healer")
+  -- Quests in Stranglethorn.
+  zoneName = "Elwynn Forest"
+  fire("QUEST_TURNED_IN", 1, 0, 0)
+  check((SkinDeepDB.counters.stvQuests or 0) == 0, "a quest in Elwynn isn't in Stranglethorn")
+  zoneName = "Stranglethorn Vale"
+  for _ = 1, 25 do fire("QUEST_TURNED_IN", 1, 0, 0) end
+  zoneName = "Elwynn Forest"
+  check(F.IsDone(F.ByID.greenhills), "25 Stranglethorn quests earn Green Hills")
+  -- Holidays: hits in June, January and March.
+  local me = UnitName("player")
+  for _, m in ipairs({ 6, 1, 3 }) do
+    monthNow = m
+    SkinDeepDB.counters[({ [6] = "hitsJun", [1] = "hitsJan", [3] = "hitsMar" })[m]] = 499
+    fire("UNIT_COMBAT", "target", "WOUND", "", 50, 1)
+  end
+  monthNow = 6
+  check(F.IsDone(F.ByID.midsummerblaze) and F.IsDone(F.ByID.lunarlanterns) and F.IsDone(F.ByID.egghunt),
+        "hits in June, January and March earn Midsummer Blaze, Lunar Lanterns and Egg Hunt")
+  for i = 1, 100 do fire("CHAT_MSG_TEXT_EMOTE", i % 2 == 0 and "You clap excitedly." or "You applaud. Bravo!", me) end
+  check(F.IsDone(F.ByID.highstriker), "/clap and /applaud earn High Striker")
+  local missing = {}
+  for _, id in ipairs(worldIds) do if not F.IsDone(F.ByID[id]) then missing[#missing + 1] = id end end
+  check(#missing == 0, "every world feat can be earned" .. (#missing > 0 and (": missing " .. table.concat(missing, ", ")) or ""))
+  run(3)
+  -- A crit shrunk to nothing by critScaleKeys hides its text (no stray dot).
+  ns.Engine.Spawn({ kind = "dmg", side = "out", amount = 999, crit = true, school = 1, skin = "egghunt", dir = 1 })
+  run(0.3)
+  local dot = false
+  for _, w in ipairs(frames) do if w.kind == "FontString" and w.text == "999" and w.shown and (w.alpha or 1) > 0 then dot = true end end
+  check(not dot, "a vanished crit leaves no dot")
+  run(0.6)
+  local back = false
+  for _, w in ipairs(frames) do if w.kind == "FontString" and w.text == "999" and w.shown and (w.alpha or 1) > 0 then back = true end end
+  check(back, "and shows again when it pops out")
   run(3)
 end
 
