@@ -11,7 +11,7 @@ local Engine = {}
 ns.Engine = Engine
 
 local TEX = "Interface\\AddOns\\SkinDeep\\Media\\Textures\\"
-local MAX_POPS, MAX_LAYERS, MAX_PARTS = 40, 5, 24
+local MAX_POPS, MAX_LAYERS, MAX_PARTS = 40, 5, 36
 local FADE_IN = 0.05
 local POP_TIME = 0.12
 local FLASH_TIME = 0.12   -- a crit's number flashes toward white as it lands
@@ -560,6 +560,8 @@ function Engine.Spawn(e)
         p.text:ClearAllPoints()
         p.text:SetPoint("CENTER", p.inner, "CENTER", 0, 0)
         writeText(p.text, e, skin)
+        p.text:SetAlpha(1)
+        p.textHidden = false
         local layers = skin.layers or EMPTY
         for i = 1, MAX_LAYERS do
             local fs, L = p.layers[i], layers[i]
@@ -571,6 +573,7 @@ function Engine.Spawn(e)
                 fs:ClearAllPoints()
                 fs:SetPoint("CENTER", p.inner, "CENTER", L.trail and (-p.dir * L.x) or L.x, L.y)
                 writeText(fs, e, skin)
+                fs:SetAlpha(1)
                 fs:Show()
             else
                 fs:Hide()
@@ -632,7 +635,8 @@ function Engine.Spawn(e)
         end
         local slot = 1
         if skin.particles then slot = spawnParticles(p, skin.particles, crit, color, slot) end
-        if skin.particles2 then spawnParticles(p, skin.particles2, crit, color, slot) end
+        if skin.particles2 then slot = spawnParticles(p, skin.particles2, crit, color, slot) end
+        if skin.particles3 then spawnParticles(p, skin.particles3, crit, color, slot) end
     end
 
     -- Crit title: a banner word above the number ("GRAND MARSHAL").
@@ -875,6 +879,13 @@ function Engine.Step(p, dt)
         end
         s = s * k
         p.keyScale = k
+    end
+    local tiny = p.keyScale ~= nil and p.keyScale < 0.06
+    if tiny ~= p.textHidden then
+        p.textHidden = tiny
+        local a = tiny and 0 or 1
+        p.text:SetAlpha(a)
+        for _, fs in ipairs(p.layers) do fs:SetAlpha(a) end
     end
     -- War drum: a few hard pulses in a row on crits.
     if p.drum then

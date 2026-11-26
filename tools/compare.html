@@ -32,8 +32,8 @@ function tinted(G, ti, r, g, b) {
   const c = document.createElement('canvas'); c.width = t.w; c.height = t.h;
   const cx = c.getContext('2d'); const img = cx.createImageData(t.w, t.h);
   for (let i = 0; i < t.bytes.length; i += 4) {
-    const l = t.bytes[i] / 255;
-    img.data[i] = l * r * 255; img.data[i + 1] = l * g * 255; img.data[i + 2] = l * b * 255; img.data[i + 3] = t.bytes[i + 3];
+    // TGA pixels are BGRA: grey art has equal channels, color art (the legendary weapons) does not.
+    img.data[i] = t.bytes[i + 2] * r; img.data[i + 1] = t.bytes[i + 1] * g; img.data[i + 2] = t.bytes[i] * b; img.data[i + 3] = t.bytes[i + 3];
   }
   cx.putImageData(img, 0, 0); G.tint.set(key, c); return c;
 }

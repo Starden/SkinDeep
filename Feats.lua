@@ -304,6 +304,36 @@ for _, f in ipairs(POP) do
     LIST[#LIST + 1] = f
 end
 
+-- World skins (WorldSkins.lua): Azeroth's legends, bosses, beasts and
+-- holidays. Not secret: the feat is the adventure.
+local WORLD = {
+    { id = "windseeker",     boss = { "Baron Geddon", "Garr" },                  text = "Defeat Baron Geddon or Garr (the Bindings of the Windseeker)" },
+    { id = "handofragnaros", boss = { "Ragnaros" },                              text = "Defeat Ragnaros" },
+    { id = "ashbringer",     boss = { "Highlord Mograine", "Scarlet Commander Mograine" }, text = "Defeat Mograine in the Scarlet Monastery" },
+    { id = "atiesh",         boss = { "Kel'Thuzad" },                            text = "Defeat Kel'Thuzad" },
+    { id = "corruptedblood", boss = { "Hakkar" },                                text = "Defeat Hakkar" },
+    { id = "chromatic",      boss = { "Nefarian", "Chromaggus" },                text = "Defeat Chromaggus or Nefarian" },
+    { id = "emeralddream",   boss = { "Mutanus the Devourer", "Ysondre", "Lethon", "Emeriss", "Taerar" },
+      text = "Defeat Mutanus the Devourer or a dragon of nightmare" },
+    { id = "titandisc",      boss = { "Archaedas" },                             text = "Defeat Archaedas in Uldaman" },
+    { id = "bonecraft",      boss = { "Darkmaster Gandling" },                   text = "Defeat Darkmaster Gandling" },
+    { id = "kodostampede",   counter = "kodos",       goal = 50,  text = "Slay 50 kodos" },
+    { id = "notakecandle",   counter = "kobolds",     goal = 100, text = "Slay 100 kobolds" },
+    { id = "polymorph",      counter = "critters",    goal = 25,  text = "Slay 25 critters" },
+    { id = "raptorpack",     counter = "raptors",     goal = 100, text = "Slay 100 raptors" },
+    { id = "wisp",           counter = "elfDeaths",   goal = 25,  text = "Die 25 times as a Night Elf" },
+    { id = "greenhills",     counter = "stvQuests",   goal = 25,  text = "Complete 25 quests in Stranglethorn Vale" },
+    { id = "midsummerblaze", counter = "hitsJun",     goal = 500, text = "Land 500 hits during June" },
+    { id = "lunarlanterns",  counter = "hitsJan",     goal = 500, text = "Land 500 hits during January" },
+    { id = "highstriker",    counter = "claps",       goal = 100, text = "/clap or /applaud 100 times" },
+    { id = "egghunt",        counter = "hitsMar",     goal = 500, text = "Land 500 hits during March" },
+    { id = "spirithealer",   counter = "deaths",      goal = 100, text = "Die 100 times" },
+}
+for _, f in ipairs(WORLD) do
+    f.skin = f.id
+    LIST[#LIST + 1] = f
+end
+
 -- Loot skins (LootSkins.lua): loot an item of that quality or better
 -- (2 Uncommon, 3 Rare, 4 Epic, 5 Legendary), or wear a whole item set.
 local LOOT_FEATS = {
@@ -373,10 +403,10 @@ local NAME_PREFIX = {
     ["Bloodsail "] = "bloodsail", ["Twilight "] = "twilight",
 }
 local NAME_CONTAINS = {
-    Murloc = "murloc", Savannah = "savannah", Gurubashi = "gurubashi", Hakkari = "gurubashi", Silithid = "silithid", Qiraji = "silithid",
+    Murloc = "murloc", Savannah = "savannah", Kodo = "kodos", Kobold = "kobolds", Raptor = "raptors", Gurubashi = "gurubashi", Hakkari = "gurubashi", Silithid = "silithid", Qiraji = "silithid",
 }
 local CREATURE_TYPE = { Undead = "undead", Dragonkin = "dragonkin", Mechanical = "mechanical", Elemental = "elemental",
-                        Giant = "giant", Demon = "demon" }
+                        Giant = "giant", Demon = "demon", Critter = "critters" }
 
 ---------------------------------------------------------------------------
 -- State
@@ -625,7 +655,7 @@ end
 ---------------------------------------------------------------------------
 local CRIT = { CRITICAL = true, CRUSHING = true }
 local SCHOOL_COUNTER = { [4] = "fire", [16] = "frost", [64] = "arcane" }
-local MONTH_COUNTER = { [10] = "hitsOct", [12] = "hitsDec", [2] = "hitsFeb", [4] = "hitsApr" }
+local MONTH_COUNTER = { [10] = "hitsOct", [12] = "hitsDec", [2] = "hitsFeb", [4] = "hitsApr", [6] = "hitsJun", [1] = "hitsJan", [3] = "hitsMar" }
 
 -- The real-world month (local clock), for the seasonal skins.
 function Feats.Month()
@@ -1385,6 +1415,9 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d, e)
     elseif event == "PLAYER_DEAD" then
         bump("deaths")
         wasDead = true
+        -- Wisp: a Night Elf dies as a wisp.
+        local okRace, _, race = pcall(UnitRace, "player")
+        if okRace and ns.Plain(race, "string") == "NightElf" then bump("elfDeaths") end
     elseif event == "PLAYER_ALIVE" or event == "PLAYER_UNGHOST" then
         -- Isekai'd: back in your body (releasing to a ghost isn't it).
         if wasDead and ns.SafeBool(rawget(_G, "UnitIsDeadOrGhost"), "player") == false then
@@ -1435,6 +1468,8 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d, e)
                 bump("cries")
             elseif lower:find("%f[%a]anger") then
                 bump("angers")
+            elseif lower:find("%f[%a]clap") or lower:find("applaud", 1, true) then
+                bump("claps")
             end
         end
     elseif event == "CHAT_MSG_LOOT" then
@@ -1452,6 +1487,8 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d, e)
         bump("letters")
     elseif event == "QUEST_TURNED_IN" then
         bump("quests")
+        local zone = ns.Plain(call(rawget(_G, "GetRealZoneText")), "string")
+        if zone == "Stranglethorn Vale" then bump("stvQuests") end
     elseif event == "PLAYER_EQUIPMENT_CHANGED" then
         -- Midnight Chime: boots going on (slot 8, feet), not coming off.
         if ns.Plain(a, "number") == 8 and ns.Plain(call(rawget(_G, "GetInventoryItemLink"), "player", 8), "string") then bump("shoes") end

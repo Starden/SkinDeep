@@ -34,8 +34,11 @@ lua.lua_getglobal(L, to_luastring('CAPTURE_JSON'));
 const data = JSON.parse(lua.lua_tojsstring(L, -1));
 
 // Textures: TGA (uncompressed 32-bit, bottom-up) to base64 RGBA, top-down.
-// The game's faction crests aren't on disk: the skins' own fallbacks stand in.
-const STAND_IN = { 'alliance-logo': 'Media\\Textures\\shield.tga', 'horde-logo': 'Media\\Textures\\spikes.tga' };
+// The game's faction crests and item icons aren't on disk: stand-ins take their place.
+const STAND_IN = { 'alliance-logo': 'Media\\Textures\\shield.tga', 'horde-logo': 'Media\\Textures\\spikes.tga',
+  // The legendary weapons' item icons: SkinDeep's drawings of them.
+  'inv_sword_39': 'Media\\Textures\\icon_thunderfury.tga', 'inv_hammer_unique_sulfuras': 'Media\\Textures\\icon_sulfuras.tga',
+  'inv_sword_48': 'Media\\Textures\\icon_ashbringer.tga', 'inv_staff_medivh': 'Media\\Textures\\icon_atiesh.tga' };
 const textures = data.textures.map(p => {
   const key = Object.keys(STAND_IN).find(k => p.toLowerCase().endsWith(k));
   const m = (key ? STAND_IN[key] : p).match(/Media\\Textures\\(.+)\.tga$/i);
@@ -47,7 +50,7 @@ const textures = data.textures.map(p => {
     const src = 18 + (h - 1 - y) * w * 4;
     buf.copy(out, y * w * 4, src, src + w * 4);
   }
-  // TGA stores BGRA; the generator writes grey, so channel order doesn't matter.
+  // TGA stores BGRA (gallery.html swaps it back when it tints).
   return { path: p, name: m[1], w, h, rgba: out.toString('base64') };
 });
 // Fonts: SkinDeep's own embed; the game's map to look-alikes.

@@ -24,11 +24,14 @@ local Feats = ns.Feats
 -- group (spec variants live inside Classes on the Skins tab).
 -- The skin tabs sit in two rows of five above the list.
 local GROUPS = { { "style", "Styles" }, { "class", "Class" }, { "race", "Race" }, { "faction", "Faction" }, { "pvp", "PvP" },
-                 { "prof", "Trades" }, { "loot", "Loot" }, { "fun", "Fun" }, { "pop", "Pop" }, { "anime", "Anime" } }
-local FEAT_GROUPS = { { "style", "Styles" }, { "class", "Classes" }, { "spec", "Specs" }, { "race", "Races" }, { "faction", "Factions" }, { "pvp", "PvP" },
-                      { "prof", "Trades" }, { "loot", "Loot" }, { "fun", "Secrets" }, { "pop", "Pop" }, { "anime", "Anime" } }
+                 { "prof", "Trades" }, { "loot", "Loot" }, { "fun", "Fun" }, { "pop", "Pop" }, { "anime", "Anime" }, { "world", "World" } }
+local FEAT_GROUPS = { { "style", "Styles" }, { "class", "Classes" }, { "spec", "Specs" }, { "race", "Races" }, { "faction", "Faction" }, { "pvp", "PvP" },
+                      { "prof", "Trades" }, { "loot", "Loot" }, { "fun", "Secrets" }, { "pop", "Pop" }, { "anime", "Anime" }, { "world", "World" } }
 local CLASS_ORDER = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
-local LIST_ROW, LIST_TOP = 24, -92
+-- The skin list scrolls (the mouse wheel) when a group is longer than the
+-- window: three rows of group tabs above it.
+local LIST_ROW, LIST_TOP, LIST_H = 24, -114, 482
+local listScroll, listContent, listThumb
 local listGroup, featGroup = "style", "style"
 local expandedClass        -- the class whose spec variants are folded open
 local featSpecClass        -- the class shown in the Feats tab's Specs group
@@ -67,11 +70,31 @@ local function groupTab(parent, text, onClick)
     return b
 end
 
+-- Scrolls the skin list to offset (pixels), kept within its length, and
+-- places the scroll thumb.
+local function scrollList(offset)
+    if not listScroll then return end
+    local total = listContent.total or 0
+    local max = math.max(0, total - LIST_H)
+    offset = math.max(0, math.min(max, offset or 0))
+    listScroll.offset = offset
+    listScroll:SetVerticalScroll(offset)
+    if max > 0 then
+        local h = math.max(24, LIST_H * LIST_H / total)
+        listThumb:SetHeight(h)
+        listThumb:ClearAllPoints()
+        listThumb:SetPoint("TOPRIGHT", listScroll, "TOPRIGHT", 0, -(LIST_H - h) * offset / max)
+        listThumb:Show()
+    else
+        listThumb:Hide()
+    end
+end
+
 local function layoutSkins()
-    local y = LIST_TOP
+    local y = 0
     local function place(b, indent, row)
         b:ClearAllPoints()
-        b:SetPoint("TOPLEFT", 14 + indent, y)
+        b:SetPoint("TOPLEFT", listContent, "TOPLEFT", indent, y)
         b:Show()
         y = y - row
     end
@@ -95,6 +118,9 @@ local function layoutSkins()
         end
     end
     for _, t in ipairs(skinGroupTabs) do t.SetOn(t.group == listGroup) end
+    listContent.total = -y
+    listContent:SetHeight(math.max(1, -y))
+    scrollList(listScroll.offset)
 end
 
 local function layoutFeats()
@@ -116,10 +142,11 @@ local function layoutFeats()
         end
     end
     local perCol = math.ceil(#shown / 2)
+    local step = math.min(34, floor(440 / math.max(1, perCol)))
     for i, r in ipairs(shown) do
         local col, row = floor((i - 1) / perCol), (i - 1) % perCol
         r:ClearAllPoints()
-        r:SetPoint("TOPLEFT", 16 + col * (r.colW + 16), -132 - row * 34)
+        r:SetPoint("TOPLEFT", 16 + col * (r.colW + 16), -132 - row * step)
     end
     for _, t in ipairs(featGroupTabs) do t.SetOn(t.group == featGroup) end
 end
@@ -391,13 +418,27 @@ local function buildSkins(page)
     for i, g in ipairs(GROUPS) do
         local t = groupTab(page, g[2], function()
             listGroup = g[1]
+            if listScroll then listScroll.offset = 0 end
             layoutSkins()
         end)
         t.group = g[1]
-        t:SetSize(39, 20)
-        t:SetPoint("TOPLEFT", 14 + ((i - 1) % 5) * 40, -44 - math.floor((i - 1) / 5) * 22)
+        t:SetSize(49, 20)
+        t:SetPoint("TOPLEFT", 14 + ((i - 1) % 4) * 50, -44 - math.floor((i - 1) / 4) * 22)
         skinGroupTabs[#skinGroupTabs + 1] = t
     end
+    listScroll = CreateFrame("ScrollFrame", nil, page)
+    listScroll:SetPoint("TOPLEFT", 14, LIST_TOP)
+    listScroll:SetSize(206, LIST_H)
+    listScroll.offset = 0
+    listContent = CreateFrame("Frame", nil, listScroll)
+    listContent:SetSize(200, 1)
+    listScroll:SetScrollChild(listContent)
+    listScroll:EnableMouseWheel(true)
+    listScroll:SetScript("OnMouseWheel", function(_, delta) scrollList(listScroll.offset - delta * LIST_ROW * 3) end)
+    listThumb = listScroll:CreateTexture(nil, "OVERLAY")
+    listThumb:SetWidth(3)
+    listThumb:SetColorTexture(1, 0.82, 0.4, 0.5)
+    listThumb:Hide()
     local mine = ns.Skins[ns.ClassSkinID() or ""]
     -- Plain font in the class color: some class skins' fonts (crystal, dots)
     -- are hard to read at list size.
@@ -411,7 +452,7 @@ local function buildSkins(page)
     }
     for _, id in ipairs(ordered) do
         local skin = id == ns.AUTO and autoEntry or ns.Skins[id]
-        local b = CreateFrame("Button", nil, page)
+        local b = CreateFrame("Button", nil, listContent)
         b.id = id
         b.group = groupOf(id)
         b.class = id ~= ns.AUTO and skin.class or nil
@@ -684,9 +725,9 @@ local function buildFeats(page)
             layoutFeats()
         end)
         t.group = g[1]
-        t:SetSize(43, 20)
+        t:SetSize(40, 20)
         t:SetPoint("TOPLEFT", x, -106)
-        x = x + 44
+        x = x + 41
         featGroupTabs[#featGroupTabs + 1] = t
     end
 
