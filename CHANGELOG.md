@@ -1,5 +1,40 @@
 # SkinDeep
 
+## 1.8.0
+
+- **Twenty World skins** on a new **World** tab, each earned in the world:
+  - **The legendaries:** Windseeker (Thunderfury), Hand of Ragnaros
+    (Sulfuras), Ashbringer and Atiesh. Each weapon is drawn from the game's
+    own model, and its crits show the item's real icon and name in
+    legendary orange.
+    - Windseeker swings Thunderfury up in a whirlwind as lightning chains
+      from foe to foe and a frost nova takes the last.
+    - Hand of Ragnaros brings Sulfuras down and the ground erupts in fire.
+    - Ashbringer drives the blade down onto consecrated ground under wings
+      of light.
+    - Atiesh opens a portal, looses a raven and fires arcane missiles.
+  - **Raids and dungeons:** Corrupted Blood, Chromatic, Emerald Dream, Titan
+    Disc, Bonecraft and Kodo Stampede, earned by defeating the boss behind
+    each, or by slaying kodos.
+  - **Creatures:** No Take Candle, Polymorph (your crit turns into a sheep),
+    Raptor Pack, Wisp and Green Hills.
+  - **Holidays and the Faire:** Midsummer Blaze, Lunar Lanterns, High
+    Striker, Egg Hunt and Spirit Healer.
+- **Every skin casts spells now.** All 163 existing skins keep their look
+  and gain their theme's magic.
+  - Classes: Bloodrage's thunder clap, Lightbringer's Consecration, a volley
+    of arrows for Dead Eye, Stormcall's chain lightning, Fel Pact's shadow
+    bolt.
+  - Specs, factions and PvP: Pyroclasm's columns of real fire, Mind Flay's
+    beam, Broodmother's dragonfire, High Warlord's drumbeat shockwaves.
+  - The rest: frost novas, holy stars, smoke, embers, flying rocks and
+    rising spirals of light, right through to Pop and Anime.
+- **Fixed:** the skin list scrolls (use the mouse wheel). In 1.7.0 the last
+  Anime skins sat below the bottom of the window and couldn't be picked.
+- **Fixed:** crits that vanish into something (Gotcha!, Read Receipt,
+  Face-Down Card, Isekai'd) no longer leave a dot where the number was.
+- The skin tabs sit in three rows, to make room for World.
+
 ## 1.7.0
 
 - **Twelve Pop skins** on a new **Pop** tab: homages to fairytale films and
